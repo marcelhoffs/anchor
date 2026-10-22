@@ -21,6 +21,11 @@ type Config struct {
 	LogLevel       slog.Level
 	AdminUser      string
 	AdminPassword  string
+
+	// Signup and Require2FA, when set in the environment, override what an
+	// admin chooses in the UI. "" / nil = not set.
+	Signup     string
+	Require2FA *bool
 }
 
 // Load reads the environment. When requireServe is false, the settings only
@@ -53,6 +58,23 @@ func Load(requireServe bool) (*Config, error) {
 			continue
 		}
 		c.TrustedProxies = append(c.TrustedProxies, p.Masked())
+	}
+
+	switch v := strings.ToLower(os.Getenv("BURROW_SIGNUP")); v {
+	case "", "closed", "invite", "open":
+		c.Signup = v
+	default:
+		errs = append(errs, errors.New("BURROW_SIGNUP must be closed, invite or open"))
+	}
+	switch v := strings.ToLower(os.Getenv("BURROW_REQUIRE_2FA")); v {
+	case "":
+	case "true", "1", "yes":
+		c.Require2FA = new(bool)
+		*c.Require2FA = true
+	case "false", "0", "no":
+		c.Require2FA = new(bool)
+	default:
+		errs = append(errs, errors.New("BURROW_REQUIRE_2FA must be true or false"))
 	}
 
 	if raw := os.Getenv("BURROW_BASE_URL"); raw != "" {

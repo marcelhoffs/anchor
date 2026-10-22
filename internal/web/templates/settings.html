@@ -2,6 +2,7 @@
 {{define "content"}}
 <div class="card">
   <h1>Settings</h1>
+  {{template "settings-nav" .}}
 
   <section aria-labelledby="appearance">
     <h2 id="appearance">Appearance</h2>
@@ -39,32 +40,6 @@
       <label>Confirm new password <input type="password" name="confirm" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
       <button class="btn btn-primary">Change password</button>
     </form>
-  </section>
-
-  <section aria-labelledby="sessions">
-    <h2 id="sessions">Sessions</h2>
-    <p class="muted">Devices signed in to your account.</p>
-    <div class="table-wrap">
-    <table>
-      <thead><tr><th scope="col">Device</th><th scope="col">IP</th><th scope="col">Last active</th><th scope="col"><span class="visually-hidden">Revoke</span></th></tr></thead>
-      <tbody>
-      {{range .Sessions}}
-        <tr>
-          <td>{{if .UserAgent}}{{.UserAgent}}{{else}}Unknown{{end}}{{if .Current}} <span class="badge">This device</span>{{end}}</td>
-          <td class="num">{{.IP}}</td>
-          <td>{{ago .LastSeenAt}}</td>
-          <td class="actions">
-            <form method="post" action="/settings/sessions/revoke">
-              <input type="hidden" name="csrf" value="{{$.CSRF}}">
-              <input type="hidden" name="id" value="{{.ID}}">
-              <button class="link-btn danger">{{if .Current}}Log out{{else}}Revoke{{end}}</button>
-            </form>
-          </td>
-        </tr>
-      {{end}}
-      </tbody>
-    </table>
-    </div>
   </section>
 
   <section aria-labelledby="bookmarklet">

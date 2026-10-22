@@ -1,0 +1,62 @@
+{{define "title"}}{{if eq .Mode "login"}}Two-factor authentication{{else}}Confirm it's you{{end}}{{end}}
+{{define "content"}}
+<div class="auth">
+  <div class="card">
+    {{if eq .Mode "login"}}
+    <h1>Two-factor authentication</h1>
+    <p class="lead">Signing in as <strong>{{.Who}}</strong>.</p>
+    {{else}}
+    <h1>Confirm it's you</h1>
+    <p class="lead">This action changes how you sign in{{if .MFA.Enabled}}, so it needs your second factor{{end}}.</p>
+    {{end}}
+
+    {{if and .MFA.Passkeys .PasskeysAvailable}}
+    <div class="verify-option" data-passkey-scope>
+      <button type="button" class="btn btn-primary wide" data-passkey="login"
+        data-begin="{{.Action}}/passkey/begin" data-finish="{{.PasskeyFinish}}">{{icon "key" "sm"}}Use a passkey</button>
+      <p class="error" data-passkey-status hidden></p>
+    </div>
+    {{end}}
+
+    {{if .MFA.TOTP}}
+    <form method="post" action="{{.Action}}/totp" class="verify-option">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label>Code from your authenticator app
+        <input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required{{if not .MFA.Passkeys}} autofocus{{end}} placeholder="123456"></label>
+      <button class="btn{{if not .MFA.Passkeys}} btn-primary{{end}} wide">Verify</button>
+    </form>
+    {{end}}
+
+    {{if .MFA.Enabled}}
+    <details class="verify-option">
+      <summary>Use a recovery code</summary>
+      <form method="post" action="{{.Action}}/recovery">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="next" value="{{.Next}}">
+        <label>Recovery code <input name="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="xxxxx-xxxxx" required></label>
+        <button class="btn wide">Use recovery code</button>
+      </form>
+    </details>
+    {{else}}
+    <form method="post" action="/reauth/password">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <input type="text" name="username" value="{{.Who}}" autocomplete="username" hidden>
+      <label>Password <input type="password" name="password" required autocomplete="current-password" autofocus></label>
+      <button class="btn btn-primary wide">Confirm</button>
+    </form>
+    {{end}}
+
+    {{if eq .Mode "login"}}
+    <form method="post" action="/logout" class="verify-cancel">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="link-btn">Cancel and sign in as someone else</button>
+    </form>
+    {{else}}
+    <p class="verify-cancel"><a href="{{if .Next}}{{.Next}}{{else}}/settings/security{{end}}">Cancel</a></p>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{define "scripts"}}{{if and .MFA.Passkeys .PasskeysAvailable}}<script src="{{asset "passkeys.js"}}"></script>{{end}}{{end}}

@@ -20,10 +20,16 @@
   {{with .Bookmark}}
   <div class="danger-zone">
     <p class="muted">Saved {{ago .CreatedAt}}.</p>
-    <form method="post" action="/bookmarks/{{.ID}}/delete">
+    <button type="button" class="btn btn-danger" popovertarget="delete-bookmark">{{icon "trash" "sm"}}Delete bookmark</button>
+  </div>
+  <div id="delete-bookmark" class="confirm" popover role="dialog" aria-labelledby="delete-bookmark-title">
+    <p class="confirm-title" id="delete-bookmark-title">Delete this bookmark?</p>
+    <p class="confirm-text"><strong>{{display .}}</strong> will be deleted permanently. This can't be undone.</p>
+    <form method="post" action="/bookmarks/{{.ID}}/delete" class="confirm-actions">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
       <input type="hidden" name="next" value="/">
-      <button class="btn btn-danger">{{icon "trash" "sm"}}Delete bookmark</button>
+      <button type="button" class="btn" popovertarget="delete-bookmark" popovertargetaction="hide">Cancel</button>
+      <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
     </form>
   </div>
   {{end}}

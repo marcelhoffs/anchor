@@ -1,0 +1,14 @@
+{{define "title"}}Recovery codes{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>Save your recovery codes</h1>
+  <p class="muted intro">If you lose your device, each of these codes signs you in once. They're shown only now: print them or store them in your password manager.</p>
+  <ul class="codes">
+    {{range .Codes}}<li><code>{{.}}</code></li>{{end}}
+  </ul>
+  <p class="muted">Any older recovery codes no longer work.</p>
+  <div class="form-actions">
+    <a class="btn btn-primary" href="/settings/security">I've saved them</a>
+  </div>
+</div>
+{{end}}

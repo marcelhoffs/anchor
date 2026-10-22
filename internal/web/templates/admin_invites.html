@@ -1,0 +1,52 @@
+{{define "title"}}Admin · Invites{{end}}
+{{define "content"}}
+<div class="card wide-card">
+  <h1>Admin</h1>
+  {{template "admin-nav" .}}
+
+  {{if eq .SignupMode "closed"}}
+  <p class="error">Signup is closed, so invite links won't work. Allow invites under <a href="/admin/settings">Instance</a>.</p>
+  {{end}}
+
+  <section aria-labelledby="new-invite">
+    <h2 id="new-invite">Invite someone</h2>
+    <p class="muted">Creates a single-use signup link that expires in 7 days.</p>
+    <form method="post" action="/admin/invites" class="row-wrap">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label class="visually-hidden" for="note">Note</label>
+      <input id="note" name="note" maxlength="100" placeholder="Who is it for? (optional)">
+      <button class="btn btn-primary">{{icon "plus" "sm"}}Create invite link</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="invites">
+    <h2 id="invites">Invites</h2>
+    {{if .Invites}}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Note</th><th scope="col">Created</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Revoke</span></th></tr></thead>
+      <tbody>
+      {{range .Invites}}
+        <tr>
+          <td>{{if .Note}}{{.Note}}{{else}}<span class="muted">No note</span>{{end}}</td>
+          <td>{{ago .CreatedAt}}{{if .CreatedBy}} by {{.CreatedBy}}{{end}}</td>
+          <td>{{if not .UsedAt.IsZero}}Used by {{.UsedBy}} {{ago .UsedAt}}{{else if .ExpiresAt.Before $.Now}}<span class="muted">Expired</span>{{else}}<span class="badge on">Open</span> until {{.ExpiresAt.Format "2 Jan"}}{{end}}</td>
+          <td class="actions">
+            {{if .UsedAt.IsZero}}
+            <form method="post" action="/admin/invites/{{.ID}}/delete">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <button class="link-btn danger">Revoke</button>
+            </form>
+            {{end}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+    {{else}}
+    <p class="muted">No invites yet.</p>
+    {{end}}
+  </section>
+</div>
+{{end}}

@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 
@@ -65,17 +67,22 @@ func (s *Server) logRequests(next http.Handler) http.Handler {
 	})
 }
 
-// limitBody caps form posts at 1 MiB.
+// limitBody caps request bodies: 1 MiB, or 32 MiB for bookmark imports.
 func (s *Server) limitBody(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		limit := int64(maxFormBody)
+		if r.URL.Path == "/settings/import" {
+			limit = maxImportBody
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r)
 	})
 }
 
 // csrf implements signed double-submit tokens: the cookie holds
 // random.HMAC(random), and every state-changing request must echo the same
-// value in its "csrf" form field.
+// value in its "csrf" form field, or (for JSON calls from our own scripts) in
+// an X-CSRF-Token header.
 func (s *Server) csrf(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := ""
@@ -92,8 +99,11 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 				})
 			}
 		default:
-			form := r.PostFormValue("csrf")
-			if token == "" || subtle.ConstantTimeCompare([]byte(form), []byte(token)) != 1 {
+			sent := r.Header.Get("X-CSRF-Token")
+			if sent == "" {
+				sent = r.PostFormValue("csrf")
+			}
+			if token == "" || subtle.ConstantTimeCompare([]byte(sent), []byte(token)) != 1 {
 				http.Error(w, "Invalid or missing CSRF token. Reload the page and try again.", http.StatusForbidden)
 				return
 			}
@@ -234,4 +244,83 @@ func (s *Server) trusted(ip netip.Addr) bool {
 		}
 	}
 	return false
+}
+
+// pendingLogin returns the session and user of a login that passed the
+// password check and is waiting for its second factor.
+func (s *Server) pendingLogin(r *http.Request) (store.Session, store.User, bool) {
+	c, err := r.Cookie(sessionCookie)
+	if err != nil {
+		return store.Session{}, store.User{}, false
+	}
+	ss, u, err := s.store.SessionByHash(r.Context(), auth.HashToken(c.Value))
+	if err != nil || ss.MFAPassed {
+		return store.Session{}, store.User{}, false
+	}
+	return ss, u, true
+}
+
+func (s *Server) requireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !currentUser(r).IsAdmin {
+			s.notFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// enforce2FA sends users without a second factor to set one up while the
+// instance requires 2FA. Only the pages needed to do that stay reachable.
+func (s *Server) enforce2FA(next http.Handler) http.Handler {
+	allowed := func(p string) bool {
+		for _, prefix := range []string{"/settings/security", "/settings/totp", "/settings/passkeys", "/settings/recovery", "/reauth"} {
+			if strings.HasPrefix(p, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if allowed(r.URL.Path) || !s.require2FA(r.Context()) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		m, err := s.store.MFAStatus(r.Context(), currentUser(r).ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		if m.Enabled() {
+			next.ServeHTTP(w, r)
+			return
+		}
+		http.Redirect(w, r, "/settings/security?required=1", http.StatusSeeOther)
+	})
+}
+
+// requireRecentAuth makes sensitive actions ask for the password (or a
+// second factor, for users who have one) if the session hasn't proved itself
+// in the last reauthWindow.
+func (s *Server) requireRecentAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if time.Since(currentSession(r).VerifiedAt) <= reauthWindow {
+			next.ServeHTTP(w, r)
+			return
+		}
+		// Come back to the page the form was on; the action itself is re-sent
+		// by the user once confirmed.
+		back := "/settings/security"
+		if ref, err := url.Parse(r.Referer()); err == nil && ref.Host == r.Host && ref.Path != "" {
+			back = safeNext(ref.RequestURI())
+		}
+		to := "/reauth?next=" + url.QueryEscape(back)
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Please confirm it's you first.", "redirect": to})
+			return
+		}
+		http.Redirect(w, r, to, http.StatusSeeOther)
+	})
 }

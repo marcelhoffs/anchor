@@ -33,6 +33,20 @@ var funcs = template.FuncMap{
 	"asset":   assetURL,
 	"icon":    icon,
 	"initial": initial,
+	"bytes":   humanBytes,
+}
+
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return strconv.FormatInt(n, 10) + " B"
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return strconv.FormatFloat(float64(n)/float64(div), 'f', 1, 64) + " " + string("KMGTPE"[exp]) + "B"
 }
 
 // assetVersion changes whenever any embedded static file does, so asset URLs
@@ -116,6 +130,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 		prefs = u.Settings
 	}
 	d["Prefs"] = prefs
+	d["PasskeysAvailable"] = s.webauthn != nil
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", d); err != nil {
 		s.serverError(w, r, err)

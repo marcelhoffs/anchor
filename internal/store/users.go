@@ -15,6 +15,13 @@ type User struct {
 	IsActive     bool
 	Settings     Settings
 	CreatedAt    time.Time
+	LastLoginAt  time.Time // zero if never
+
+	// TOTPSecret is sealed (see auth.Keys); it is set as soon as enrolment
+	// starts, and only counts once TOTPEnabled.
+	TOTPSecret   []byte
+	TOTPEnabled  bool
+	TOTPLastStep int64
 }
 
 // Settings are a user's preferences, stored as JSON in users.settings.
@@ -42,19 +49,24 @@ func (st Settings) Normalized() Settings {
 	return Settings{Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes)}
 }
 
-const userCols = "id, username, password_hash, is_admin, is_active, settings, created_at"
+const userCols = `id, username, password_hash, is_admin, is_active, settings, created_at, coalesce(last_login_at, 0),
+	totp_secret, totp_enabled, totp_last_step`
 
 func scanUser(row interface{ Scan(...any) error }) (User, error) {
 	var u User
 	var settings string
-	var created int64
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.IsActive, &settings, &created)
+	var created, lastLogin int64
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.IsActive, &settings, &created, &lastLogin,
+		&u.TOTPSecret, &u.TOTPEnabled, &u.TOTPLastStep)
 	if err == nil {
 		// A malformed value just means defaults; it must not lock the user out.
 		json.Unmarshal([]byte(settings), &u.Settings)
 	}
 	u.Settings = u.Settings.Normalized()
 	u.CreatedAt = fromUnix(created)
+	if lastLogin > 0 {
+		u.LastLoginAt = fromUnix(lastLogin)
+	}
 	return u, notFound(err)
 }
 
@@ -134,4 +146,106 @@ func (s *Store) SetPassword(ctx context.Context, userID int64, passwordHash stri
 		_, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND token_hash IS NOT ?", userID, keepSession)
 		return err
 	})
+}
+
+// RecordLogin stamps a successful login.
+func (s *Store) RecordLogin(ctx context.Context, userID int64) error {
+	_, err := s.w.ExecContext(ctx, "UPDATE users SET last_login_at = ? WHERE id = ?", unix(s.now()), userID)
+	return err
+}
+
+// UserSummary is a row of the admin's user list: account facts only, never
+// the user's bookmarks.
+type UserSummary struct {
+	User
+	Passkeys int
+}
+
+func (s *Store) ListUsers(ctx context.Context) ([]UserSummary, error) {
+	rows, err := s.r.QueryContext(ctx, "SELECT "+userCols+`,
+		(SELECT count(*) FROM webauthn_credentials w WHERE w.user_id = users.id)
+		FROM users ORDER BY username`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []UserSummary
+	for rows.Next() {
+		var us UserSummary
+		var n int
+		u, err := scanUser(scanTail{rows, &n})
+		if err != nil {
+			return nil, err
+		}
+		us.User, us.Passkeys = u, n
+		out = append(out, us)
+	}
+	return out, rows.Err()
+}
+
+// scanTail scans extra trailing columns after the ones a scan function reads.
+type scanTail struct {
+	row  interface{ Scan(...any) error }
+	tail *int
+}
+
+func (st scanTail) Scan(dest ...any) error { return st.row.Scan(append(dest, st.tail)...) }
+
+// SetActive enables or disables an account. Disabling signs it out
+// everywhere; its API tokens stop working because lookups check is_active.
+func (s *Store) SetActive(ctx context.Context, userID int64, active bool) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		if !active {
+			if err := lastAdminGuard(ctx, tx, userID); err != nil {
+				return err
+			}
+		}
+		res, err := tx.ExecContext(ctx, "UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?", active, unix(s.now()), userID)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		if !active {
+			_, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID)
+		}
+		return err
+	})
+}
+
+func (s *Store) SetAdmin(ctx context.Context, userID int64, admin bool) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		if !admin {
+			if err := lastAdminGuard(ctx, tx, userID); err != nil {
+				return err
+			}
+		}
+		res, err := tx.ExecContext(ctx, "UPDATE users SET is_admin = ?, updated_at = ? WHERE id = ?", admin, unix(s.now()), userID)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
+}
+
+// lastAdminGuard refuses to take away the last active admin.
+func lastAdminGuard(ctx context.Context, tx *sql.Tx, userID int64) error {
+	var others int
+	err := tx.QueryRowContext(ctx,
+		"SELECT count(*) FROM users WHERE is_admin = 1 AND is_active = 1 AND id != ?", userID).Scan(&others)
+	if err != nil {
+		return err
+	}
+	var isAdmin bool
+	if err := tx.QueryRowContext(ctx, "SELECT is_admin FROM users WHERE id = ?", userID).Scan(&isAdmin); err != nil {
+		return notFound(err)
+	}
+	if isAdmin && others == 0 {
+		return invalid("Burrow needs at least one active admin.")
+	}
+	return nil
 }

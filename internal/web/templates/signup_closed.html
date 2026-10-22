@@ -1,0 +1,11 @@
+{{define "title"}}Sign-up unavailable{{end}}
+{{define "content"}}
+<div class="auth">
+  <div class="empty-state">
+    <span class="badge-icon">{{icon "users"}}</span>
+    <p class="title">{{if .HadInvite}}This invite can't be used{{else}}Sign-up is closed{{end}}</p>
+    <p>{{if .HadInvite}}It may have expired or been used already. Ask whoever invited you for a new link.{{else}}Accounts on this Burrow are created by its administrator.{{end}}</p>
+    <a class="btn btn-primary" href="/login">Log in</a>
+  </div>
+</div>
+{{end}}

@@ -62,15 +62,38 @@
           <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
           {{end}}
         </form>
+        {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
-          <button class="icon-btn" aria-label="{{if .IsArchived}}Unarchive{{else}}Archive{{end}} {{display .}}">{{icon "archive"}}</button>
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
+          <button class="icon-btn" aria-label="Unarchive {{display .}}">{{icon "archive"}}</button>
         </form>
+        {{else}}
+        <button class="icon-btn" popovertarget="archive-{{.ID}}" aria-label="Archive {{display .}}">{{icon "archive"}}</button>
+        {{end}}
         <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
-        <form method="post" action="/bookmarks/{{.ID}}/delete" class="inline">
+        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
+      </div>
+
+      {{if not .IsArchived}}
+      <div id="archive-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="archive-{{.ID}}-title">
+        <p class="confirm-title" id="archive-{{.ID}}-title">Archive this bookmark?</p>
+        <p class="confirm-text"><strong>{{display .}}</strong> moves to the Archive. You can restore it from there.</p>
+        <form method="post" action="/bookmarks/{{.ID}}/flag" class="confirm-actions">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <button class="icon-btn danger" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="1">
+          <button type="button" class="btn" popovertarget="archive-{{.ID}}" popovertargetaction="hide">Cancel</button>
+          <button class="btn btn-primary">{{icon "archive" "sm"}}Archive</button>
+        </form>
+      </div>
+      {{end}}
+      <div id="delete-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="delete-{{.ID}}-title">
+        <p class="confirm-title" id="delete-{{.ID}}-title">Delete this bookmark?</p>
+        <p class="confirm-text"><strong>{{display .}}</strong> will be deleted permanently. This can't be undone.</p>
+        <form method="post" action="/bookmarks/{{.ID}}/delete" class="confirm-actions">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <button type="button" class="btn" popovertarget="delete-{{.ID}}" popovertargetaction="hide">Cancel</button>
+          <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
         </form>
       </div>
     </li>

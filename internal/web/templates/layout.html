@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="csrf-token" content="{{.CSRF}}">
+{{if .Refresh}}<meta http-equiv="refresh" content="2">{{end}}
 <title>{{template "title" .}} · Burrow</title>
 <link rel="preload" href="{{asset "fonts/inter-latin.woff2"}}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{asset "style.css"}}">
@@ -19,6 +21,8 @@
       <summary><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span><span class="label-sm">{{.User.Username}}</span>{{icon "chevron-down" "sm"}}</summary>
       <div class="menu">
         <a href="/settings">{{icon "settings" "sm"}}Settings</a>
+        <a href="/settings/security">{{icon "shield" "sm"}}Security</a>
+        {{if .User.IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}Admin</a>{{end}}
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
           <button>{{icon "log-out" "sm"}}Log out</button>
@@ -33,6 +37,25 @@
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 {{template "content" .}}
 </main>
+{{block "scripts" .}}{{end}}
 </body>
 </html>
+{{end}}
+
+{{define "settings-nav"}}
+<nav class="tabs" aria-label="Settings">
+  <a href="/settings"{{if eq .Tab "profile"}} aria-current="page"{{end}}>Profile</a>
+  <a href="/settings/security"{{if eq .Tab "security"}} aria-current="page"{{end}}>Security</a>
+  <a href="/settings/tokens"{{if eq .Tab "tokens"}} aria-current="page"{{end}}>API tokens</a>
+  <a href="/settings/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>Import &amp; export</a>
+</nav>
+{{end}}
+
+{{define "admin-nav"}}
+<nav class="tabs" aria-label="Admin">
+  <a href="/admin/"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>Users</a>
+  <a href="/admin/invites"{{if eq .AdminTab "invites"}} aria-current="page"{{end}}>Invites</a>
+  <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>Instance</a>
+  <a href="/admin/audit"{{if eq .AdminTab "audit"}} aria-current="page"{{end}}>Audit log</a>
+</nav>
 {{end}}

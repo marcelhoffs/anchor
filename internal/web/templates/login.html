@@ -11,6 +11,7 @@
       <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
       <button class="btn btn-primary">Log in</button>
     </form>
+    {{if .OpenSignup}}<p class="verify-cancel">New here? <a href="/signup">Create an account</a></p>{{end}}
   </div>
 </div>
 {{end}}
