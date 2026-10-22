@@ -341,9 +341,17 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
+	// A field the form didn't send keeps its current value.
+	keep := func(field, cur string) string {
+		if v := r.PostFormValue(field); v != "" {
+			return v
+		}
+		return cur
+	}
 	err := s.store.SaveSettings(r.Context(), u.ID, store.Settings{
-		Accent: r.PostFormValue("accent"),
-		Theme:  r.PostFormValue("theme"),
+		Accent:  keep("accent", u.Settings.Accent),
+		Theme:   keep("theme", u.Settings.Theme),
+		Sidebar: keep("sidebar", u.Settings.Sidebar),
 	})
 	if isValidation(err) {
 		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})

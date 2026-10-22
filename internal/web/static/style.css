@@ -198,6 +198,9 @@ form.inline { display: inline; }
 main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .columns { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; }
 .sidebar { flex: 1 1 200px; max-width: 240px; display: flex; flex-direction: column; gap: 2px; }
+/* Sidebar on the right: same markup (navigation first for keyboard and
+   screen-reader users), shown after the list. */
+:root[data-sidebar="right"] .sidebar { order: 2; }
 .content { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .side-link {
   display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 12px; border-radius: 9px;
@@ -331,6 +334,11 @@ legend { margin-bottom: 8px; padding: 0; font-size: 14px; font-weight: 500; }
 }
 .choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .swatch { width: 20px; height: 20px; border-radius: 999px; }
+/* A tiny page sketch: the narrow bar is the sidebar. */
+.layout-icon { width: 26px; height: 20px; border: 1.5px solid var(--muted); border-radius: 4px; position: relative; }
+.layout-icon::after { content: ""; position: absolute; top: 2px; bottom: 2px; width: 6px; border-radius: 1px; background: var(--accent); }
+.layout-icon.left::after { left: 2px; }
+.layout-icon.right::after { right: 2px; }
 /* Each swatch shows the accent's light and dark shade. */
 .swatch.indigo { background: linear-gradient(135deg, #4f46e5 50%, #8b8cf8 50%); }
 .swatch.terracotta { background: linear-gradient(135deg, #c2410c 50%, #fb8b4f 50%); }

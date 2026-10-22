@@ -486,3 +486,38 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		t.Fatal("settings page doesn't offer every accent")
 	}
 }
+
+func TestSidebarPreference(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-sidebar="left"`) {
+		t.Fatal("default sidebar should be left")
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"accent": {"rose"}, "theme": {"dark"}, "sidebar": {"right"}}); code != http.StatusSeeOther {
+		t.Fatalf("save sidebar: %d", code)
+	}
+	_, body, _ := c.get("/")
+	if !strings.Contains(body, `data-sidebar="right"`) {
+		t.Fatal("sidebar preference not applied")
+	}
+	// The navigation still comes first in the page for keyboard and screen readers.
+	if strings.Index(body, `aria-label="Views"`) > strings.Index(body, `role="search"`) {
+		t.Fatal("sidebar moved in the markup, not just visually")
+	}
+	if _, body, _ := c.get("/settings"); !strings.Contains(body, `value="right" checked`) {
+		t.Fatal("settings page doesn't show the saved sidebar")
+	}
+	// A form that omits a field keeps it.
+	c.post("/settings/appearance", url.Values{"accent": {"indigo"}})
+	if u, _ := e.store.UserByUsername(context.Background(), "alice"); u.Settings.Sidebar != "right" || u.Settings.Theme != "dark" {
+		t.Fatalf("partial save changed other fields: %+v", u.Settings)
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"sidebar": {"top"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown sidebar: %d", code)
+	}
+	css, _ := assets.ReadFile("static/style.css")
+	if !strings.Contains(string(css), `:root[data-sidebar="right"] .sidebar { order: 2; }`) {
+		t.Fatal("no CSS for the right-hand sidebar")
+	}
+}

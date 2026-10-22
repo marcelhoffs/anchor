@@ -245,17 +245,20 @@ func TestSettings(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
-	if u.Settings != (Settings{Accent: "indigo", Theme: "system"}) {
+	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Sidebar: "left"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark"}); err != nil {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark"}) {
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right"}) {
 		t.Fatalf("saved = %+v", got.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Sidebar: "left"}); !isValidationErr(err) {
 		t.Fatalf("unknown accent: %v", err)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "top"}); !isValidationErr(err) {
+		t.Fatalf("unknown sidebar: %v", err)
 	}
 	// A corrupt value falls back to defaults rather than failing the login.
 	s.w.Exec("UPDATE users SET settings = 'not json' WHERE id = ?", u.ID)

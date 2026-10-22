@@ -28,12 +28,15 @@ type User struct {
 type Settings struct {
 	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first
 	Theme  string `json:"theme,omitempty"`  // one of Themes; "" = the first
+	// Sidebar is where the views and tags sit next to the bookmark list.
+	Sidebar string `json:"sidebar,omitempty"` // one of Sidebars; "" = the first
 }
 
-// Accents and Themes list the allowed values, the default first.
+// Accents, Themes and Sidebars list the allowed values, the default first.
 var (
-	Accents = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
-	Themes  = []string{"system", "light", "dark"}
+	Accents  = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
+	Themes   = []string{"system", "light", "dark"}
+	Sidebars = []string{"left", "right"}
 )
 
 // Normalized fills in defaults and replaces unknown values with them.
@@ -46,7 +49,7 @@ func (st Settings) Normalized() Settings {
 		}
 		return allowed[0]
 	}
-	return Settings{Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes)}
+	return Settings{Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Sidebar: pick(st.Sidebar, Sidebars)}
 }
 
 const userCols = `id, username, password_hash, is_admin, is_active, settings, created_at, coalesce(last_login_at, 0),
