@@ -1,0 +1,42 @@
+{{define "title"}}Settings{{end}}
+{{define "content"}}
+<section class="card">
+  <h1>Settings</h1>
+
+  <h2>Change password</h2>
+  <form method="post" action="/settings/password" class="narrow">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="text" name="username" value="{{.User.Username}}" autocomplete="username" hidden>
+    <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+    <label>New password <input type="password" name="password" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
+    <label>Confirm new password <input type="password" name="confirm" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
+    <button>Change password</button>
+  </form>
+
+  <h2>Sessions</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">Device</th><th scope="col">IP</th><th scope="col">Last active</th><th scope="col"><span class="visually-hidden">Revoke</span></th></tr></thead>
+    <tbody>
+    {{range .Sessions}}
+      <tr>
+        <td>{{if .UserAgent}}{{.UserAgent}}{{else}}Unknown{{end}}{{if .Current}} <span class="badge">this device</span>{{end}}</td>
+        <td>{{.IP}}</td>
+        <td>{{ago .LastSeenAt}}</td>
+        <td>
+          <form method="post" action="/settings/sessions/revoke">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input type="hidden" name="id" value="{{.ID}}">
+            <button class="link danger">{{if .Current}}Log out{{else}}Revoke{{end}}</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Bookmarklet</h2>
+  <p>Drag this link to your bookmarks bar, then click it on any page to save it: <a class="bookmarklet" href="{{.Bookmarklet}}">+ Burrow</a></p>
+</section>
+{{end}}

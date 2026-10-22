@@ -1,0 +1,32 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{template "title" .}} · Burrow</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Burrow</a>
+  {{if .User}}
+  <nav aria-label="Main">
+    <a href="/bookmarks/new"{{if eq .Path "/bookmarks/new"}} aria-current="page"{{end}}>Add</a>
+    <a href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>
+    <a href="/settings"{{if eq .Path "/settings"}} aria-current="page"{{end}}>Settings</a>
+    <form method="post" action="/logout" class="inline">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="link">Log out ({{.User.Username}})</button>
+    </form>
+  </nav>
+  {{end}}
+</header>
+<main>
+{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+{{template "content" .}}
+</main>
+</body>
+</html>
+{{end}}

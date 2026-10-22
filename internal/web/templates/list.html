@@ -1,0 +1,78 @@
+{{define "title"}}{{if .Query}}{{.Query}}{{else}}Bookmarks{{end}}{{end}}
+{{define "content"}}
+<div class="columns">
+<aside class="sidebar">
+  <nav aria-label="Views">
+    <ul class="plain">
+      <li><a href="/">All</a></li>
+      <li><a href="/?q=%21unread">Read later</a></li>
+      <li><a href="/?q=%21fav">Favourites</a></li>
+      <li><a href="/?q=%21archived">Archive</a></li>
+    </ul>
+  </nav>
+  <h2>Tags</h2>
+  <ul class="plain tags">
+    {{range .Tags}}<li><a href="{{tagURL .Name}}">#{{.Name}}</a> <span class="muted">{{.Count}}</span></li>
+    {{else}}<li class="muted">No tags yet</li>{{end}}
+  </ul>
+</aside>
+<section class="main">
+  <form class="search" method="get" action="/" role="search">
+    <input type="search" name="q" value="{{.Query}}" placeholder="Search — #tag  site:example.com  !unread" aria-label="Search bookmarks">
+    <button>Search</button>
+  </form>
+  {{if .Bookmarks}}
+  <ul class="bookmarks">
+  {{range .Bookmarks}}
+    <li class="bookmark">
+      <div class="bm-title">
+        <a href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
+        {{if .IsFavourite}}<span class="badge" title="Favourite">★</span>{{end}}
+        {{if .IsUnread}}<span class="badge">unread</span>{{end}}
+        {{if .IsArchived}}<span class="badge">archived</span>{{end}}
+      </div>
+      {{with .Description}}<p class="bm-desc">{{.}}</p>{{end}}
+      <div class="bm-meta">
+        <span>{{.Domain}}</span>
+        {{range .Tags}}<a class="tag" href="{{tagURL .}}">#{{.}}</a>{{end}}
+        <time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z"}}">{{ago .CreatedAt}}</time>
+      </div>
+      <div class="bm-actions">
+        <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">Edit</a>
+        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="unread"><input type="hidden" name="on" value="{{if .IsUnread}}0{{else}}1{{end}}">
+          <button class="link">{{if .IsUnread}}Mark read{{else}}Read later{{end}}</button>
+        </form>
+        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
+          <button class="link">{{if .IsFavourite}}Unfavourite{{else}}Favourite{{end}}</button>
+        </form>
+        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
+          <button class="link">{{if .IsArchived}}Unarchive{{else}}Archive{{end}}</button>
+        </form>
+        <form method="post" action="/bookmarks/{{.ID}}/delete" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <button class="link danger">Delete</button>
+        </form>
+      </div>
+    </li>
+  {{end}}
+  </ul>
+  {{else if .Query}}
+  <p class="empty">Nothing matches <strong>{{.Query}}</strong>.</p>
+  {{else}}
+  <p class="empty">No bookmarks yet. <a href="/bookmarks/new">Add your first one</a>.</p>
+  {{end}}
+  {{if or .PrevURL .NextURL}}
+  <nav class="pager" aria-label="Pages">
+    {{with .PrevURL}}<a href="{{.}}" rel="prev">← Newer</a>{{end}}
+    {{with .NextURL}}<a href="{{.}}" rel="next">Older →</a>{{end}}
+  </nav>
+  {{end}}
+</section>
+</div>
+{{end}}
