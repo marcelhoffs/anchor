@@ -32,7 +32,7 @@ type Settings struct {
 
 // Accents and Themes list the allowed values, the default first.
 var (
-	Accents = []string{"indigo", "terracotta"}
+	Accents = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
 	Themes  = []string{"system", "light", "dark"}
 )
 

@@ -310,6 +310,7 @@ type sessionRow struct {
 }
 
 var securityNotices = map[string]string{
+	"password":     "Password changed. Your other sessions were signed out.",
 	"revoked":      "Session revoked.",
 	"totp":         "Authenticator app is set up.",
 	"totp-off":     "Authenticator app removed. Your other sessions were signed out.",
@@ -349,6 +350,7 @@ func (s *Server) renderSecurity(w http.ResponseWriter, r *http.Request, status i
 	d["Passkeys"] = keys
 	d["Sessions"] = rows
 	d["Required"] = s.require2FA(r.Context()) && !m.Enabled()
+	d["MinPassword"] = auth.MinPasswordLen
 	s.render(w, r, status, "security", d)
 }
 
