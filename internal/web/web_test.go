@@ -321,7 +321,13 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 	if code, body, _ := laptop.post("/settings/password", url.Values{"current": {"wrong"}, "password": {"new password 1"}, "confirm": {"new password 1"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "Current password is wrong") {
 		t.Fatalf("wrong current password: %d", code)
 	}
-	if code, _, _ := laptop.post("/settings/password", url.Values{"current": {"alice-password"}, "password": {"new password 1"}, "confirm": {"new password 1"}}); code != http.StatusSeeOther {
+	if _, body, _ := laptop.get("/settings/security"); !strings.Contains(body, `action="/settings/password"`) {
+		t.Fatal("password form is not on the Security tab")
+	}
+	if _, body, _ := laptop.get("/settings"); strings.Contains(body, `action="/settings/password"`) {
+		t.Fatal("password form is still on the Profile tab")
+	}
+	if code, _, loc := laptop.post("/settings/password", url.Values{"current": {"alice-password"}, "password": {"new password 1"}, "confirm": {"new password 1"}}); code != http.StatusSeeOther || loc != "/settings/security?done=password" {
 		t.Fatalf("change password: %d", code)
 	}
 	if code, _, _ := laptop.get("/settings"); code != http.StatusOK {
@@ -449,5 +455,34 @@ func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 	_, body, _ = c.get("/bookmarks/1/edit")
 	if !confirmed(body, "delete-bookmark", "/bookmarks/1/delete") {
 		t.Fatal("edit page: delete is not behind a confirmation")
+	}
+}
+
+// Every accent the store accepts must be offered, labelled, and styled.
+func TestEveryAccentIsStyled(t *testing.T) {
+	css, err := assets.ReadFile("static/style.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range store.Accents {
+		if accentLabels[a] == "" {
+			t.Errorf("accent %q has no label", a)
+		}
+		if a != store.Accents[0] && !strings.Contains(string(css), `:root[data-accent="`+a+`"]`) {
+			t.Errorf("accent %q has no colour tokens", a)
+		}
+		if !strings.Contains(string(css), ".swatch."+a+" ") {
+			t.Errorf("accent %q has no swatch", a)
+		}
+	}
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	if code, _, _ := c.post("/settings/appearance", url.Values{"accent": {"violet"}, "theme": {"system"}}); code != http.StatusSeeOther {
+		t.Fatalf("save violet: %d", code)
+	}
+	_, body, _ := c.get("/settings")
+	if !strings.Contains(body, `data-accent="violet"`) || strings.Count(body, `name="accent"`) != len(store.Accents) {
+		t.Fatal("settings page doesn't offer every accent")
 	}
 }

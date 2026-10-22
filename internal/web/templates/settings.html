@@ -12,8 +12,9 @@
       <fieldset>
         <legend>Accent colour</legend>
         <div class="choices">
-          <label class="choice"><input type="radio" name="accent" value="indigo"{{if eq .Prefs.Accent "indigo"}} checked{{end}}><span class="swatch indigo" aria-hidden="true"></span>Indigo</label>
-          <label class="choice"><input type="radio" name="accent" value="terracotta"{{if eq .Prefs.Accent "terracotta"}} checked{{end}}><span class="swatch terracotta" aria-hidden="true"></span>Terracotta</label>
+          {{range .Accents}}
+          <label class="choice"><input type="radio" name="accent" value="{{.Value}}"{{if eq $.Prefs.Accent .Value}} checked{{end}}><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</label>
+          {{end}}
         </div>
       </fieldset>
       <fieldset>
@@ -26,19 +27,6 @@
         <span class="hint">System follows your device's light or dark setting.</span>
       </fieldset>
       <button class="btn btn-primary">Save appearance</button>
-    </form>
-  </section>
-
-  <section aria-labelledby="password">
-    <h2 id="password">Change password</h2>
-    <p class="muted">Changing it signs you out everywhere else.</p>
-    <form method="post" action="/settings/password" class="form-narrow">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="text" name="username" value="{{.User.Username}}" autocomplete="username" hidden>
-      <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
-      <label>New password <input type="password" name="password" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
-      <label>Confirm new password <input type="password" name="confirm" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
-      <button class="btn btn-primary">Change password</button>
     </form>
   </section>
 

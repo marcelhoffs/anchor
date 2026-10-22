@@ -8,6 +8,19 @@
   <p class="error" role="alert">Your administrator requires two-factor authentication. Set up an authenticator app or a passkey to continue.</p>
   {{end}}
 
+  <section aria-labelledby="password">
+    <h2 id="password">Change password</h2>
+    <p class="muted">Changing it signs you out everywhere else.</p>
+    <form method="post" action="/settings/password" class="form-narrow">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="text" name="username" value="{{.User.Username}}" autocomplete="username" hidden>
+      <label>Current password <input type="password" name="current" required autocomplete="current-password"></label>
+      <label>New password <input type="password" name="password" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
+      <label>Confirm new password <input type="password" name="confirm" required minlength="{{.MinPassword}}" autocomplete="new-password"></label>
+      <button class="btn btn-primary">Change password</button>
+    </form>
+  </section>
+
   <section aria-labelledby="twofa">
     <h2 id="twofa">Two-factor authentication</h2>
     <p class="muted">{{if .MFA.Enabled}}On. Signing in needs your password and one of these.{{else}}Off. Add a second step to signing in, so a stolen password isn't enough.{{end}}</p>

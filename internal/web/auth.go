@@ -283,7 +283,6 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 }
 
 var settingsNotices = map[string]string{
-	"password":    "Password changed. Your other sessions were signed out.",
 	"revoked":     "Session revoked.",
 	"appearance":  "Appearance saved.",
 	"totp-off":    "Authenticator app removed. Your other sessions were signed out.",
@@ -293,8 +292,24 @@ var settingsNotices = map[string]string{
 	"confirmed":   "Thanks, you're confirmed for the next 10 minutes.",
 }
 
+// accentLabels names each store.Accents value in the appearance picker.
+var accentLabels = map[string]string{
+	"indigo": "Indigo", "terracotta": "Terracotta", "emerald": "Emerald", "ocean": "Ocean",
+	"violet": "Violet", "rose": "Rose", "graphite": "Graphite",
+}
+
+type choice struct{ Value, Label string }
+
+func accentChoices() []choice {
+	out := make([]choice, len(store.Accents))
+	for i, a := range store.Accents {
+		out[i] = choice{a, accentLabels[a]}
+	}
+	return out
+}
+
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status int, d data) {
-	d["MinPassword"] = auth.MinPasswordLen
+	d["Accents"] = accentChoices()
 	d["Bookmarklet"] = s.bookmarklet()
 	d["Tab"] = "profile"
 	s.render(w, r, status, "settings", d)
@@ -302,7 +317,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	u, cur := currentUser(r), currentSession(r)
-	fail := func(msg string) { s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": msg}) }
+	fail := func(msg string) { s.renderSecurity(w, r, http.StatusUnprocessableEntity, data{"Error": msg}) }
 	if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
 		fail("Current password is wrong.")
 		return
@@ -321,7 +336,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventPasswordChanged})
-	http.Redirect(w, r, "/settings?done=password", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings/security?done=password", http.StatusSeeOther)
 }
 
 func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
