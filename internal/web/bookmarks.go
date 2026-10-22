@@ -27,6 +27,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	counts, err := s.store.CountBookmarks(r.Context(), u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	pageURL := func(p int) string {
 		v := url.Values{}
 		if q != "" {
@@ -40,7 +45,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		}
 		return "/?" + v.Encode()
 	}
-	d := data{"Query": q, "Bookmarks": list, "Tags": tags, "Here": r.URL.RequestURI()}
+	view, heading := listView(q)
+	d := data{
+		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "Here": r.URL.RequestURI(),
+		"View": view, "Heading": heading,
+	}
 	if page > 1 {
 		d["PrevURL"] = pageURL(page - 1)
 	}
@@ -50,6 +59,22 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "list", d)
 }
 
+// listView names the sidebar entry a query corresponds to ("all", "fav",
+// "archive", "#<tag>", or "" for any other search) and the page heading.
+func listView(q string) (view, heading string) {
+	switch q = strings.TrimSpace(q); {
+	case q == "":
+		return "all", "All bookmarks"
+	case q == "!fav":
+		return "fav", "Favourites"
+	case q == "!archived":
+		return "archive", "Archive"
+	case strings.HasPrefix(q, "#") && len(q) > 1 && len(strings.Fields(q)) == 1:
+		return q, q
+	}
+	return "", "Search results"
+}
+
 func bookmarkForm(r *http.Request) store.BookmarkInput {
 	return store.BookmarkInput{
 		URL:         r.PostFormValue("url"),
@@ -57,7 +82,6 @@ func bookmarkForm(r *http.Request) store.BookmarkInput {
 		Description: r.PostFormValue("description"),
 		Notes:       r.PostFormValue("notes"),
 		Tags:        []string{r.PostFormValue("tags")},
-		IsUnread:    r.PostFormValue("unread") != "",
 		IsFavourite: r.PostFormValue("favourite") != "",
 	}
 }
@@ -65,7 +89,7 @@ func bookmarkForm(r *http.Request) store.BookmarkInput {
 func formData(in store.BookmarkInput) data {
 	return data{
 		"URL": in.URL, "BTitle": in.Title, "Description": in.Description, "Notes": in.Notes,
-		"TagText": strings.Join(store.CleanTags(in.Tags), " "), "Unread": in.IsUnread, "Favourite": in.IsFavourite,
+		"TagText": strings.Join(store.CleanTags(in.Tags), " "), "Favourite": in.IsFavourite,
 	}
 }
 
@@ -123,7 +147,7 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	d := formData(store.BookmarkInput{
 		URL: b.URL, Title: b.Title, Description: b.Description, Notes: b.Notes,
-		Tags: b.Tags, IsUnread: b.IsUnread, IsFavourite: b.IsFavourite,
+		Tags: b.Tags, IsFavourite: b.IsFavourite,
 	})
 	d["Bookmark"] = b
 	d["Next"] = safeNext(r.URL.Query().Get("next"))
@@ -183,7 +207,7 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	flag := store.Flag(r.PostFormValue("flag"))
 	switch flag {
-	case store.FlagUnread, store.FlagFavourite, store.FlagArchived:
+	case store.FlagFavourite, store.FlagArchived:
 	default:
 		http.Error(w, "Unknown flag", http.StatusBadRequest)
 		return

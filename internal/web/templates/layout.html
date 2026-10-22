@@ -1,24 +1,30 @@
 {{define "layout"}}<!doctype html>
-<html lang="en">
+<html lang="en" data-accent="{{.Prefs.Accent}}" data-theme="{{.Prefs.Theme}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{template "title" .}} · Burrow</title>
-<link rel="stylesheet" href="/static/style.css">
-<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="preload" href="{{asset "fonts/inter-latin.woff2"}}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{asset "style.css"}}">
+<link rel="icon" href="{{asset "icon.svg"}}" type="image/svg+xml">
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="/">Burrow</a>
+  <a class="brand" href="/"><span class="brand-mark">{{icon "bookmark"}}</span>Burrow</a>
   {{if .User}}
   <nav aria-label="Main">
-    <a href="/bookmarks/new"{{if eq .Path "/bookmarks/new"}} aria-current="page"{{end}}>Add</a>
-    <a href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>
-    <a href="/settings"{{if eq .Path "/settings"}} aria-current="page"{{end}}>Settings</a>
-    <form method="post" action="/logout" class="inline">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <button class="link">Log out ({{.User.Username}})</button>
-    </form>
+    <a class="nav-link" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>
+    <a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>
+    <details class="user-menu">
+      <summary><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span><span class="label-sm">{{.User.Username}}</span>{{icon "chevron-down" "sm"}}</summary>
+      <div class="menu">
+        <a href="/settings">{{icon "settings" "sm"}}Settings</a>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{.CSRF}}">
+          <button>{{icon "log-out" "sm"}}Log out</button>
+        </form>
+      </div>
+    </details>
   </nav>
   {{end}}
 </header>

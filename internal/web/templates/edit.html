@@ -1,30 +1,31 @@
 {{define "title"}}{{if .Bookmark}}Edit bookmark{{else}}Add bookmark{{end}}{{end}}
 {{define "content"}}
-<section class="card">
+<div class="card">
   <h1>{{if .Bookmark}}Edit bookmark{{else}}Add bookmark{{end}}</h1>
   <form method="post" action="{{if .Bookmark}}/bookmarks/{{.Bookmark.ID}}{{else}}/bookmarks{{end}}">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <input type="hidden" name="next" value="{{.Next}}">
-    <label>URL <input type="url" name="url" value="{{.URL}}" required{{if not .Bookmark}} autofocus{{end}} inputmode="url"></label>
+    <label>URL <input type="url" name="url" value="{{.URL}}" required{{if not .Bookmark}} autofocus{{end}} inputmode="url" placeholder="https://"></label>
     <label>Title <input name="title" value="{{.BTitle}}" maxlength="1000"></label>
     <label>Description <textarea name="description" rows="2" maxlength="10000">{{.Description}}</textarea></label>
     <label>Tags <input name="tags" value="{{.TagText}}" placeholder="homelab go reading" autocapitalize="none" spellcheck="false">
-      <small class="muted">Separate with spaces or commas.</small></label>
+      <span class="hint">Separate tags with spaces or commas.</span></label>
     <label>Notes <textarea name="notes" rows="5">{{.Notes}}</textarea></label>
-    <label class="check"><input type="checkbox" name="unread" value="1"{{if .Unread}} checked{{end}}> Read later</label>
     <label class="check"><input type="checkbox" name="favourite" value="1"{{if .Favourite}} checked{{end}}> Favourite</label>
-    <div class="row">
-      <button>Save</button>
-      <a href="{{.Next}}">Cancel</a>
+    <div class="form-actions">
+      <button class="btn btn-primary">Save bookmark</button>
+      <a class="btn" href="{{.Next}}">Cancel</a>
     </div>
   </form>
   {{with .Bookmark}}
-  <form method="post" action="/bookmarks/{{.ID}}/delete" class="delete-form">
-    <input type="hidden" name="csrf" value="{{$.CSRF}}">
-    <input type="hidden" name="next" value="/">
-    <button class="danger">Delete bookmark</button>
-  </form>
-  <p class="muted">Saved {{ago .CreatedAt}}.</p>
+  <div class="danger-zone">
+    <p class="muted">Saved {{ago .CreatedAt}}.</p>
+    <form method="post" action="/bookmarks/{{.ID}}/delete">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="next" value="/">
+      <button class="btn btn-danger">{{icon "trash" "sm"}}Delete bookmark</button>
+    </form>
+  </div>
   {{end}}
-</section>
+</div>
 {{end}}

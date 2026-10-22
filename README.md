@@ -24,7 +24,7 @@ Open `BURROW_BASE_URL` and create the first (admin) account on the setup page, o
 | `"exact phrase"` | Phrase match |
 | `#homelab -#archive` | Has tag / lacks tag |
 | `site:github.com` | Domain, including subdomains |
-| `!unread` `!fav` `!shared` | Flags |
+| `!fav` `!shared` | Flags |
 | `!archived` | Search the archive instead of the main list |
 | `after:2026-01-01` `before:2026-06-01` | Saved on/after, before a date (UTC) |
 
