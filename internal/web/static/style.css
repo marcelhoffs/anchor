@@ -26,6 +26,7 @@
   --soft: #eef2ff;
   --soft-text: #4338ca;
   --danger: #dc2626;
+  --on-danger: #ffffff;
   --notice-bg: #ecfdf5;
   --notice-text: #065f46;
   --error-bg: #fef2f2;
@@ -61,6 +62,7 @@
     --soft: #23244a;
     --soft-text: #c7c8ff;
     --danger: #f87171;
+    --on-danger: #0c0d11;
     --notice-bg: #0f2a1f;
     --notice-text: #a7f3d0;
     --error-bg: #3b1418;
@@ -95,6 +97,7 @@
   --soft: #23244a;
   --soft-text: #c7c8ff;
   --danger: #f87171;
+  --on-danger: #0c0d11;
   --notice-bg: #0f2a1f;
   --notice-text: #a7f3d0;
   --error-bg: #3b1418;
@@ -172,6 +175,8 @@ button { font: inherit; color: inherit; }
 .icon-btn:hover { background: var(--raised); color: var(--text); }
 .icon-btn.on { color: var(--accent); }
 .icon-btn.danger { color: var(--danger); }
+.btn-danger-solid { border-color: var(--danger); background: var(--danger); color: var(--on-danger); }
+.btn-danger-solid:hover { border-color: var(--danger); background: var(--danger); color: var(--on-danger); filter: brightness(0.92); }
 .link-btn { padding: 0; border: 0; background: none; color: var(--accent); font-size: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .link-btn.danger { color: var(--danger); }
 form.inline { display: inline; }
@@ -290,6 +295,23 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 }
 .empty-state .title { font-size: 16px; font-weight: 600; }
 .empty-state p { max-width: 380px; color: var(--muted); font-size: 14px; }
+
+/* Confirmation dialogs (HTML popover: no JavaScript needed) */
+.confirm {
+  width: min(420px, calc(100vw - 32px)); margin: auto; padding: 24px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow), 0 24px 64px rgb(0 0 0 / 0.24);
+}
+.confirm::backdrop { background: rgb(15 23 42 / 0.45); backdrop-filter: blur(2px); }
+.confirm-title { margin-bottom: 6px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.confirm-text { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.confirm-text strong { color: var(--text); font-weight: 600; }
+.confirm-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+@media (prefers-reduced-motion: no-preference) {
+  .confirm:popover-open { animation: confirm-in 140ms ease-out; }
+  @keyframes confirm-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
+}
 
 /* Cards and forms */
 .card {

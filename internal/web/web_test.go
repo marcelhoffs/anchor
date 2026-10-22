@@ -379,3 +379,43 @@ func TestVersionedAssets(t *testing.T) {
 		}
 	}
 }
+
+// Delete and archive submit only from inside a confirmation popover.
+func TestDestructiveActionsNeedConfirmation(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	c.post("/bookmarks", url.Values{"url": {"https://a.example"}, "title": {"Keep"}})
+	c.post("/bookmarks", url.Values{"url": {"https://b.example"}, "title": {"Old"}})
+	c.post("/bookmarks/2/flag", url.Values{"flag": {"archived"}, "on": {"1"}})
+
+	// The submit buttons for delete/archive must sit inside the popover that
+	// the row's trigger button opens; the row itself must not post directly.
+	confirmed := func(body, id, action string) bool {
+		trigger := strings.Contains(body, `popovertarget="`+id+`"`)
+		start := strings.Index(body, `id="`+id+`"`)
+		if !trigger || start < 0 {
+			return false
+		}
+		end := strings.Index(body[start:], "</form>")
+		return end > 0 && strings.Contains(body[start:start+end], `action="`+action+`"`)
+	}
+	_, body, _ := c.get("/")
+	if !confirmed(body, "delete-1", "/bookmarks/1/delete") || !confirmed(body, "archive-1", "/bookmarks/1/flag") {
+		t.Fatal("list: delete/archive are not behind a confirmation")
+	}
+	if n := strings.Count(body, `action="/bookmarks/1/delete"`); n != 1 {
+		t.Fatalf("list has %d delete forms for bookmark 1, want only the confirmed one", n)
+	}
+	_, body, _ = c.get("/?q=%21archived")
+	if strings.Contains(body, `id="archive-2"`) || !strings.Contains(body, `aria-label="Unarchive Old"`) {
+		t.Fatal("archive view: unarchive should be one click")
+	}
+	if !confirmed(body, "delete-2", "/bookmarks/2/delete") {
+		t.Fatal("archive view: delete is not behind a confirmation")
+	}
+	_, body, _ = c.get("/bookmarks/1/edit")
+	if !confirmed(body, "delete-bookmark", "/bookmarks/1/delete") {
+		t.Fatal("edit page: delete is not behind a confirmation")
+	}
+}
