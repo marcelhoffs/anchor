@@ -4,7 +4,7 @@
 //	"exact phrase"         phrase match
 //	#homelab -#archive     has tag / lacks tag
 //	site:github.com        domain (and subdomains)
-//	!unread !fav !shared   flags; !archived searches the archive instead
+//	!fav !shared           flags; !archived searches the archive instead
 //	after:2026-01-01       saved on or after; before: saved before
 package search
 
@@ -20,7 +20,6 @@ type Query struct {
 	Tags     []string
 	NotTags  []string
 	Sites    []string
-	Unread   bool
 	Fav      bool
 	Shared   bool
 	Archived bool
@@ -44,8 +43,6 @@ func Parse(s string) Query {
 			q.NotTags = append(q.NotTags, t[2:])
 		case strings.HasPrefix(t, "#") && len(t) > 1:
 			q.Tags = append(q.Tags, t[1:])
-		case lower == "!unread":
-			q.Unread = true
 		case lower == "!fav" || lower == "!favourite" || lower == "!favorite":
 			q.Fav = true
 		case lower == "!shared":

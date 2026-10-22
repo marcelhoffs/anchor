@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 )
 
@@ -12,17 +13,68 @@ type User struct {
 	PasswordHash string
 	IsAdmin      bool
 	IsActive     bool
+	Settings     Settings
 	CreatedAt    time.Time
 }
 
-const userCols = "id, username, password_hash, is_admin, is_active, created_at"
+// Settings are a user's preferences, stored as JSON in users.settings.
+type Settings struct {
+	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first
+	Theme  string `json:"theme,omitempty"`  // one of Themes; "" = the first
+}
+
+// Accents and Themes list the allowed values, the default first.
+var (
+	Accents = []string{"indigo", "terracotta"}
+	Themes  = []string{"system", "light", "dark"}
+)
+
+// Normalized fills in defaults and replaces unknown values with them.
+func (st Settings) Normalized() Settings {
+	pick := func(v string, allowed []string) string {
+		for _, a := range allowed {
+			if v == a {
+				return v
+			}
+		}
+		return allowed[0]
+	}
+	return Settings{Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes)}
+}
+
+const userCols = "id, username, password_hash, is_admin, is_active, settings, created_at"
 
 func scanUser(row interface{ Scan(...any) error }) (User, error) {
 	var u User
+	var settings string
 	var created int64
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.IsActive, &created)
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.IsAdmin, &u.IsActive, &settings, &created)
+	if err == nil {
+		// A malformed value just means defaults; it must not lock the user out.
+		json.Unmarshal([]byte(settings), &u.Settings)
+	}
+	u.Settings = u.Settings.Normalized()
 	u.CreatedAt = fromUnix(created)
 	return u, notFound(err)
+}
+
+// SaveSettings stores a user's preferences. Unknown values are rejected.
+func (s *Store) SaveSettings(ctx context.Context, userID int64, st Settings) error {
+	if st.Normalized() != st {
+		return invalid("Unknown appearance setting.")
+	}
+	b, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+	res, err := s.w.ExecContext(ctx, "UPDATE users SET settings = ?, updated_at = ? WHERE id = ?", string(b), unix(s.now()), userID)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (s *Store) CountUsers(ctx context.Context) (int, error) {

@@ -83,6 +83,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/tags/{id}/delete", s.deleteTag)
 			r.Get("/settings", s.settings)
 			r.Post("/settings/password", s.changePassword)
+			r.Post("/settings/appearance", s.saveAppearance)
 			r.Post("/settings/sessions/revoke", s.revokeSession)
 		})
 	})
@@ -99,9 +100,15 @@ func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok\n"))
 }
 
+// cacheFor sets a cache lifetime of d, or a year for versioned (?v=) URLs,
+// whose content never changes.
 func cacheFor(d time.Duration, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(int(d.Seconds())))
+		if r.URL.Query().Get("v") != "" {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "public, max-age="+strconv.Itoa(int(d.Seconds())))
+		}
 		h.ServeHTTP(w, r)
 	})
 }

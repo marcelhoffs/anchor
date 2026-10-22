@@ -3,6 +3,8 @@ package web
 import (
 	"bytes"
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
@@ -13,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
@@ -26,6 +30,48 @@ var funcs = template.FuncMap{
 	"tagURL":  func(name string) string { return "/?q=" + url.QueryEscape("#"+name) },
 	"join":    strings.Join,
 	"display": func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
+	"asset":   assetURL,
+	"icon":    icon,
+	"initial": initial,
+}
+
+// assetVersion changes whenever any embedded static file does, so asset URLs
+// can be cached forever and still update on deploy.
+var assetVersion = func() string {
+	h := sha256.New()
+	fs.WalkDir(assets, "static", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			b, _ := fs.ReadFile(assets, p)
+			h.Write([]byte(p))
+			h.Write(b)
+		}
+		return err
+	})
+	return hex.EncodeToString(h.Sum(nil))[:12]
+}()
+
+func assetURL(name string) string { return "/static/" + name + "?v=" + assetVersion }
+
+// icon renders an icon from the static sprite. Only ever called from
+// templates with literal arguments.
+func icon(name string, class ...string) template.HTML {
+	cls := strings.Join(append([]string{"icon"}, class...), " ")
+	return template.HTML(`<svg class="` + cls + `" aria-hidden="true" focusable="false"><use href="` +
+		assetURL("icons.svg") + "#" + name + `"></use></svg>`)
+}
+
+// initial is the upper-cased first letter or digit of s, for letter avatars.
+func initial(s string) string {
+	s = strings.TrimPrefix(s, "www.")
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return string(unicode.ToUpper(r))
+		}
+	}
+	if r, _ := utf8.DecodeRuneInString(s); r != utf8.RuneError {
+		return string(r)
+	}
+	return "?"
 }
 
 // loadTemplates parses each page together with the shared layout.
@@ -61,9 +107,15 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	if d == nil {
 		d = data{}
 	}
-	d["User"] = currentUser(r)
+	u := currentUser(r)
+	d["User"] = u
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
+	prefs := store.Settings{}.Normalized()
+	if u != nil {
+		prefs = u.Settings
+	}
+	d["Prefs"] = prefs
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", d); err != nil {
 		s.serverError(w, r, err)

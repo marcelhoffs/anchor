@@ -99,7 +99,7 @@ func TestSearch(t *testing.T) {
 		return b
 	}
 	add(BookmarkInput{URL: "https://kubernetes.io/docs/ingress", Title: "Kubernetes Ingress", Tags: []string{"homelab", "k8s"}})
-	add(BookmarkInput{URL: "https://github.com/foo/bar", Title: "Bar repo", Description: "exact phrase here", IsUnread: true})
+	add(BookmarkInput{URL: "https://github.com/foo/bar", Title: "Bar repo", Description: "exact phrase here", IsFavourite: true})
 	add(BookmarkInput{URL: "https://gist.github.com/x", Title: "Gist", Notes: "café notes", Tags: []string{"archive"}})
 	arch := add(BookmarkInput{URL: "https://old.example.com", Title: "Old kubernetes post"})
 	if err := s.SetFlag(ctx, u.ID, arch.ID, FlagArchived, true); err != nil {
@@ -117,7 +117,7 @@ func TestSearch(t *testing.T) {
 		"-#archive":                {"Bar repo", "Kubernetes Ingress"},
 		"site:github.com":          {"Bar repo", "Gist"},
 		"site:hub.com":             nil,
-		"!unread":                  {"Bar repo"},
+		"!fav":                     {"Bar repo"},
 		"k8s":                      {"Kubernetes Ingress"}, // tag names are full-text searchable
 		"after:2000-01-01 ingress": {"Kubernetes Ingress"},
 		"before:2000-01-01":        nil,
@@ -239,4 +239,47 @@ func TestCreateFirstAdminOnlyOnce(t *testing.T) {
 	if _, err := s.CreateUser(ctx, "ROOT", "x", false); err != ErrConflict {
 		t.Fatalf("case-insensitive username clash: %v", err)
 	}
+}
+
+func TestSettings(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u := newUser(t, s, "alice")
+	if u.Settings != (Settings{Accent: "indigo", Theme: "system"}) {
+		t.Fatalf("defaults = %+v", u.Settings)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark"}) {
+		t.Fatalf("saved = %+v", got.Settings)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark"}); !isValidationErr(err) {
+		t.Fatalf("unknown accent: %v", err)
+	}
+	// A corrupt value falls back to defaults rather than failing the login.
+	s.w.Exec("UPDATE users SET settings = 'not json' WHERE id = ?", u.ID)
+	if got, err := s.UserByID(ctx, u.ID); err != nil || got.Settings.Theme != "system" {
+		t.Fatalf("corrupt settings: %+v %v", got.Settings, err)
+	}
+}
+
+func TestCountBookmarks(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u, other := newUser(t, s, "alice"), newUser(t, s, "bob")
+	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://a.com", IsFavourite: true})
+	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://b.com"})
+	c, _, _ := s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://c.com", IsFavourite: true})
+	s.SetFlag(ctx, u.ID, c.ID, FlagArchived, true)
+	s.CreateBookmark(ctx, other.ID, BookmarkInput{URL: "https://d.com"})
+	got, err := s.CountBookmarks(ctx, u.ID)
+	if err != nil || got != (Counts{All: 2, Favourites: 1, Archived: 1}) {
+		t.Fatalf("counts = %+v, %v", got, err)
+	}
+}
+
+func isValidationErr(err error) bool {
+	_, ok := err.(ValidationError)
+	return ok
 }

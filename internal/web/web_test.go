@@ -133,7 +133,7 @@ func TestSetupFlow(t *testing.T) {
 	if code, _, loc := c.post("/setup", url.Values{"username": {"root"}, "password": {"long enough pw"}, "confirm": {"long enough pw"}}); code != http.StatusSeeOther || loc != "/" {
 		t.Fatalf("setup: %d %q", code, loc)
 	}
-	if code, body, _ := c.get("/"); code != http.StatusOK || !strings.Contains(body, "Log out (root)") {
+	if code, body, _ := c.get("/"); code != http.StatusOK || !strings.Contains(body, `action="/logout"`) || !strings.Contains(body, "root") {
 		t.Fatalf("setup should log the admin in: %d", code)
 	}
 	// Setup is closed once an account exists.
@@ -317,3 +317,65 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 
 func hexOf(b []byte) string { return hex.EncodeToString(b) }
+
+func TestAppearancePreference(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	anon := e.client()
+	if _, body, _ := anon.get("/login"); !strings.Contains(body, `data-accent="indigo" data-theme="system"`) {
+		t.Fatal("logged-out pages should use the defaults")
+	}
+	c := e.login("alice")
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="indigo" data-theme="system"`) {
+		t.Fatal("new users should get the defaults")
+	}
+	if code, _, loc := c.post("/settings/appearance", url.Values{"accent": {"terracotta"}, "theme": {"dark"}}); code != http.StatusSeeOther || loc != "/settings?done=appearance" {
+		t.Fatalf("save appearance: %d %q", code, loc)
+	}
+	_, body, _ := c.get("/settings")
+	if !strings.Contains(body, `data-accent="terracotta" data-theme="dark"`) || !strings.Contains(body, `value="terracotta" checked`) {
+		t.Fatal("saved appearance not applied")
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"accent": {"red"}, "theme": {"dark"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown accent: %d", code)
+	}
+	// Preferences are per user.
+	e.user("bob")
+	if _, body, _ := e.login("bob").get("/"); !strings.Contains(body, `data-accent="indigo"`) {
+		t.Fatal("alice's preference leaked to bob")
+	}
+}
+
+// The CSP forbids inline styles and scripts, so no page may contain them.
+func TestPagesAreCSPClean(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
+	inline := regexp.MustCompile(`(?i)\sstyle=|<style|<script|\son[a-z]+=`)
+	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope"} {
+		_, body, _ := c.get(path)
+		if m := inline.FindString(body); m != "" {
+			t.Errorf("%s contains %q", path, m)
+		}
+	}
+	for _, path := range []string{"/login", "/setup"} {
+		if _, body, _ := e.client().get(path); inline.MatchString(body) {
+			t.Errorf("%s has inline style or script", path)
+		}
+	}
+}
+
+func TestVersionedAssets(t *testing.T) {
+	e := newEnv(t)
+	for _, name := range []string{"style.css", "icons.svg", "icon.svg", "fonts/inter-latin.woff2"} {
+		res, err := http.Get(e.srv.URL + assetURL(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != http.StatusOK || !strings.Contains(res.Header.Get("Cache-Control"), "immutable") {
+			t.Errorf("%s: %d %q", name, res.StatusCode, res.Header.Get("Cache-Control"))
+		}
+	}
+}

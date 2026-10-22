@@ -19,7 +19,6 @@ type Bookmark struct {
 	Description string
 	Notes       string
 	Tags        []string
-	IsUnread    bool
 	IsArchived  bool
 	IsFavourite bool
 	IsShared    bool
@@ -35,7 +34,6 @@ type BookmarkInput struct {
 	Description string
 	Notes       string
 	Tags        []string
-	IsUnread    bool
 	IsFavourite bool
 }
 
@@ -43,24 +41,22 @@ type BookmarkInput struct {
 type Flag string
 
 const (
-	FlagUnread    Flag = "unread"
 	FlagFavourite Flag = "favourite"
 	FlagArchived  Flag = "archived"
 )
 
 var flagColumns = map[Flag]string{
-	FlagUnread:    "is_unread",
 	FlagFavourite: "is_favourite",
 	FlagArchived:  "is_archived",
 }
 
-const bookmarkCols = `b.id, b.url, b.domain, b.title, b.description, b.notes, b.is_unread, b.is_archived,
+const bookmarkCols = `b.id, b.url, b.domain, b.title, b.description, b.notes, b.is_archived,
 	b.is_favourite, b.share_token IS NOT NULL, b.fetch_status, b.created_at, b.updated_at`
 
 func scanBookmark(row interface{ Scan(...any) error }) (Bookmark, error) {
 	var b Bookmark
 	var created, updated int64
-	err := row.Scan(&b.ID, &b.URL, &b.Domain, &b.Title, &b.Description, &b.Notes, &b.IsUnread, &b.IsArchived,
+	err := row.Scan(&b.ID, &b.URL, &b.Domain, &b.Title, &b.Description, &b.Notes, &b.IsArchived,
 		&b.IsFavourite, &b.IsShared, &b.FetchStatus, &created, &updated)
 	b.CreatedAt, b.UpdatedAt = fromUnix(created), fromUnix(updated)
 	return b, notFound(err)
@@ -103,10 +99,10 @@ func (s *Store) CreateBookmark(ctx context.Context, userID int64, in BookmarkInp
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		now := unix(s.now())
 		err := tx.QueryRowContext(ctx,
-			`INSERT INTO bookmarks (user_id, url, url_hash, domain, title, description, notes, is_unread, is_favourite, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			`INSERT INTO bookmarks (user_id, url, url_hash, domain, title, description, notes, is_favourite, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 			 ON CONFLICT (user_id, url_hash) DO NOTHING RETURNING id`,
-			userID, normalized, hash, domain, in.Title, in.Description, in.Notes, in.IsUnread, in.IsFavourite, now, now,
+			userID, normalized, hash, domain, in.Title, in.Description, in.Notes, in.IsFavourite, now, now,
 		).Scan(&id)
 		if err == sql.ErrNoRows {
 			return tx.QueryRowContext(ctx, "SELECT id FROM bookmarks WHERE user_id = ? AND url_hash = ?", userID, hash).Scan(&id)
@@ -157,9 +153,9 @@ func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in Bookmar
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx,
 			`UPDATE bookmarks SET url = ?, url_hash = ?, domain = ?, title = ?, description = ?, notes = ?,
-			 is_unread = ?, is_favourite = ?, updated_at = ? WHERE user_id = ? AND id = ?`,
+			 is_favourite = ?, updated_at = ? WHERE user_id = ? AND id = ?`,
 			normalized, urlHash(normalized), domain, in.Title, in.Description, in.Notes,
-			in.IsUnread, in.IsFavourite, unix(s.now()), userID, id)
+			in.IsFavourite, unix(s.now()), userID, id)
 		if isUniqueViolation(err) {
 			return ErrConflict
 		}
@@ -243,9 +239,6 @@ func (s *Store) Search(ctx context.Context, userID int64, q search.Query, limit,
 	} else {
 		where = append(where, "b.is_archived = 0")
 	}
-	if q.Unread {
-		where = append(where, "b.is_unread = 1")
-	}
 	if q.Fav {
 		where = append(where, "b.is_favourite = 1")
 	}
@@ -316,4 +309,20 @@ func (s *Store) loadTags(ctx context.Context, bs []*Bookmark) error {
 		byID[id].Tags = append(byID[id].Tags, name)
 	}
 	return rows.Err()
+}
+
+// Counts holds the size of each sidebar view.
+type Counts struct {
+	All        int // not archived
+	Favourites int // favourites, not archived
+	Archived   int
+}
+
+func (s *Store) CountBookmarks(ctx context.Context, userID int64) (Counts, error) {
+	var c Counts
+	err := s.r.QueryRowContext(ctx,
+		`SELECT coalesce(sum(is_archived = 0), 0), coalesce(sum(is_archived = 0 AND is_favourite = 1), 0),
+		        coalesce(sum(is_archived = 1), 0)
+		 FROM bookmarks WHERE user_id = ?`, userID).Scan(&c.All, &c.Favourites, &c.Archived)
+	return c, err
 }

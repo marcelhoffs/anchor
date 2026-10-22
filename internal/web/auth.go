@@ -137,8 +137,9 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 }
 
 var settingsNotices = map[string]string{
-	"password": "Password changed. Your other sessions were signed out.",
-	"revoked":  "Session revoked.",
+	"password":   "Password changed. Your other sessions were signed out.",
+	"revoked":    "Session revoked.",
+	"appearance": "Appearance saved.",
 }
 
 type sessionRow struct {
@@ -186,6 +187,23 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	s.log.Info("password changed", "user", u.Username, "ip", s.clientIP(r))
 	http.Redirect(w, r, "/settings?done=password", http.StatusSeeOther)
+}
+
+func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	err := s.store.SaveSettings(r.Context(), u.ID, store.Settings{
+		Accent: r.PostFormValue("accent"),
+		Theme:  r.PostFormValue("theme"),
+	})
+	if isValidation(err) {
+		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/settings?done=appearance", http.StatusSeeOther)
 }
 
 func (s *Server) revokeSession(w http.ResponseWriter, r *http.Request) {

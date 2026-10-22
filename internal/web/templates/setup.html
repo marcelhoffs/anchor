@@ -1,14 +1,17 @@
 {{define "title"}}Set up{{end}}
 {{define "content"}}
-<section class="card narrow">
-  <h1>Welcome to Burrow</h1>
-  <p>Create the first account. It will be the administrator.</p>
-  <form method="post" action="/setup">
-    <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <label>Username <input name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
-    <label>Password <input type="password" name="password" required minlength="10" autocomplete="new-password"></label>
-    <label>Confirm password <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
-    <button>Create admin account</button>
-  </form>
-</section>
+<div class="auth">
+  <div class="card">
+    <h1>Welcome to Burrow</h1>
+    <p class="lead">Create the first account. It will be the administrator.</p>
+    <form method="post" action="/setup">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label>Username <input name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
+      <label>Password <input type="password" name="password" required minlength="10" autocomplete="new-password">
+        <span class="hint">At least 10 characters.</span></label>
+      <label>Confirm password <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
+      <button class="btn btn-primary">Create admin account</button>
+    </form>
+  </div>
+</div>
 {{end}}
