@@ -1,0 +1,11 @@
+services:
+  burrow:
+    image: ghcr.io/marcelhoffs/burrow:latest
+    build: .
+    restart: unless-stopped
+    ports: ["8080:8080"]
+    # A bind mount must be writable by UID 65532: sudo chown 65532:65532 ./data
+    volumes: ["./data:/data"]
+    read_only: true
+    # Settings live in .env; copy .env.example to get started.
+    env_file: .env

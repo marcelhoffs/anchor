@@ -1,0 +1,7 @@
+/burrow
+/burrow.exe
+/data/
+*.db
+*.db-shm
+*.db-wal
+.env
