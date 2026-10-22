@@ -1,9 +1,8 @@
-// Package web serves Burrow's server-rendered HTML interface.
+// Package web serves Burrow's server-rendered HTML interface and its REST API.
 package web
 
 import (
-	"crypto/hmac"
-	"crypto/sha256"
+	"context"
 	"embed"
 	"io/fs"
 	"log/slog"
@@ -14,8 +13,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-webauthn/webauthn/webauthn"
 
+	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/config"
+	"github.com/marcelhoffs/burrow/internal/ratelimit"
 	"github.com/marcelhoffs/burrow/internal/store"
 )
 
@@ -26,30 +28,83 @@ const (
 	sessionCookie = "burrow_session"
 	csrfCookie    = "burrow_csrf"
 	sessionTTL    = 30 * 24 * time.Hour
+	// A password-checked session waiting for its second factor lives this long.
+	pendingTTL = 5 * time.Minute
+	// Sensitive actions (2FA changes, API tokens, admin actions) need the
+	// session to have proved itself this recently.
+	reauthWindow = 10 * time.Minute
 	// A session's sliding expiry is pushed forward at most this often, so
 	// browsing doesn't turn every page view into a database write.
 	sessionTouchEvery = time.Hour
 	pageSize          = 50
+
+	maxFormBody   = 1 << 20  // 1 MiB
+	maxImportBody = 32 << 20 // 32 MiB
 )
+
+// JobNotifier is told when a background job is queued.
+type JobNotifier interface{ Notify() }
 
 type Server struct {
 	cfg      *config.Config
 	store    *store.Store
 	log      *slog.Logger
+	jobs     JobNotifier
 	pages    map[string]pageTemplate
+	keys     auth.Keys
 	csrfKey  []byte
+	webauthn *webauthn.WebAuthn // nil when passkeys are unavailable
+	cer      ceremonies
 	hasUsers atomic.Bool
+
+	// Failed logins per IP+username and per IP; failed second factors per
+	// user; requests per API token; signups per IP.
+	loginUser, loginIP, mfaUser, apiToken, signupIP *ratelimit.Limiter
 }
 
-func New(cfg *config.Config, st *store.Store, log *slog.Logger) (*Server, error) {
-	mac := hmac.New(sha256.New, cfg.SecretKey)
-	mac.Write([]byte("burrow csrf v1"))
-	s := &Server{cfg: cfg, store: st, log: log, csrfKey: mac.Sum(nil)}
-	var err error
+func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs JobNotifier) (*Server, error) {
+	keys := auth.NewKeys(cfg.SecretKey)
+	// Passkeys are bound to a domain name. Reached by IP address, Burrow runs
+	// without them (TOTP and recovery codes still work).
+	wa, err := webauthn.New(&webauthn.Config{
+		RPID:          cfg.BaseURL.Hostname(),
+		RPDisplayName: "Burrow",
+		RPOrigins:     []string{cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host},
+	})
+	if err != nil {
+		log.Warn("passkeys disabled: BURROW_BASE_URL must use a domain name", "base_url", cfg.BaseURL.String(), "err", err)
+		wa = nil
+	}
+	s := &Server{
+		cfg: cfg, store: st, log: log, jobs: jobs, keys: keys, csrfKey: keys.Derive("csrf"), webauthn: wa,
+		cer:       ceremonies{m: map[string]ceremony{}},
+		loginUser: ratelimit.New(10, 15*time.Minute),
+		loginIP:   ratelimit.New(100, 15*time.Minute),
+		mfaUser:   ratelimit.New(10, 15*time.Minute),
+		apiToken:  ratelimit.New(600, time.Minute),
+		signupIP:  ratelimit.New(10, time.Hour),
+	}
 	if s.pages, err = loadTemplates(); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// Run does periodic housekeeping until ctx ends.
+func (s *Server) Run(ctx context.Context) {
+	t := time.NewTicker(5 * time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			for _, l := range []*ratelimit.Limiter{s.loginUser, s.loginIP, s.mfaUser, s.apiToken, s.signupIP} {
+				l.Sweep()
+			}
+			s.cer.sweep()
+		}
+	}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -59,6 +114,7 @@ func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(assets, "static")
 	r.Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
 	r.Get("/healthz", s.healthz)
+	r.Route("/api/v1", s.apiRoutes)
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.limitBody, s.csrf, s.loadSession, s.setupGate)
@@ -68,9 +124,18 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/login", s.loginForm)
 		r.Post("/login", s.login)
 		r.Post("/logout", s.logout)
+		r.Get("/signup", s.signupForm)
+		r.Post("/signup", s.signup)
+
+		// Second factor after a password: these use the pending session.
+		r.Get("/login/2fa", s.login2FAForm)
+		r.Post("/login/2fa/totp", s.login2FATOTP)
+		r.Post("/login/2fa/recovery", s.login2FARecovery)
+		r.Post("/login/2fa/passkey/begin", s.login2FAPasskeyBegin)
+		r.Post("/login/2fa/passkey/finish", s.login2FAPasskeyFinish)
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.requireUser)
+			r.Use(s.requireUser, s.enforce2FA)
 			r.Get("/", s.list)
 			r.Get("/bookmarks/new", s.newBookmark)
 			r.Post("/bookmarks", s.createBookmark)
@@ -81,10 +146,54 @@ func (s *Server) Handler() http.Handler {
 			r.Get("/tags", s.tags)
 			r.Post("/tags/{id}/rename", s.renameTag)
 			r.Post("/tags/{id}/delete", s.deleteTag)
+
 			r.Get("/settings", s.settings)
 			r.Post("/settings/password", s.changePassword)
 			r.Post("/settings/appearance", s.saveAppearance)
+			r.Get("/settings/security", s.security)
 			r.Post("/settings/sessions/revoke", s.revokeSession)
+			r.Get("/settings/tokens", s.tokens)
+			r.Post("/settings/tokens/{id}/delete", s.deleteToken)
+			r.Get("/settings/data", s.dataPage)
+			r.Post("/settings/import", s.importFile)
+			r.Get("/settings/export", s.exportFile)
+
+			r.Get("/reauth", s.reauthForm)
+			r.Post("/reauth/password", s.reauthPassword)
+			r.Post("/reauth/totp", s.reauthTOTP)
+			r.Post("/reauth/recovery", s.reauthRecovery)
+			r.Post("/reauth/passkey/begin", s.reauthPasskeyBegin)
+			r.Post("/reauth/passkey/finish", s.reauthPasskeyFinish)
+
+			// Changing how you sign in, or minting credentials, needs a recent
+			// password or second-factor check.
+			r.Group(func(r chi.Router) {
+				r.Use(s.requireRecentAuth)
+				r.Post("/settings/totp/start", s.totpStart)
+				r.Post("/settings/totp/enable", s.totpEnable)
+				r.Post("/settings/totp/disable", s.totpDisable)
+				r.Post("/settings/passkeys/begin", s.passkeyRegisterBegin)
+				r.Post("/settings/passkeys/finish", s.passkeyRegisterFinish)
+				r.Post("/settings/passkeys/{id}/delete", s.passkeyDelete)
+				r.Post("/settings/recovery", s.recoveryRegenerate)
+				r.Post("/settings/tokens", s.createToken)
+			})
+
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(s.requireAdmin)
+				r.Get("/", s.adminUsers)
+				r.Get("/invites", s.adminInvites)
+				r.Get("/settings", s.adminSettings)
+				r.Get("/audit", s.adminAudit)
+				r.Group(func(r chi.Router) {
+					r.Use(s.requireRecentAuth)
+					r.Post("/users", s.adminCreateUser)
+					r.Post("/users/{id}/{action}", s.adminUserAction)
+					r.Post("/invites", s.adminCreateInvite)
+					r.Post("/invites/{id}/delete", s.adminDeleteInvite)
+					r.Post("/settings", s.adminSaveSettings)
+				})
+			})
 		})
 	})
 	r.NotFound(s.notFound)
@@ -111,4 +220,39 @@ func cacheFor(d time.Duration, h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+// signupMode is the environment's choice if set, else the admin's.
+func (s *Server) signupMode(ctx context.Context) string {
+	if s.cfg.Signup != "" {
+		return s.cfg.Signup
+	}
+	v, err := s.store.InstanceSetting(ctx, store.SettingSignup, "closed")
+	if err != nil {
+		s.log.Error("read signup setting", "err", err)
+		return "closed"
+	}
+	return v
+}
+
+// require2FA is the environment's choice if set, else the admin's.
+func (s *Server) require2FA(ctx context.Context) bool {
+	if s.cfg.Require2FA != nil {
+		return *s.cfg.Require2FA
+	}
+	v, err := s.store.InstanceSetting(ctx, store.SettingRequire2FA, "false")
+	if err != nil {
+		s.log.Error("read 2FA setting", "err", err)
+		return false
+	}
+	return v == "true"
+}
+
+// audit records an event, filling in the client IP. Failures are logged:
+// they must not break the action being audited.
+func (s *Server) audit(r *http.Request, e store.AuditEntry) {
+	e.IP = s.clientIP(r)
+	if err := s.store.Audit(r.Context(), e); err != nil {
+		s.log.Error("audit", "event", e.Event, "err", err)
+	}
 }

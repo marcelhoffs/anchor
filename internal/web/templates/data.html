@@ -1,0 +1,53 @@
+{{define "title"}}Import &amp; export{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>Settings</h1>
+  {{template "settings-nav" .}}
+
+  <section aria-labelledby="import">
+    <h2 id="import">Import</h2>
+    <p class="muted">A bookmark file from Chrome, Firefox, Safari, Edge, linkding, Pocket or Pinboard (HTML), or a Burrow JSON export. Folders become tags. Bookmarks you already have are merged, not duplicated.</p>
+    <form method="post" action="/settings/import" enctype="multipart/form-data" class="row-wrap">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label class="visually-hidden" for="file">Bookmark file</label>
+      <input id="file" type="file" name="file" accept=".html,.htm,.json,text/html,application/json" required>
+      <button class="btn btn-primary">{{icon "upload" "sm"}}Import</button>
+    </form>
+  </section>
+
+  {{if .Jobs}}
+  <section aria-labelledby="imports">
+    <h2 id="imports">Recent imports</h2>
+    <ul class="plain jobs">
+      {{range .Jobs}}
+      <li>
+        <div class="job-head">
+          <span>Started {{ago .CreatedAt}}</span>
+          {{if eq .Status "done"}}<span class="badge on">Done</span>
+          {{else if eq .Status "failed"}}<span class="badge danger">Failed</span>
+          {{else}}<span class="badge">{{if eq .Status "queued"}}Waiting{{else}}Importing{{end}}</span>{{end}}
+        </div>
+        {{if eq .Status "done"}}
+        <p class="muted">{{.Summary.Created}} added, {{.Summary.Merged}} merged with existing bookmarks{{if .Summary.Skipped}}, {{.Summary.Skipped}} skipped (not http or https){{end}}.</p>
+        {{else if eq .Status "failed"}}
+        <p class="muted">{{.LastError}}</p>
+        {{else}}
+        <progress max="100" value="{{.Percent}}" aria-label="Import progress">{{.Percent}}%</progress>
+        <p class="muted">{{.Progress}} of {{.Total}} bookmarks</p>
+        {{end}}
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+
+  <section aria-labelledby="export">
+    <h2 id="export">Export</h2>
+    <p class="muted">Download all your bookmarks. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive.</p>
+    <div class="row-wrap">
+      <a class="btn" href="/settings/export?format=html">{{icon "download" "sm"}}HTML</a>
+      <a class="btn" href="/settings/export?format=json">{{icon "download" "sm"}}JSON</a>
+    </div>
+  </section>
+</div>
+{{end}}

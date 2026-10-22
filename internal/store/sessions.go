@@ -14,23 +14,39 @@ type Session struct {
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	LastSeenAt time.Time
+	VerifiedAt time.Time // last password, 2FA or re-authentication check
 }
 
-const sessionCols = "token_hash, user_id, mfa_passed, coalesce(user_agent, ''), coalesce(ip, ''), created_at, expires_at, last_seen_at"
+const sessionCols = `token_hash, user_id, mfa_passed, coalesce(user_agent, ''), coalesce(ip, ''), created_at, expires_at,
+	last_seen_at, verified_at`
 
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var ss Session
-	var created, expires, seen int64
-	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen)
+	var created, expires, seen, verified int64
+	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen, &verified)
 	ss.CreatedAt, ss.ExpiresAt, ss.LastSeenAt = fromUnix(created), fromUnix(expires), fromUnix(seen)
+	ss.VerifiedAt = fromUnix(verified)
 	return ss, notFound(err)
 }
 
 func (s *Store) CreateSession(ctx context.Context, ss Session) error {
 	_, err := s.w.ExecContext(ctx,
-		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		ss.TokenHash, ss.UserID, ss.MFAPassed, ss.UserAgent, ss.IP, unix(ss.CreatedAt), unix(ss.ExpiresAt), unix(ss.LastSeenAt))
+		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at, verified_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ss.TokenHash, ss.UserID, ss.MFAPassed, ss.UserAgent, ss.IP, unix(ss.CreatedAt), unix(ss.ExpiresAt), unix(ss.LastSeenAt),
+		unix(ss.VerifiedAt))
+	return err
+}
+
+// MarkVerified records that the session just proved its identity again.
+func (s *Store) MarkVerified(ctx context.Context, hash []byte) error {
+	_, err := s.w.ExecContext(ctx, "UPDATE sessions SET verified_at = ? WHERE token_hash = ?", unix(s.now()), hash)
+	return err
+}
+
+// DeleteUserSessions signs a user out everywhere.
+func (s *Store) DeleteUserSessions(ctx context.Context, userID int64) error {
+	_, err := s.w.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID)
 	return err
 }
 
@@ -88,4 +104,10 @@ func (s *Store) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// DeleteOtherSessions signs a user out everywhere except keep.
+func (s *Store) DeleteOtherSessions(ctx context.Context, userID int64, keep []byte) error {
+	_, err := s.w.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND token_hash != ?", userID, keep)
+	return err
 }

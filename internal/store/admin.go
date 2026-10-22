@@ -1,0 +1,243 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+	"time"
+)
+
+// Audit events.
+const (
+	EventLoginOK          = "login_ok"
+	EventLoginFail        = "login_fail"
+	EventLoginMFAFail     = "login_mfa_fail"
+	EventLogout           = "logout"
+	EventPasswordChanged  = "password_changed"
+	EventPasswordReset    = "password_reset"
+	EventTOTPEnabled      = "totp_enabled"
+	EventTOTPDisabled     = "totp_disabled"
+	EventPasskeyAdded     = "passkey_added"
+	EventPasskeyRemoved   = "passkey_removed"
+	EventRecoveryNew      = "recovery_codes_created"
+	EventRecoveryUsed     = "recovery_code_used"
+	EventMFAReset         = "mfa_reset"
+	EventTokenCreated     = "api_token_created"
+	EventTokenRevoked     = "api_token_revoked"
+	EventUserCreated      = "user_created"
+	EventUserDisabled     = "user_disabled"
+	EventUserEnabled      = "user_enabled"
+	EventAdminGranted     = "admin_granted"
+	EventAdminRevoked     = "admin_revoked"
+	EventSignup           = "signup"
+	EventInviteCreated    = "invite_created"
+	EventInviteRevoked    = "invite_revoked"
+	EventSettingsChanged  = "instance_settings_changed"
+	EventImport           = "import"
+	EventExport           = "export"
+	EventRateLimited      = "rate_limited"
+	EventSessionsRevoked  = "sessions_revoked"
+	EventSessionRevoked   = "session_revoked"
+	EventReauthenticated  = "reauthenticated"
+	EventReauthFail       = "reauth_fail"
+	EventMFARequiredSetup = "mfa_setup_required"
+)
+
+// AuditEntry is one audit log event. UserID is whom it is about (0 = no
+// known user); ActorID who did it, when that is someone else.
+type AuditEntry struct {
+	UserID  int64
+	ActorID int64
+	Event   string
+	IP      string
+	Detail  string
+}
+
+func nullID(id int64) any {
+	if id == 0 {
+		return nil
+	}
+	return id
+}
+
+func (s *Store) Audit(ctx context.Context, e AuditEntry) error {
+	_, err := s.w.ExecContext(ctx,
+		"INSERT INTO audit_log (user_id, actor_id, event, ip, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+		nullID(e.UserID), nullID(e.ActorID), e.Event, e.IP, e.Detail, unix(s.now()))
+	return err
+}
+
+// AuditRow is an audit entry with the names it refers to.
+type AuditRow struct {
+	AuditEntry
+	Username  string
+	ActorName string
+	CreatedAt time.Time
+}
+
+func (s *Store) ListAudit(ctx context.Context, limit, offset int) (list []AuditRow, more bool, err error) {
+	rows, err := s.r.QueryContext(ctx,
+		`SELECT coalesce(a.user_id, 0), coalesce(a.actor_id, 0), a.event, coalesce(a.ip, ''), a.detail, a.created_at,
+		        coalesce(u.username, ''), coalesce(act.username, '')
+		 FROM audit_log a LEFT JOIN users u ON u.id = a.user_id LEFT JOIN users act ON act.id = a.actor_id
+		 ORDER BY a.id DESC LIMIT ? OFFSET ?`, limit+1, offset)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var r AuditRow
+		var created int64
+		if err := rows.Scan(&r.UserID, &r.ActorID, &r.Event, &r.IP, &r.Detail, &created, &r.Username, &r.ActorName); err != nil {
+			return nil, false, err
+		}
+		r.CreatedAt = fromUnix(created)
+		list = append(list, r)
+	}
+	if len(list) > limit {
+		list, more = list[:limit], true
+	}
+	return list, more, rows.Err()
+}
+
+// Invite is a single-use signup link. Only its token hash is stored.
+type Invite struct {
+	ID        int64
+	Note      string
+	CreatedBy string
+	CreatedAt time.Time
+	ExpiresAt time.Time
+	UsedAt    time.Time // zero if unused
+	UsedBy    string
+}
+
+var ErrInvalidInvite = errors.New("invite is invalid, expired or already used")
+
+func (s *Store) CreateInvite(ctx context.Context, createdBy int64, note string, hash []byte, expires time.Time) error {
+	_, err := s.w.ExecContext(ctx,
+		"INSERT INTO invites (token_hash, note, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+		hash, strings.TrimSpace(note), createdBy, unix(s.now()), unix(expires))
+	return err
+}
+
+// ListInvites returns unused invites and those used in the last 30 days.
+func (s *Store) ListInvites(ctx context.Context) ([]Invite, error) {
+	rows, err := s.r.QueryContext(ctx,
+		`SELECT i.id, i.note, coalesce(c.username, ''), i.created_at, i.expires_at, coalesce(i.used_at, 0), coalesce(u.username, '')
+		 FROM invites i LEFT JOIN users c ON c.id = i.created_by LEFT JOIN users u ON u.id = i.used_by
+		 WHERE i.used_at IS NULL OR i.used_at > ? ORDER BY i.created_at DESC`, unix(s.now().Add(-30*24*time.Hour)))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Invite
+	for rows.Next() {
+		var in Invite
+		var created, expires, used int64
+		if err := rows.Scan(&in.ID, &in.Note, &in.CreatedBy, &created, &expires, &used, &in.UsedBy); err != nil {
+			return nil, err
+		}
+		in.CreatedAt, in.ExpiresAt = fromUnix(created), fromUnix(expires)
+		if used > 0 {
+			in.UsedAt = fromUnix(used)
+		}
+		out = append(out, in)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) DeleteInvite(ctx context.Context, id int64) error {
+	res, err := s.w.ExecContext(ctx, "DELETE FROM invites WHERE id = ? AND used_at IS NULL", id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// InviteValid reports whether hash is an unused, unexpired invite.
+func (s *Store) InviteValid(ctx context.Context, hash []byte) bool {
+	var one int
+	err := s.r.QueryRowContext(ctx,
+		"SELECT 1 FROM invites WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?", hash, unix(s.now())).Scan(&one)
+	return err == nil
+}
+
+// SignUp creates a user. With an invite hash it consumes that invite in the
+// same transaction, so a link can never create two accounts.
+func (s *Store) SignUp(ctx context.Context, username, passwordHash string, inviteHash []byte) (User, error) {
+	var u User
+	err := s.tx(ctx, func(tx *sql.Tx) error {
+		var inviteID int64
+		if inviteHash != nil {
+			err := tx.QueryRowContext(ctx,
+				"SELECT id FROM invites WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?",
+				inviteHash, unix(s.now())).Scan(&inviteID)
+			if err == sql.ErrNoRows {
+				return ErrInvalidInvite
+			}
+			if err != nil {
+				return err
+			}
+		}
+		now := unix(s.now())
+		var err error
+		u, err = scanUser(tx.QueryRowContext(ctx,
+			"INSERT INTO users (username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING "+userCols,
+			username, passwordHash, now, now))
+		if isUniqueViolation(err) {
+			return ErrConflict
+		}
+		if err != nil {
+			return err
+		}
+		if inviteID != 0 {
+			_, err = tx.ExecContext(ctx, "UPDATE invites SET used_at = ?, used_by = ? WHERE id = ?", now, u.ID, inviteID)
+		}
+		return err
+	})
+	return u, err
+}
+
+// Instance settings an admin can change.
+const (
+	SettingSignup     = "signup"      // closed | invite | open
+	SettingRequire2FA = "require_2fa" // "true" | "false"
+)
+
+var SignupModes = []string{"closed", "invite", "open"}
+
+func (s *Store) InstanceSetting(ctx context.Context, key, def string) (string, error) {
+	var v string
+	err := s.r.QueryRowContext(ctx, "SELECT value FROM instance_settings WHERE key = ?", key).Scan(&v)
+	if err == sql.ErrNoRows {
+		return def, nil
+	}
+	return v, err
+}
+
+func (s *Store) SetInstanceSetting(ctx context.Context, key, value string) error {
+	_, err := s.w.ExecContext(ctx,
+		"INSERT INTO instance_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+		key, value)
+	return err
+}
+
+// Stats are instance-wide totals for the admin page.
+type Stats struct {
+	Users, ActiveUsers, Bookmarks, Tags int
+	DBBytes                             int64
+}
+
+func (s *Store) Stats(ctx context.Context) (Stats, error) {
+	var st Stats
+	err := s.r.QueryRowContext(ctx, `SELECT
+		(SELECT count(*) FROM users), (SELECT count(*) FROM users WHERE is_active = 1),
+		(SELECT count(*) FROM bookmarks), (SELECT count(*) FROM tags),
+		(SELECT page_count * page_size FROM pragma_page_count(), pragma_page_size())`).
+		Scan(&st.Users, &st.ActiveUsers, &st.Bookmarks, &st.Tags, &st.DBBytes)
+	return st, err
+}

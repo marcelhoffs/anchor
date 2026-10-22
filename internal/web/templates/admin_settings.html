@@ -1,0 +1,36 @@
+{{define "title"}}Admin · Instance{{end}}
+{{define "content"}}
+<div class="card wide-card">
+  <h1>Admin</h1>
+  {{template "admin-nav" .}}
+
+  <form method="post" action="/admin/settings">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <section aria-labelledby="signup">
+      <h2 id="signup">Sign-up</h2>
+      {{if .SignupFromEnv}}<p class="muted">Set to <strong>{{.SignupMode}}</strong> by <code>BURROW_SIGNUP</code>; change it there.</p>{{end}}
+      <fieldset{{if .SignupFromEnv}} disabled{{end}}>
+        <legend class="visually-hidden">Who can create an account</legend>
+        <label class="option"><input type="radio" name="signup" value="closed"{{if eq .SignupMode "closed"}} checked{{end}}>
+          <span><strong>Closed</strong><span class="hint">Only admins add users.</span></span></label>
+        <label class="option"><input type="radio" name="signup" value="invite"{{if eq .SignupMode "invite"}} checked{{end}}>
+          <span><strong>Invite only</strong><span class="hint">People sign up with a single-use invite link.</span></span></label>
+        <label class="option"><input type="radio" name="signup" value="open"{{if eq .SignupMode "open"}} checked{{end}}>
+          <span><strong>Open</strong><span class="hint">Anyone who can reach this Burrow can create an account.</span></span></label>
+      </fieldset>
+    </section>
+
+    <section aria-labelledby="policy">
+      <h2 id="policy">Two-factor authentication</h2>
+      {{if .Require2FAFromEnv}}<p class="muted">Set by <code>BURROW_REQUIRE_2FA</code>; change it there.</p>{{end}}
+      <label class="check"><input type="checkbox" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
+        Require every user to set up two-factor authentication</label>
+      <span class="hint">Users without it are sent to set it up the next time they use Burrow.</span>
+    </section>
+
+    {{if not (and .SignupFromEnv .Require2FAFromEnv)}}
+    <div class="form-actions"><button class="btn btn-primary">Save</button></div>
+    {{end}}
+  </form>
+</div>
+{{end}}

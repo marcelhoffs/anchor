@@ -1,0 +1,23 @@
+{{define "title"}}Set up authenticator app{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>Set up authenticator app</h1>
+  <ol class="steps">
+    <li>
+      <p>Scan this QR code with your authenticator app.</p>
+      <img class="qr" src="{{.QR}}" width="220" height="220" alt="QR code for your authenticator app">
+      <p class="muted">Can't scan it? Enter this key instead: <code class="secret">{{.Secret}}</code></p>
+    </li>
+    <li>
+      <p>Enter the 6-digit code the app shows.</p>
+      <form method="post" action="/settings/totp/enable" class="row form-narrow">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <label class="visually-hidden" for="code">Code</label>
+        <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus placeholder="123456">
+        <button class="btn btn-primary">Turn on</button>
+      </form>
+    </li>
+  </ol>
+  <p><a href="/settings/security">Cancel</a></p>
+</div>
+{{end}}

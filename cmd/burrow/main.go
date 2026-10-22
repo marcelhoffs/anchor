@@ -20,6 +20,7 @@ import (
 	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/config"
 	"github.com/marcelhoffs/burrow/internal/db"
+	"github.com/marcelhoffs/burrow/internal/jobs"
 	"github.com/marcelhoffs/burrow/internal/store"
 	"github.com/marcelhoffs/burrow/internal/web"
 )
@@ -32,6 +33,7 @@ Commands:
   user create <name> [--admin]   create a user; prints a generated password,
                                  or reads one from stdin with --password-stdin
   user reset-password <name>     set a new password and sign out all sessions
+  user reset-2fa <name>          remove all second factors and sign out all sessions
   backup <file>                  write a consistent snapshot of the database
   healthcheck                    exit 0 if the local server answers /healthz
 
@@ -117,11 +119,14 @@ func serve(ctx context.Context) error {
 		return err
 	}
 	go cleanSessions(ctx, st, log)
+	worker := jobs.NewWorker(st, log)
+	go worker.Run(ctx)
 
-	srv, err := web.New(cfg, st, log)
+	srv, err := web.New(cfg, st, log, worker)
 	if err != nil {
 		return err
 	}
+	go srv.Run(ctx)
 	hs := &http.Server{
 		Addr:              cfg.Listen,
 		Handler:           srv.Handler(),
@@ -187,7 +192,7 @@ func cleanSessions(ctx context.Context, st *store.Store, log *slog.Logger) {
 
 func userCmd(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: burrow user create|reset-password <name>")
+		return errors.New("usage: burrow user create|reset-password|reset-2fa <name>")
 	}
 	fs := flag.NewFlagSet("user "+args[0], flag.ContinueOnError)
 	admin := fs.Bool("admin", false, "make the user an administrator")
@@ -245,6 +250,20 @@ func userCmd(ctx context.Context, args []string) error {
 				return err
 			}
 			fmt.Printf("Password for %s reset; all their sessions were signed out.\n", u.Username)
+		case "reset-2fa":
+			u, err := st.UserByUsername(ctx, name)
+			if errors.Is(err, store.ErrNotFound) {
+				return fmt.Errorf("no user %q", name)
+			}
+			if err != nil {
+				return err
+			}
+			if err := st.ResetMFA(ctx, u.ID); err != nil {
+				return err
+			}
+			st.Audit(ctx, store.AuditEntry{UserID: u.ID, Event: store.EventMFAReset, Detail: "via CLI"})
+			fmt.Printf("Two-factor authentication for %s removed; all their sessions were signed out.\n", u.Username)
+			return nil
 		default:
 			return fmt.Errorf("unknown user command %q", args[0])
 		}

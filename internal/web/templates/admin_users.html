@@ -1,0 +1,69 @@
+{{define "title"}}Admin · Users{{end}}
+{{define "content"}}
+<div class="card wide-card">
+  <h1>Admin</h1>
+  {{template "admin-nav" .}}
+
+  <ul class="stats" aria-label="Totals">
+    <li><span class="stat">{{.Stats.ActiveUsers}}</span><span class="muted">active users ({{.Stats.Users}} total)</span></li>
+    <li><span class="stat">{{.Stats.Bookmarks}}</span><span class="muted">bookmarks</span></li>
+    <li><span class="stat">{{.Stats.Tags}}</span><span class="muted">tags</span></li>
+    <li><span class="stat">{{bytes .Stats.DBBytes}}</span><span class="muted">database</span></li>
+  </ul>
+
+  <section aria-labelledby="users">
+    <h2 id="users">Users</h2>
+    <p class="muted">Admins manage accounts; they can't see anyone's bookmarks.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">User</th><th scope="col">Two-factor</th><th scope="col">Last login</th><th scope="col">Created</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {{range .Users}}
+        <tr>
+          <td><strong>{{.Username}}</strong>{{if .IsAdmin}} <span class="badge on">Admin</span>{{end}}{{if not .IsActive}} <span class="badge danger">Disabled</span>{{end}}{{if eq .ID $.User.ID}} <span class="badge">You</span>{{end}}</td>
+          <td>{{if or .TOTPEnabled .Passkeys}}{{if .TOTPEnabled}}App{{end}}{{if and .TOTPEnabled .Passkeys}} + {{end}}{{if .Passkeys}}{{.Passkeys}} passkey{{if ne .Passkeys 1}}s{{end}}{{end}}{{else}}<span class="muted">Off</span>{{end}}</td>
+          <td>{{if .LastLoginAt.IsZero}}<span class="muted">Never</span>{{else}}{{ago .LastLoginAt}}{{end}}</td>
+          <td>{{.CreatedAt.Format "2 Jan 2006"}}</td>
+          <td class="actions">
+            {{if ne .ID $.User.ID}}
+            <details class="row-menu">
+              <summary class="link-btn">Manage</summary>
+              <div class="menu">
+                {{if .IsActive}}
+                <form method="post" action="/admin/users/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Disable account</button></form>
+                {{else}}
+                <form method="post" action="/admin/users/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Enable account</button></form>
+                {{end}}
+                {{if .IsAdmin}}
+                <form method="post" action="/admin/users/{{.ID}}/remove-admin"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Remove admin</button></form>
+                {{else}}
+                <form method="post" action="/admin/users/{{.ID}}/make-admin"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Make admin</button></form>
+                {{end}}
+                <form method="post" action="/admin/users/{{.ID}}/reset-password"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Reset password</button></form>
+                {{if or .TOTPEnabled .Passkeys}}
+                <form method="post" action="/admin/users/{{.ID}}/reset-2fa"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger">Reset two-factor</button></form>
+                {{end}}
+              </div>
+            </details>
+            {{end}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="add-user">
+    <h2 id="add-user">Add a user</h2>
+    <p class="muted">Burrow generates a password for you to pass on. Or send an <a href="/admin/invites">invite link</a> so they choose their own.</p>
+    <form method="post" action="/admin/users" class="row-wrap">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label class="visually-hidden" for="new-username">Username</label>
+      <input id="new-username" name="username" required placeholder="Username" autocapitalize="none" spellcheck="false">
+      <label class="check"><input type="checkbox" name="admin" value="1"> Admin</label>
+      <button class="btn btn-primary">{{icon "plus" "sm"}}Add user</button>
+    </form>
+  </section>
+</div>
+{{end}}

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -18,16 +19,28 @@ import (
 	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/config"
 	"github.com/marcelhoffs/burrow/internal/db"
+	"github.com/marcelhoffs/burrow/internal/jobs"
 	"github.com/marcelhoffs/burrow/internal/store"
 )
 
 type env struct {
-	t     *testing.T
-	srv   *httptest.Server
-	store *store.Store
+	t      *testing.T
+	srv    *httptest.Server
+	store  *store.Store
+	db     *db.DB
+	server *Server
+	worker *jobs.Worker
+	origin string // the configured base URL (WebAuthn origin)
 }
 
 func newEnv(t *testing.T) *env {
+	t.Helper()
+	return newEnvHost(t, "localhost")
+}
+
+// newEnvHost configures the base URL with host (the listener is always
+// 127.0.0.1).
+func newEnvHost(t *testing.T, host string) *env {
 	t.Helper()
 	d, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -39,16 +52,21 @@ func newEnv(t *testing.T) *env {
 	}
 	st := store.New(d)
 	ts := httptest.NewUnstartedServer(nil)
-	base, _ := url.Parse("http://" + ts.Listener.Addr().String())
+	// The base URL names localhost, not the listener's IP: a WebAuthn RP ID
+	// must be a host name.
+	_, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
+	base, _ := url.Parse("http://" + host + ":" + port)
 	cfg := &config.Config{BaseURL: base, SecretKey: make([]byte, 32)}
-	s, err := New(cfg, st, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	worker := jobs.NewWorker(st, log)
+	s, err := New(cfg, st, log, worker)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts.Config.Handler = s.Handler()
 	ts.Start()
 	t.Cleanup(ts.Close)
-	return &env{t: t, srv: ts, store: st}
+	return &env{t: t, srv: ts, store: st, db: d, server: s, worker: worker, origin: base.String()}
 }
 
 type client struct {
@@ -346,21 +364,35 @@ func TestAppearancePreference(t *testing.T) {
 	}
 }
 
-// The CSP forbids inline styles and scripts, so no page may contain them.
+// The CSP forbids inline styles, inline scripts and event-handler
+// attributes, so no page may contain them. Scripts must be empty tags that
+// load a file from /static/.
+func cspViolation(body string) string {
+	if m := regexp.MustCompile(`(?i)\sstyle=|<style|\son[a-z]+=`).FindString(body); m != "" {
+		return m
+	}
+	tags := regexp.MustCompile(`(?i)<script[^>]*>`).FindAllString(body, -1)
+	external := regexp.MustCompile(`(?i)<script src="/static/[^"]+"></script>`).FindAllString(body, -1)
+	if len(tags) != len(external) {
+		return "inline <script>"
+	}
+	return ""
+}
+
 func TestPagesAreCSPClean(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
-	inline := regexp.MustCompile(`(?i)\sstyle=|<style|<script|\son[a-z]+=`)
-	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope"} {
+	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope",
+		"/settings/security", "/settings/tokens", "/settings/data", "/reauth"} {
 		_, body, _ := c.get(path)
-		if m := inline.FindString(body); m != "" {
+		if m := cspViolation(body); m != "" {
 			t.Errorf("%s contains %q", path, m)
 		}
 	}
 	for _, path := range []string{"/login", "/setup"} {
-		if _, body, _ := e.client().get(path); inline.MatchString(body) {
+		if _, body, _ := e.client().get(path); cspViolation(body) != "" {
 			t.Errorf("%s has inline style or script", path)
 		}
 	}
