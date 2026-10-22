@@ -7,7 +7,5 @@ services:
     # A bind mount must be writable by UID 65532: sudo chown 65532:65532 ./data
     volumes: ["./data:/data"]
     read_only: true
-    environment:
-      BURROW_BASE_URL: https://burrow.example.com
-      BURROW_SECRET_KEY: ${BURROW_SECRET_KEY}   # openssl rand -base64 32
-      # BURROW_TRUSTED_PROXIES: 172.16.0.0/12   # your reverse proxy's network
+    # Settings live in .env; copy .env.example to get started.
+    env_file: .env

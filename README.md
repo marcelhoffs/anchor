@@ -8,7 +8,9 @@ Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded
 
 ```sh
 mkdir data && sudo chown 65532:65532 data
-export BURROW_SECRET_KEY=$(openssl rand -base64 32)
+cp .env.example .env
+sed -i "s|^BURROW_SECRET_KEY=.*|BURROW_SECRET_KEY=$(openssl rand -base64 32)|" .env
+# edit BURROW_BASE_URL in .env
 docker compose up -d
 ```
 
