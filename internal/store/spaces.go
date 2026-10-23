@@ -223,9 +223,13 @@ func (s *Store) Members(ctx context.Context, sc Scope) ([]Member, error) {
 	if sc.spaceID == 0 || sc.personal {
 		return nil, ErrNotFound
 	}
+	return s.members(ctx, sc.spaceID)
+}
+
+func (s *Store) members(ctx context.Context, spaceID int64) ([]Member, error) {
 	rows, err := s.r.QueryContext(ctx,
 		`SELECT u.id, u.username, m.role, u.is_active, m.created_at FROM space_members m JOIN users u ON u.id = m.user_id
-		 WHERE m.space_id = ? ORDER BY m.role != 'owner', u.username COLLATE NOCASE`, sc.spaceID)
+		 WHERE m.space_id = ? ORDER BY m.role != 'owner', u.username COLLATE NOCASE`, spaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -349,15 +353,84 @@ func (s *Store) TransferSpace(ctx context.Context, sc Scope, userID int64) error
 	if userID == sc.userID {
 		return invalid("You already own this space.")
 	}
+	return s.transfer(ctx, sc.spaceID, userID)
+}
+
+// transfer makes member userID the owner of a shared space; the old owner
+// stays on as an editor. ErrNotFound, and nothing changed, if userID isn't
+// a member.
+func (s *Store) transfer(ctx context.Context, spaceID, userID int64) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		// One owner per space: step down first, then promote.
-		if _, err := tx.ExecContext(ctx, "UPDATE space_members SET role = 'write' WHERE space_id = ? AND user_id = ?",
-			sc.spaceID, sc.userID); err != nil {
+		if _, err := tx.ExecContext(ctx, "UPDATE space_members SET role = 'write' WHERE space_id = ? AND role = 'owner'",
+			spaceID); err != nil {
 			return err
 		}
-		return affected(tx.ExecContext(ctx, "UPDATE space_members SET role = 'owner' WHERE space_id = ? AND user_id = ?",
-			sc.spaceID, userID))
+		return affected(tx.ExecContext(ctx,
+			`UPDATE space_members SET role = 'owner' WHERE space_id = ? AND user_id = ?
+			 AND space_id IN (SELECT id FROM spaces WHERE personal_of IS NULL)`, spaceID, userID))
 	})
+}
+
+// The Admin methods below manage shared spaces as a whole, for instance one
+// whose owner was disabled. They never read or return the bookmarks inside,
+// and are only reachable from the admin pages.
+
+// AdminSpace is a shared space as admins see it: who's in it and how big
+// it is, not what it holds.
+type AdminSpace struct {
+	ID          int64
+	Name        string
+	Bookmarks   int
+	CreatedAt   time.Time
+	Members     []Member // owner first
+	OwnerActive bool
+}
+
+// AdminListSpaces returns every shared space with its members, by name.
+func (s *Store) AdminListSpaces(ctx context.Context) ([]AdminSpace, error) {
+	rows, err := s.r.QueryContext(ctx,
+		`SELECT sp.id, sp.name, sp.created_at, (SELECT count(*) FROM bookmarks WHERE space_id = sp.id)
+		 FROM spaces sp WHERE sp.personal_of IS NULL ORDER BY sp.name COLLATE NOCASE, sp.id`)
+	if err != nil {
+		return nil, err
+	}
+	var out []AdminSpace
+	for rows.Next() {
+		var sp AdminSpace
+		var created int64
+		if err := rows.Scan(&sp.ID, &sp.Name, &created, &sp.Bookmarks); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		sp.CreatedAt = fromUnix(created)
+		out = append(out, sp)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range out {
+		if out[i].Members, err = s.members(ctx, out[i].ID); err != nil {
+			return nil, err
+		}
+		for _, m := range out[i].Members {
+			if m.Role == RoleOwner {
+				out[i].OwnerActive = m.IsActive
+			}
+		}
+	}
+	return out, nil
+}
+
+// AdminTransferSpace makes a member the owner of a shared space.
+func (s *Store) AdminTransferSpace(ctx context.Context, spaceID, userID int64) error {
+	return s.transfer(ctx, spaceID, userID)
+}
+
+// AdminDeleteSpace deletes a shared space and everything in it.
+func (s *Store) AdminDeleteSpace(ctx context.Context, spaceID int64) error {
+	return affected(s.w.ExecContext(ctx, "DELETE FROM spaces WHERE id = ? AND personal_of IS NULL", spaceID))
 }
 
 // affected turns an UPDATE or DELETE that matched no row into ErrNotFound.

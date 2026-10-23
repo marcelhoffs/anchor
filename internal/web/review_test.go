@@ -136,6 +136,7 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 		{sp, "remove-" + alice, sp + "/members/" + alice + "/remove"},
 		{sp, "owner-" + alice, sp + "/members/" + alice + "/owner"},
 		{sp, "delete-space", sp + "/delete"},
+		{"/admin/spaces", "space-delete-" + itoa(space.SpaceID()), "/admin/spaces/" + itoa(space.SpaceID()) + "/delete"},
 	} {
 		_, body, _ := root.get(c.page)
 		if !confirmed(body, c.id, c.action) {
