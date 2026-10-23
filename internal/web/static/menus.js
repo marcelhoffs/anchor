@@ -1,8 +1,13 @@
 // Top bar menus (<details class="top-menu">): opening one closes the others,
 // and a click outside or Escape closes them. Without this script each menu
 // still opens and closes from its own button.
+//
+// Also: iOS shows :active (the pressed look, see style.css) on touch only
+// when something listens for touchstart.
 (function () {
   "use strict";
+
+  document.addEventListener("touchstart", function () {}, { passive: true });
 
   var menus = document.querySelectorAll(".top-menu");
 
