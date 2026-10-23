@@ -39,23 +39,57 @@ func currentSession(r *http.Request) *store.Session {
 	return ss
 }
 
+// spaceNav is the space the user is looking at, and the shared spaces the
+// top bar's switcher offers (it shows only when there are any).
+type spaceNav struct {
+	Scope  store.Scope
+	Name   string // "Personal", or the shared space's name
+	Spaces []store.Space
+}
+
+func currentNav(r *http.Request) *spaceNav {
+	n, _ := r.Context().Value(scopeKey).(*spaceNav)
+	return n
+}
+
 // currentScope is the signed-in user's access to the space they're looking
 // at. Pages about one bookmark use that bookmark's space instead (see
 // bookmarkScope), so a link to it works whichever space is selected.
 func currentScope(r *http.Request) store.Scope {
-	sc, _ := r.Context().Value(scopeKey).(store.Scope)
-	return sc
+	if n := currentNav(r); n != nil {
+		return n.Scope
+	}
+	return store.Scope{}
 }
 
-// loadScope puts the user's current space on the request, after requireUser.
+// loadScope puts the user's current space on the request, after
+// requireUser: the one the session selected while they're still a member,
+// else their personal space.
 func (s *Server) loadScope(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sc, err := s.store.PersonalScope(r.Context(), currentUser(r).ID)
+		ctx, u := r.Context(), currentUser(r)
+		spaces, err := s.store.ListSpaces(ctx, u.ID)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), scopeKey, sc)))
+		nav := &spaceNav{Name: "Personal", Spaces: spaces}
+		if id := currentSession(r).SpaceID; id != 0 {
+			if sc, err := s.store.Access(ctx, u.ID, id); err == nil {
+				for _, sp := range spaces {
+					if sp.ID == id {
+						nav.Scope, nav.Name = sc, sp.Name
+					}
+				}
+			}
+		}
+		if nav.Scope.SpaceID() == 0 {
+			if nav.Scope, err = s.store.PersonalScope(ctx, u.ID); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(ctx, scopeKey, nav)))
 	})
 }
 

@@ -15,15 +15,17 @@ type Session struct {
 	ExpiresAt  time.Time
 	LastSeenAt time.Time
 	VerifiedAt time.Time // last password, 2FA or re-authentication check
+	SpaceID    int64     // the space being looked at; 0 = the personal one
 }
 
 const sessionCols = `token_hash, user_id, mfa_passed, coalesce(user_agent, ''), coalesce(ip, ''), created_at, expires_at,
-	last_seen_at, verified_at`
+	last_seen_at, verified_at, coalesce(space_id, 0)`
 
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var ss Session
 	var created, expires, seen, verified int64
-	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen, &verified)
+	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen, &verified,
+		&ss.SpaceID)
 	ss.CreatedAt, ss.ExpiresAt, ss.LastSeenAt = fromUnix(created), fromUnix(expires), fromUnix(seen)
 	ss.VerifiedAt = fromUnix(verified)
 	return ss, notFound(err)
@@ -41,6 +43,21 @@ func (s *Store) CreateSession(ctx context.Context, ss Session) error {
 // MarkVerified records that the session just proved its identity again.
 func (s *Store) MarkVerified(ctx context.Context, hash []byte) error {
 	_, err := s.w.ExecContext(ctx, "UPDATE sessions SET verified_at = ? WHERE token_hash = ?", unix(s.now()), hash)
+	return err
+}
+
+// SelectSpace makes sc's space the one the session looks at. Taking a Scope
+// means the user's membership was checked; the personal space is stored as
+// NULL, the default.
+func (s *Store) SelectSpace(ctx context.Context, hash []byte, sc Scope) error {
+	if sc.spaceID == 0 {
+		return ErrNotFound
+	}
+	var id any
+	if !sc.personal {
+		id = sc.spaceID
+	}
+	_, err := s.w.ExecContext(ctx, "UPDATE sessions SET space_id = ? WHERE token_hash = ? AND user_id = ?", id, hash, sc.userID)
 	return err
 }
 

@@ -16,7 +16,26 @@
   {{if .User}}
   <nav aria-label="Main">
     <a class="nav-link" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>
-    <a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>
+    {{if .CanWrite}}<a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>{{end}}
+    {{with .Nav}}{{if .Spaces}}
+    <details class="user-menu space-menu">
+      <summary aria-label="Space: {{.Name}}">{{if .Scope.IsPersonal}}{{icon "user" "sm"}}{{else}}{{icon "space" "sm"}}{{end}}<span class="label-sm space-name">{{.Name}}</span>{{icon "chevron-down" "sm"}}</summary>
+      <div class="menu">
+        <p class="menu-title">Spaces</p>
+        <form method="post" action="/space">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}">
+          <button{{if .Scope.IsPersonal}} aria-current="true"{{end}}>{{icon "user" "sm"}}<span class="space-option">Personal</span>{{if .Scope.IsPersonal}}{{icon "check" "sm"}}{{end}}</button>
+        </form>
+        {{range .Spaces}}
+        <form method="post" action="/space">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="space" value="{{.ID}}">
+          <button{{if eq .ID $.Nav.Scope.SpaceID}} aria-current="true"{{end}}>{{icon "space" "sm"}}<span class="space-option">{{.Name}}{{if eq .Role "read"}} <span class="muted">· read only</span>{{end}}</span>{{if eq .ID $.Nav.Scope.SpaceID}}{{icon "check" "sm"}}{{end}}</button>
+        </form>
+        {{end}}
+        <a href="/spaces" class="menu-sep">{{icon "settings" "sm"}}Manage spaces</a>
+      </div>
+    </details>
+    {{end}}{{end}}
     <details class="user-menu">
       <summary><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span><span class="label-sm">{{.User.Username}}</span>{{icon "chevron-down" "sm"}}</summary>
       <div class="menu">

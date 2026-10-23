@@ -206,11 +206,13 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/spaces/{id}/delete", s.deleteSpace)
 			})
 
+			r.Post("/space", s.selectSpace)
 			r.Get("/spaces", s.spaces)
 			r.Post("/spaces", s.createSpace)
 			r.Get("/spaces/{id}", s.space)
 			r.Post("/spaces/{id}/rename", s.renameSpace)
 			r.Post("/spaces/{id}/members", s.addMember)
+			r.Get("/spaces/{id}/members/suggest", s.memberSuggestions)
 			r.Post("/spaces/{id}/members/{uid}/{action}", s.memberAction)
 			r.Post("/spaces/{id}/leave", s.leaveSpace)
 

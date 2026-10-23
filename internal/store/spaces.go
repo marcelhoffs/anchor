@@ -275,6 +275,37 @@ func (s *Store) AddMember(ctx context.Context, sc Scope, username string, role R
 	return err
 }
 
+// SuggestMembers returns up to 8 active usernames containing q that aren't
+// in the space yet, those starting with it first; for the owner's
+// add-member field.
+func (s *Store) SuggestMembers(ctx context.Context, sc Scope, q string) ([]string, error) {
+	if err := sc.mustOwnShared(); err != nil {
+		return nil, err
+	}
+	q = strings.TrimSpace(q)
+	if q == "" {
+		return nil, nil
+	}
+	rows, err := s.r.QueryContext(ctx,
+		`SELECT username FROM users u
+		 WHERE is_active = 1 AND instr(lower(username), lower(?)) > 0
+		   AND NOT EXISTS (SELECT 1 FROM space_members m WHERE m.space_id = ? AND m.user_id = u.id)
+		 ORDER BY instr(lower(username), lower(?)) != 1, username COLLATE NOCASE LIMIT 8`, q, sc.spaceID, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		out = append(out, name)
+	}
+	return out, rows.Err()
+}
+
 // SetRole changes a member's role between write and read; owner only. The
 // owner's own role changes only by handing the space over.
 func (s *Store) SetRole(ctx context.Context, sc Scope, userID int64, role Role) error {

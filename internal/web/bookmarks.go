@@ -170,13 +170,42 @@ func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, sc store.Sco
 	s.render(w, r, status, "edit", d)
 }
 
+// addTarget is the space a new bookmark goes into, and its name: the space
+// the user is looking at when they can add to it, else their personal one.
+// A form names its target in "space", so a switch in another tab between
+// showing the form and saving it changes nothing.
+func (s *Server) addTarget(r *http.Request) (store.Scope, string, error) {
+	nav := currentNav(r)
+	if id, err := strconv.ParseInt(r.PostFormValue("space"), 10, 64); err == nil && id > 0 {
+		sc, err := s.store.Access(r.Context(), currentUser(r).ID, id)
+		if err != nil {
+			return store.Scope{}, "", err
+		}
+		for _, sp := range nav.Spaces {
+			if sp.ID == id {
+				return sc, sp.Name, nil
+			}
+		}
+		return sc, "Personal", nil
+	}
+	if nav.Scope.CanWrite() {
+		return nav.Scope, nav.Name, nil
+	}
+	sc, err := s.store.PersonalScope(r.Context(), currentUser(r).ID)
+	return sc, "Personal", err
+}
+
 // newBookmark shows the add form, prefilled from ?url=&title=&description=
 // (which is how the bookmarklet calls it). An already-saved URL goes
 // straight to its edit page.
 func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
+	sc, name, err := s.addTarget(r)
+	if !s.storeError(w, r, err) {
+		return
+	}
 	q := r.URL.Query()
 	if raw := q.Get("url"); raw != "" {
-		b, err := s.store.FindBookmarkByURL(r.Context(), currentScope(r), raw)
+		b, err := s.store.FindBookmarkByURL(r.Context(), sc, raw)
 		if err == nil {
 			http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(b.ID, 10)+"/edit?dup=1", http.StatusSeeOther)
 			return
@@ -188,17 +217,22 @@ func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	d := formData(store.BookmarkInput{URL: q.Get("url"), Title: q.Get("title"), Description: q.Get("description")})
 	d["Next"] = safeNext(q.Get("next"))
-	s.renderEdit(w, r, currentScope(r), http.StatusOK, d)
+	d["Target"], d["TargetName"] = sc.SpaceID(), name
+	s.renderEdit(w, r, sc, http.StatusOK, d)
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
-	sc := currentScope(r)
+	sc, name, err := s.addTarget(r)
+	if !s.storeError(w, r, err) {
+		return
+	}
 	in := bookmarkForm(r)
 	b, created, err := s.store.CreateBookmark(r.Context(), sc, in)
 	if isValidation(err) {
 		d := formData(in)
 		d["Error"] = err.Error()
 		d["Next"] = safeNext(r.PostFormValue("next"))
+		d["Target"], d["TargetName"] = sc.SpaceID(), name
 		s.renderEdit(w, r, sc, http.StatusUnprocessableEntity, d)
 		return
 	}
@@ -221,6 +255,10 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	sc, ok := s.bookmarkScope(w, r, id)
 	if !ok {
+		return
+	}
+	if !sc.CanWrite() {
+		s.storeError(w, r, store.ErrForbidden) // a reader has nothing to edit here
 		return
 	}
 	b, err := s.store.GetBookmark(r.Context(), sc, id)
