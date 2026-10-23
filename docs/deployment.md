@@ -14,7 +14,34 @@ Anchor is one Go binary with an embedded SQLite database. The Docker image holds
 
 ## Quick start
 
-You need Docker with the Compose plugin, and a copy of this repository (for `docker-compose.yml`, `.env.example` and the `Dockerfile`).
+You need Docker with the Compose plugin. Every release publishes a ready-made image, so the quickest way needs only two files from this repository; building the image yourself is described [below](#building-the-image-yourself).
+
+### With the ready-made image
+
+The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.1.0`), its minor series (`0.1`, which follows that series' fixes) and `latest`.
+
+```sh
+mkdir anchor && cd anchor
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.0/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.0/.env.example
+cp .env.example .env
+sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
+# Set ANCHOR_BASE_URL in .env to the address people will use.
+docker compose pull
+docker compose up -d
+```
+
+`docker-compose.yml` uses the `latest` tag. To stay on one release series and upgrade only when you choose, pin it:
+
+```sh
+sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.1|' docker-compose.yml
+```
+
+While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.1.0 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
+
+### Building the image yourself
+
+From a copy of this repository, which has the `Dockerfile`:
 
 ```sh
 cp .env.example .env
@@ -23,11 +50,11 @@ sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .
 docker compose up -d --build
 ```
 
+### What you get
+
 Anchor listens on port 8080. The compose file keeps the database in the named volume `anchor-data`, runs the container read-only, and restarts it unless you stop it. Docker creates the volume on the first start, owned by the container's unprivileged user (65532), so there's nothing to prepare; `docker volume inspect anchor-data` shows where it lives on the host. The volume outlives the container: `docker compose down` keeps your data, and only `docker compose down -v` or `docker volume rm anchor-data` deletes it.
 
 `.env.example` starts from the secure choices: two-factor authentication required for everyone, page details fetched from public addresses only, no public icon services, and signup closed (the built-in default). Loosen them in `.env` only when you need to; [Configuration](#configuration) explains each.
-
-`--build` builds the image from the source. Each release also publishes a ready-made image for amd64 and arm64, `ghcr.io/marcelhoffs/anchor`, tagged with its version (`0.1.0`), its minor series (`0.1`) and `latest`. To use it instead, leave out `--build`: `docker compose pull && docker compose up -d`. Pin a version by changing the `image:` line in `docker-compose.yml`, for example to `ghcr.io/marcelhoffs/anchor:0.1`. While the repository is private, so is the image: sign in first with `docker login ghcr.io`, using a GitHub token that can read packages.
 
 The image has a health check (`anchor healthcheck`, which asks the local server's `/healthz`), so `docker ps` shows whether Anchor is up.
 
@@ -125,14 +152,23 @@ Keep the same `ANCHOR_SECRET_KEY`: the backup's authenticator-app secrets are en
 
 ## Upgrades
 
+Take a [backup](#backups-and-restores) first: Anchor applies database migrations itself when it starts, before it serves anything, and migrations only go forward; some (such as fetching every site icon again) can't be undone. Read the release notes for anything to do by hand.
+
+With the ready-made image, fetch the new one and recreate the container; the data volume stays:
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+On a pinned series (`:0.1`) this brings that series' fixes; for a new series, change the tag in `docker-compose.yml` first. Old images stay on disk until `docker image prune` removes them.
+
+Building the image yourself:
+
 ```sh
 git pull
 docker compose up -d --build
 ```
-
-Or, with the ready-made image: `docker compose pull && docker compose up -d`.
-
-Anchor applies database migrations itself when it starts, before it serves anything. Take a backup first: migrations only go forward, and some (such as fetching every site icon again) can't be undone.
 
 ## Running without Docker
 

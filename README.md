@@ -9,6 +9,10 @@
   Save links, tag them, find them again in seconds, and keep the whole collection on your own server.
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/bookmarks.png" alt="The bookmark list: site icons, titles, descriptions and tags, with the views and tags in the sidebar">
+</p>
+
 ## Features
 
 **Bookmarks**
@@ -21,9 +25,20 @@
 - Full-text search over titles, descriptions, notes, URLs and tags, with filters for tags, sites, dates, favourites and shared links.
 - Bundles: save a search and it stays in the sidebar, always up to date.
 
+<p align="center">
+  <img src="docs/screenshots/dark.png" width="80%" alt="The bookmarks tagged Homelab, in the dark theme with a green accent">
+</p>
+
 **Spaces**
 - A personal space for your own bookmarks, and shared spaces for your family or team, each with its own bookmarks and tags.
 - Members can edit or only read; the owner manages who's in, and switching spaces is one click in the top bar.
+
+<p align="center">
+  <img src="docs/screenshots/spaces.png" width="80%" alt="A shared Family space, with the space switcher open in the top bar">
+</p>
+<p align="center">
+  <img src="docs/screenshots/members.png" width="80%" alt="The Family space's page: its members and their roles">
+</p>
 
 **Sharing**
 - Give a single bookmark a public read-only link, and take it back whenever you like.
@@ -41,6 +56,10 @@
 **Look and feel**
 - Light and dark themes, a choice of accent colours, and the sidebar on either side.
 - Works on phones as well as desktops.
+
+<p align="center">
+  <img src="docs/screenshots/phone.png" width="300" alt="The bookmark list on a phone, with icon-only top bar buttons">
+</p>
 
 ## Documentation
 
