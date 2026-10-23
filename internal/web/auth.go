@@ -12,8 +12,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 const invalidLogin = "Invalid username or password."

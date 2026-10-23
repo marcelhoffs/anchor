@@ -1,4 +1,4 @@
-module github.com/marcelhoffs/burrow
+module github.com/marcelhoffs/anchor
 
 go 1.27.3
 

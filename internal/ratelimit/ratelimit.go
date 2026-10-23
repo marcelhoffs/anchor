@@ -1,5 +1,5 @@
 // Package ratelimit counts events per key in fixed time windows, in memory.
-// Burrow runs as a single process, so no shared store is needed.
+// Anchor runs as a single process, so no shared store is needed.
 package ratelimit
 
 import (

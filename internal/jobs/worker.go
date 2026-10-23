@@ -10,8 +10,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/importexport"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/importexport"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 // importBatch is how many bookmarks one transaction imports. Small enough

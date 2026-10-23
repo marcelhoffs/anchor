@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/marcelhoffs/burrow/internal/search"
+	"github.com/marcelhoffs/anchor/internal/search"
 )
 
 type Bookmark struct {

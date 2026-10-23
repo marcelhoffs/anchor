@@ -12,10 +12,10 @@ import (
 
 	"github.com/go-webauthn/webauthn/webauthn"
 
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-// waUser adapts a Burrow user to go-webauthn's User.
+// waUser adapts an Anchor user to go-webauthn's User.
 type waUser struct {
 	id    []byte
 	name  string
@@ -88,7 +88,7 @@ func (c *ceremonies) sweep() {
 	}
 }
 
-const passkeysUnavailable = "Passkeys aren't available: Burrow must be reached by a domain name, not an IP address."
+const passkeysUnavailable = "Passkeys aren't available: Anchor must be reached by a domain name, not an IP address."
 
 // passkeysOff answers a passkey call when passkeys are disabled; it reports
 // whether it did.

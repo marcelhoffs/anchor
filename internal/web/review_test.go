@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/config"
+	"github.com/marcelhoffs/anchor/internal/config"
 )
 
 func TestSafeNext(t *testing.T) {
@@ -50,16 +50,16 @@ func TestSecurityHeadersAndCookies(t *testing.T) {
 	}
 
 	// Over https, cookies get the __Host- prefix and HSTS is sent.
-	base, _ := url.Parse("https://burrow.example")
+	base, _ := url.Parse("https://anchor.example")
 	s, err := New(&config.Config{BaseURL: base, SecretKey: make([]byte, 32)}, e.store,
 		slog.New(slog.NewTextHandler(io.Discard, nil)), e.worker, e.fetcher)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.sessionCookie != "__Host-burrow_session" || s.csrfCookie != "__Host-burrow_csrf" {
+	if s.sessionCookie != "__Host-anchor_session" || s.csrfCookie != "__Host-anchor_csrf" {
 		t.Fatalf("cookies = %q, %q", s.sessionCookie, s.csrfCookie)
 	}
-	req, _ := http.NewRequest("GET", "https://burrow.example/healthz", nil)
+	req, _ := http.NewRequest("GET", "https://anchor.example/healthz", nil)
 	w := &headerRecorder{h: http.Header{}}
 	s.Handler().ServeHTTP(w, req)
 	if !strings.HasPrefix(w.h.Get("Strict-Transport-Security"), "max-age=") {

@@ -29,13 +29,13 @@ const (
 	maxPage      = 1 << 20   // only the <head> matters; stop reading after 1 MiB
 	maxIcon      = 100 << 10 // 100 KiB
 	maxRedirects = 5
-	userAgent    = "Mozilla/5.0 (compatible; Burrow/1.0; bookmark details)"
+	userAgent    = "Mozilla/5.0 (compatible; Anchor/1.0; bookmark details)"
 
 	maxTitle       = 500
 	maxDescription = 2000
 )
 
-// ErrBlocked means the address is not one Burrow may connect to.
+// ErrBlocked means the address is not one Anchor may connect to.
 var ErrBlocked = errors.New("address not allowed")
 
 type Client struct {

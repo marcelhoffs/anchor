@@ -105,7 +105,7 @@
       button.disabled = true;
       show(scope, window.isSecureContext
         ? "This browser doesn't support passkeys."
-        : "Passkeys need a secure (HTTPS) connection to Burrow.");
+        : "Passkeys need a secure (HTTPS) connection to Anchor.");
       return;
     }
     button.addEventListener("click", function (ev) {

@@ -12,11 +12,11 @@ import (
 
 	"github.com/go-webauthn/webauthn/webauthn"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-const totpIssuer = "Burrow"
+const totpIssuer = "Anchor"
 
 // checkTOTP verifies a code against u's enabled authenticator, using each
 // time step at most once.

@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/importexport"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/importexport"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 type jobRow struct {
@@ -99,7 +99,7 @@ func (s *Server) writeExport(w http.ResponseWriter, r *http.Request, userID int6
 	if format != "json" {
 		format = "html"
 	}
-	name := "burrow-" + time.Now().UTC().Format("20060102") + "." + format
+	name := "anchor-" + time.Now().UTC().Format("20060102") + "." + format
 	if format == "json" {
 		w.Header().Set("Content-Type", "application/json")
 	} else {

@@ -121,6 +121,26 @@
         <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
         <button class="icon-btn danger" popovertarget="delete-{{.ID}}" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
       </div>
+      {{/* On phones the actions fold into this menu, beside the title. */}}
+      <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="Actions for {{display .}}">{{icon "more"}}</button>
+      <div id="actions-{{.ID}}" class="menu row-menu" popover>
+        <form method="post" action="/bookmarks/{{.ID}}/flag">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
+          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}Remove from favourites{{else}}{{icon "star" "sm"}}Add to favourites{{end}}</button>
+        </form>
+        {{if .IsArchived}}
+        <form method="post" action="/bookmarks/{{.ID}}/flag">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
+          <button>{{icon "archive" "sm"}}Unarchive</button>
+        </form>
+        {{else}}
+        <button type="button" popovertarget="archive-{{.ID}}">{{icon "archive" "sm"}}Archive</button>
+        {{end}}
+        <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">{{icon "pencil" "sm"}}Edit</a>
+        <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{icon "trash" "sm"}}Delete</button>
+      </div>
 
       {{if not .IsArchived}}
       <div id="archive-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="archive-{{.ID}}-title">

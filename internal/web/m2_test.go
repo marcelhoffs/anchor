@@ -23,9 +23,9 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/hotp"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/ratelimit"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/ratelimit"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 // --- helpers ---
@@ -768,7 +768,7 @@ func TestImportExport(t *testing.T) {
 	}
 }
 
-// Reached by IP address, Burrow must still start, just without passkeys.
+// Reached by IP address, Anchor must still start, just without passkeys.
 func TestPasskeysDisabledOnIPBaseURL(t *testing.T) {
 	e := newEnvHost(t, "127.0.0.1")
 	e.user("alice")

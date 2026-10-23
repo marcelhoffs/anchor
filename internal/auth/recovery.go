@@ -34,6 +34,6 @@ func NewRecoveryCodes() (codes, hashes []string) {
 func HashRecoveryCode(code string) string {
 	code = strings.ToLower(strings.TrimSpace(code))
 	code = strings.NewReplacer(" ", "", "-", "", "o", "0").Replace(code)
-	h := sha256.Sum256([]byte("burrow-recovery:" + code))
+	h := sha256.Sum256([]byte("anchor-recovery:" + code))
 	return hex.EncodeToString(h[:])
 }

@@ -36,11 +36,11 @@ func code(t *testing.T, secret string, step int64) string {
 }
 
 func TestVerifyTOTP(t *testing.T) {
-	setup, err := NewTOTP("Burrow", "alice")
+	setup, err := NewTOTP("Anchor", "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(setup.QR, "data:image/png;base64,") || !strings.Contains(setup.URL, "issuer=Burrow") {
+	if !strings.HasPrefix(setup.QR, "data:image/png;base64,") || !strings.Contains(setup.URL, "issuer=Anchor") {
 		t.Fatalf("setup = %+v", setup)
 	}
 	now := time.Unix(1_800_000_000, 0)

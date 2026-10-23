@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 func (s *Server) bundles(w http.ResponseWriter, r *http.Request) {

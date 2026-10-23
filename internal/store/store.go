@@ -1,4 +1,4 @@
-// Package store is Burrow's data access layer. Every method that touches
+// Package store is Anchor's data access layer. Every method that touches
 // user-owned rows takes the owning userID as a required argument and filters
 // on it; there is no way to read or change another user's data through it.
 package store
@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/db"
+	"github.com/marcelhoffs/anchor/internal/db"
 )
 
 var (

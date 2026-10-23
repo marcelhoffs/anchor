@@ -8,16 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// squirrel is the Burrow app icon's glyph (from the icon design), drawn in
-// currentColor on a 100×100 rounded square; its eye shows the background.
-const squirrel = `<g transform="translate(15.36 11.52) scale(0.8)" fill="currentColor"><g transform="matrix(-1 0 0 1 100 0)">` +
-	`<path d="M50 82 C96 86 96 50 74 46 C58 43 52 22 70 14 C80 10 90 16 86 24" fill="none" stroke="currentColor" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>` +
-	`<ellipse cx="44" cy="66" rx="16" ry="20"/><ellipse cx="33" cy="44" rx="13" ry="11"/><circle cx="23" cy="47" r="6"/>` +
-	`<path d="M30 37 L35 25 Q37 22 39 25 L44 35 Z"/><ellipse cx="51" cy="77" rx="13" ry="10"/><ellipse cx="40" cy="88" rx="13" ry="3.5"/>` +
-	`<ellipse cx="28" cy="62" rx="5" ry="4"/><circle class="eye" cx="31" cy="41.5" r="2"/></g></g>`
+// glyph is the Anchor app icon's mark, a "</>", drawn in currentColor on a
+// 100×100 rounded square.
+const glyph = `<g fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">` +
+	`<path d="M33 32 L16 50 L33 68"/><path d="M67 32 L84 50 L67 68"/><path d="M56 25 L44 75"/></g>`
 
 // iconColours are each accent's light-mode --accent and --on-accent (see
-// style.css): the favicon's background and squirrel.
+// style.css): the favicon's background and glyph.
 var iconColours = map[string][2]string{
 	"indigo":     {"#4f46e5", "#ffffff"},
 	"terracotta": {"#c2410c", "#ffffff"},
@@ -32,14 +29,14 @@ var iconColours = map[string][2]string{
 // brandMark is the header logo; CSS colours it with the current accent.
 func brandMark() template.HTML {
 	return template.HTML(`<svg class="brand-mark" viewBox="0 0 100 100" width="32" height="32" aria-hidden="true" focusable="false">` +
-		`<rect width="100" height="100" rx="22"/>` + squirrel + `</svg>`)
+		`<rect width="100" height="100" rx="22"/>` + glyph + `</svg>`)
 }
 
 // appIconSVG is the favicon in an accent's colours.
 func appIconSVG(bg, fg string) string {
 	return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" color="` + fg + `">` +
 		`<rect width="100" height="100" rx="22" fill="` + bg + `"/>` +
-		strings.Replace(squirrel, `class="eye"`, `fill="`+bg+`"`, 1) + `</svg>`
+		glyph + `</svg>`
 }
 
 func appIconURL(accent string) string { return "/icon/" + accent + ".svg?v=" + assetVersion }

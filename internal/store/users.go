@@ -258,7 +258,7 @@ func lastAdminGuard(ctx context.Context, tx *sql.Tx, userID int64) error {
 		return notFound(err)
 	}
 	if isAdmin && others == 0 {
-		return invalid("Burrow needs at least one active admin.")
+		return invalid("Anchor needs at least one active admin.")
 	}
 	return nil
 }

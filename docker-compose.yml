@@ -1,6 +1,6 @@
 services:
-  burrow:
-    image: ghcr.io/marcelhoffs/burrow:latest
+  anchor:
+    image: ghcr.io/marcelhoffs/anchor:latest
     build: .
     restart: unless-stopped
     ports: ["8080:8080"]

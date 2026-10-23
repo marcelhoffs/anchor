@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/marcelhoffs/burrow/internal/search"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/search"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-// Package config loads Burrow's settings from BURROW_* environment variables.
+// Package config loads Anchor's settings from ANCHOR_* environment variables.
 package config
 
 import (
@@ -42,14 +42,14 @@ type Config struct {
 // subcommands like migrate and backup work without them.
 func Load(requireServe bool) (*Config, error) {
 	c := &Config{
-		DataDir:       env("BURROW_DATA_DIR", "/data"),
-		Listen:        env("BURROW_LISTEN", ":8080"),
-		AdminUser:     os.Getenv("BURROW_ADMIN_USER"),
-		AdminPassword: os.Getenv("BURROW_ADMIN_PASSWORD"),
+		DataDir:       env("ANCHOR_DATA_DIR", "/data"),
+		Listen:        env("ANCHOR_LISTEN", ":8080"),
+		AdminUser:     os.Getenv("ANCHOR_ADMIN_USER"),
+		AdminPassword: os.Getenv("ANCHOR_ADMIN_PASSWORD"),
 	}
 	var errs []error
 
-	switch strings.ToLower(env("BURROW_LOG_LEVEL", "info")) {
+	switch strings.ToLower(env("ANCHOR_LOG_LEVEL", "info")) {
 	case "debug":
 		c.LogLevel = slog.LevelDebug
 	case "info":
@@ -57,25 +57,25 @@ func Load(requireServe bool) (*Config, error) {
 	case "warn":
 		c.LogLevel = slog.LevelWarn
 	default:
-		errs = append(errs, errors.New("BURROW_LOG_LEVEL must be debug, info or warn"))
+		errs = append(errs, errors.New("ANCHOR_LOG_LEVEL must be debug, info or warn"))
 	}
 
-	for _, s := range strings.FieldsFunc(os.Getenv("BURROW_TRUSTED_PROXIES"), func(r rune) bool { return r == ',' || r == ' ' }) {
+	for _, s := range strings.FieldsFunc(os.Getenv("ANCHOR_TRUSTED_PROXIES"), func(r rune) bool { return r == ',' || r == ' ' }) {
 		p, err := netip.ParsePrefix(s)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("BURROW_TRUSTED_PROXIES: %w", err))
+			errs = append(errs, fmt.Errorf("ANCHOR_TRUSTED_PROXIES: %w", err))
 			continue
 		}
 		c.TrustedProxies = append(c.TrustedProxies, p.Masked())
 	}
 
-	switch v := strings.ToLower(os.Getenv("BURROW_SIGNUP")); v {
+	switch v := strings.ToLower(os.Getenv("ANCHOR_SIGNUP")); v {
 	case "", "closed", "invite", "open":
 		c.Signup = v
 	default:
-		errs = append(errs, errors.New("BURROW_SIGNUP must be closed, invite or open"))
+		errs = append(errs, errors.New("ANCHOR_SIGNUP must be closed, invite or open"))
 	}
-	switch v := strings.ToLower(os.Getenv("BURROW_REQUIRE_2FA")); v {
+	switch v := strings.ToLower(os.Getenv("ANCHOR_REQUIRE_2FA")); v {
 	case "":
 	case "true", "1", "yes":
 		c.Require2FA = new(bool)
@@ -83,45 +83,45 @@ func Load(requireServe bool) (*Config, error) {
 	case "false", "0", "no":
 		c.Require2FA = new(bool)
 	default:
-		errs = append(errs, errors.New("BURROW_REQUIRE_2FA must be true or false"))
+		errs = append(errs, errors.New("ANCHOR_REQUIRE_2FA must be true or false"))
 	}
 
-	switch c.Fetch = strings.ToLower(env("BURROW_FETCH", "public")); c.Fetch {
+	switch c.Fetch = strings.ToLower(env("ANCHOR_FETCH", "public")); c.Fetch {
 	case "public", "all", "off":
 	default:
-		errs = append(errs, errors.New("BURROW_FETCH must be public, all or off"))
+		errs = append(errs, errors.New("ANCHOR_FETCH must be public, all or off"))
 	}
-	if v := strings.ToLower(strings.TrimSpace(os.Getenv("BURROW_FAVICON_FALLBACK"))); v != "" && v != "off" {
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("ANCHOR_FAVICON_FALLBACK"))); v != "" && v != "off" {
 		for _, s := range strings.Split(v, ",") {
 			switch s = strings.TrimSpace(s); s {
 			case "duckduckgo", "google":
 				c.IconFallback = append(c.IconFallback, s)
 			default:
-				errs = append(errs, errors.New("BURROW_FAVICON_FALLBACK must be off, or duckduckgo and/or google (comma-separated)"))
+				errs = append(errs, errors.New("ANCHOR_FAVICON_FALLBACK must be off, or duckduckgo and/or google (comma-separated)"))
 			}
 		}
 	}
 
-	if raw := os.Getenv("BURROW_BASE_URL"); raw != "" {
+	if raw := os.Getenv("ANCHOR_BASE_URL"); raw != "" {
 		u, err := url.Parse(strings.TrimRight(raw, "/"))
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-			errs = append(errs, errors.New("BURROW_BASE_URL must be an absolute http(s) URL"))
+			errs = append(errs, errors.New("ANCHOR_BASE_URL must be an absolute http(s) URL"))
 		} else {
 			c.BaseURL = u
 		}
 	} else if requireServe {
-		errs = append(errs, errors.New("BURROW_BASE_URL is required"))
+		errs = append(errs, errors.New("ANCHOR_BASE_URL is required"))
 	}
 
-	if raw := os.Getenv("BURROW_SECRET_KEY"); raw != "" {
+	if raw := os.Getenv("ANCHOR_SECRET_KEY"); raw != "" {
 		key, err := base64.StdEncoding.DecodeString(raw)
 		if err != nil || len(key) < 32 {
-			errs = append(errs, errors.New("BURROW_SECRET_KEY must be at least 32 bytes, base64-encoded (openssl rand -base64 32)"))
+			errs = append(errs, errors.New("ANCHOR_SECRET_KEY must be at least 32 bytes, base64-encoded (openssl rand -base64 32)"))
 		} else {
 			c.SecretKey = key
 		}
 	} else if requireServe {
-		errs = append(errs, errors.New("BURROW_SECRET_KEY is required"))
+		errs = append(errs, errors.New("ANCHOR_SECRET_KEY is required"))
 	}
 
 	return c, errors.Join(errs...)
