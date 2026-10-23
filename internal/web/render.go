@@ -63,6 +63,7 @@ var funcs = template.FuncMap{
 	"join":       strings.Join,
 	"display":    func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
 	"asset":      assetURL,
+	"iconSprite": func() template.HTML { return iconSprite },
 	"icon":       icon,
 	"initial":    initial,
 	"bytes":      humanBytes,
@@ -110,12 +111,25 @@ var assetVersion = func() string {
 
 func assetURL(name string) string { return "/static/" + name + "?v=" + assetVersion }
 
-// icon renders an icon from the static sprite. Only ever called from
+// iconSprite is static/icons.svg to put in every page, so icons draw with
+// the page: an external sprite fills in only after the first paint, and
+// the icons flash on every navigation. Its ids get an "i-" prefix to keep
+// clear of the page's own.
+var iconSprite = func() template.HTML {
+	b, err := fs.ReadFile(assets, "static/icons.svg")
+	if err != nil {
+		panic(err)
+	}
+	s := strings.Replace(string(b), "<svg ", `<svg class="sprite" aria-hidden="true" `, 1)
+	return template.HTML(strings.ReplaceAll(s, `<symbol id="`, `<symbol id="i-`))
+}()
+
+// icon renders an icon from the sprite in the page. Only ever called from
 // templates with literal arguments.
 func icon(name string, class ...string) template.HTML {
 	cls := strings.Join(append([]string{"icon"}, class...), " ")
-	return template.HTML(`<svg class="` + cls + `" aria-hidden="true" focusable="false"><use href="` +
-		assetURL("icons.svg") + "#" + name + `"></use></svg>`)
+	return template.HTML(`<svg class="` + cls + `" aria-hidden="true" focusable="false"><use href="#i-` +
+		name + `"></use></svg>`)
 }
 
 // initial is the upper-cased first letter or digit of s, for letter avatars.

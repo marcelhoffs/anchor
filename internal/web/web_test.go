@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/hex"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -833,4 +834,21 @@ func personal(st *store.Store, userID int64) store.Scope {
 		panic(err)
 	}
 	return sc
+}
+
+func TestIconsDrawFromThePage(t *testing.T) {
+	_, body, _ := newEnv(t).admin().get("/")
+	if !strings.Contains(body, `<symbol id="i-star"`) || !strings.Contains(body, `<use href="#i-star">`) {
+		t.Fatal("icons don't use the sprite in the page")
+	}
+	// Every icon a template asks for is in the sprite, or it draws nothing.
+	files, _ := fs.Glob(assets, "templates/*.html")
+	for _, f := range files {
+		b, _ := fs.ReadFile(assets, f)
+		for _, m := range regexp.MustCompile(`\{\{icon "([^"]+)"`).FindAllStringSubmatch(string(b), -1) {
+			if !strings.Contains(string(iconSprite), `<symbol id="i-`+m[1]+`"`) {
+				t.Errorf("%s: no icon %q", f, m[1])
+			}
+		}
+	}
 }
