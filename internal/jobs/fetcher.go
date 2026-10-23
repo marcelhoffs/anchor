@@ -1,10 +1,10 @@
 package jobs
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"log/slog"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -96,10 +96,11 @@ func (f *Fetcher) RunOnce(ctx context.Context) bool {
 func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchResult {
 	r := store.FetchResult{Status: store.FetchDone}
 	m, err := f.client.Page(ctx, it.URL)
-	if m.FinalURL != "" && !fetch.SameSite(it.URL, m.FinalURL) {
-		// Redirected to another site, typically a cookie-consent wall: its
-		// title and icon aren't this site's. The icon comes from it.URL.
-		f.log.Debug("fetch page: redirected to another site", "bookmark", it.ID, "to", m.FinalURL)
+	if m.FinalURL != "" && !fetch.SameHost(it.URL, m.FinalURL) {
+		// Redirected to another host, typically a sign-in page or a
+		// cookie-consent wall: its title and icon aren't this page's. The
+		// icon comes from it.URL's host.
+		f.log.Debug("fetch page: redirected to another host", "bookmark", it.ID, "to", m.FinalURL)
 		m = fetch.Meta{}
 	}
 	if err != nil {
@@ -168,25 +169,43 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 	if id, err := f.store.FaviconForDomain(ctx, it.Domain, time.Time{}); err == nil {
 		return id
 	}
+	return f.serviceIcon(ctx, it.Domain)
+}
+
+// serviceIcon asks the icon service for domain's icon and stores it. When the
+// service doesn't know the host, the main domain's icon stands in (a tenant
+// like cronos.sharepoint.com gets SharePoint's). When the service answers for
+// the host with exactly the main domain's icon, that's a generic stand-in for
+// a separate product (Keep gets Google's "G"), and the letter is better.
+func (f *Fetcher) serviceIcon(ctx context.Context, domain string) int64 {
 	if f.IconService == "" {
 		return 0
 	}
-	// The host first, then its site: a tenant like cronos.sharepoint.com is
-	// unknown to the service, but sharepoint.com's icon fits.
-	for _, d := range slices.Compact([]string{it.Domain, fetch.RegistrableDomain(it.Domain)}) {
+	get := func(d string) (string, []byte, error) {
 		u := f.serviceURL(f.IconService, d)
 		if u == "" {
-			break
+			return "", nil, errors.New("unknown icon service")
 		}
-		mime, data, err := f.client.Icon(ctx, u)
-		if err != nil {
-			f.log.Debug("icon service", "domain", d, "err", err)
-			continue
-		}
-		if id, err := f.store.SaveFavicon(ctx, it.Domain, mime, data); err == nil {
-			return id
-		}
-		break
+		return f.client.Icon(ctx, u)
 	}
-	return 0
+	mime, data, err := get(domain)
+	if main := fetch.RegistrableDomain(domain); main != domain {
+		pmime, pdata, perr := get(main)
+		switch {
+		case err == nil && perr == nil && bytes.Equal(data, pdata):
+			return 0
+		case err != nil:
+			mime, data, err = pmime, pdata, perr
+		}
+	}
+	if err != nil {
+		f.log.Debug("icon service", "domain", domain, "err", err)
+		return 0
+	}
+	id, err := f.store.SaveFavicon(ctx, domain, mime, data)
+	if err != nil {
+		f.log.Error("save icon", "domain", domain, "err", err)
+		return 0
+	}
+	return id
 }

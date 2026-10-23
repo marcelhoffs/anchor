@@ -94,6 +94,15 @@ func TestIconServiceFallback(t *testing.T) {
 	if got, _ := st.GetBookmark(ctx, u.ID, tenant.ID); got.FaviconID == 0 || asked[len(asked)-1] != "/sharepoint.invalid.ico" {
 		t.Fatalf("tenant icon: %+v, asked %v", got, asked)
 	}
+	// When the service answers for a host with exactly its main domain's
+	// icon (Keep gets Google's "G"), that's no icon of its own.
+	product, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://keep.google.invalid/"})
+	f.serviceURL = func(_, domain string) string { return service.URL + "/" + domain + ".ico" }
+	for f.RunOnce(ctx) {
+	}
+	if got, _ := st.GetBookmark(ctx, u.ID, product.ID); got.FaviconID != 0 {
+		t.Fatalf("product got its parent's generic icon: %+v", got)
+	}
 	if fetch.ServiceIcon("duckduckgo", "www.klm.be") != "https://icons.duckduckgo.com/ip3/www.klm.be.ico" || fetch.ServiceIcon("nope", "x") != "" {
 		t.Fatal("ServiceIcon")
 	}
