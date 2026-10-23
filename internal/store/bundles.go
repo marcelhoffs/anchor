@@ -33,9 +33,13 @@ func cleanBundle(name, query string) (string, string, error) {
 	return name, query, nil
 }
 
-func (s *Store) ListBundles(ctx context.Context, userID int64) ([]Bundle, error) {
+// Bundles are one person's saved searches in one space. Reading the space is
+// enough to keep them: they change nothing in it.
+
+func (s *Store) ListBundles(ctx context.Context, sc Scope) ([]Bundle, error) {
 	rows, err := s.r.QueryContext(ctx,
-		"SELECT id, name, query FROM bundles WHERE user_id = ? ORDER BY position, name COLLATE NOCASE, id", userID)
+		"SELECT id, name, query FROM bundles WHERE space_id = ? AND user_id = ? ORDER BY position, name COLLATE NOCASE, id",
+		sc.spaceID, sc.userID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,24 +55,27 @@ func (s *Store) ListBundles(ctx context.Context, userID int64) ([]Bundle, error)
 	return out, rows.Err()
 }
 
-func (s *Store) CreateBundle(ctx context.Context, userID int64, name, query string) (Bundle, error) {
+func (s *Store) CreateBundle(ctx context.Context, sc Scope, name, query string) (Bundle, error) {
 	name, query, err := cleanBundle(name, query)
 	if err != nil {
 		return Bundle{}, err
 	}
 	b := Bundle{Name: name, Query: query}
-	err = s.w.QueryRowContext(ctx, "INSERT INTO bundles (user_id, name, query) VALUES (?, ?, ?) RETURNING id",
-		userID, name, query).Scan(&b.ID)
+	if sc.spaceID == 0 {
+		return Bundle{}, ErrNotFound
+	}
+	err = s.w.QueryRowContext(ctx, "INSERT INTO bundles (space_id, user_id, name, query) VALUES (?, ?, ?, ?) RETURNING id",
+		sc.spaceID, sc.userID, name, query).Scan(&b.ID)
 	return b, err
 }
 
-func (s *Store) UpdateBundle(ctx context.Context, userID, id int64, name, query string) error {
+func (s *Store) UpdateBundle(ctx context.Context, sc Scope, id int64, name, query string) error {
 	name, query, err := cleanBundle(name, query)
 	if err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE bundles SET name = ?, query = ? WHERE user_id = ? AND id = ?",
-		name, query, userID, id)
+	res, err := s.w.ExecContext(ctx, "UPDATE bundles SET name = ?, query = ? WHERE space_id = ? AND user_id = ? AND id = ?",
+		name, query, sc.spaceID, sc.userID, id)
 	if err != nil {
 		return err
 	}
@@ -78,8 +85,9 @@ func (s *Store) UpdateBundle(ctx context.Context, userID, id int64, name, query 
 	return nil
 }
 
-func (s *Store) DeleteBundle(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM bundles WHERE user_id = ? AND id = ?", userID, id)
+func (s *Store) DeleteBundle(ctx context.Context, sc Scope, id int64) error {
+	res, err := s.w.ExecContext(ctx, "DELETE FROM bundles WHERE space_id = ? AND user_id = ? AND id = ?",
+		sc.spaceID, sc.userID, id)
 	if err != nil {
 		return err
 	}

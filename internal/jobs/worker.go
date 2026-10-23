@@ -88,6 +88,11 @@ func (w *Worker) RunOnce(ctx context.Context) bool {
 
 func (w *Worker) runImport(ctx context.Context, j store.Job, payload string) (store.ImportResult, error) {
 	var total store.ImportResult
+	// The user may have lost access to the space since queueing the import.
+	sc, err := w.store.Access(ctx, j.UserID, j.SpaceID)
+	if err != nil {
+		return total, fmt.Errorf("no access to the space: %w", err)
+	}
 	items, err := importexport.Parse([]byte(payload))
 	if err != nil {
 		return total, err
@@ -95,7 +100,7 @@ func (w *Worker) runImport(ctx context.Context, j store.Job, payload string) (st
 	w.store.JobProgress(ctx, j.ID, 0, len(items))
 	for start := 0; start < len(items); start += importBatch {
 		end := min(start+importBatch, len(items))
-		r, err := w.store.ImportBookmarks(ctx, j.UserID, items[start:end])
+		r, err := w.store.ImportBookmarks(ctx, sc, items[start:end])
 		if err != nil {
 			return total, err
 		}

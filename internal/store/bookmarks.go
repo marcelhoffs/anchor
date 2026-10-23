@@ -92,9 +92,12 @@ func (in *BookmarkInput) clean() (normalized, domain string, err error) {
 	return normalized, domain, nil
 }
 
-// CreateBookmark saves a new bookmark. If the user already saved this URL it
+// CreateBookmark saves a new bookmark. If the space already has this URL it
 // returns the existing bookmark unchanged and created=false.
-func (s *Store) CreateBookmark(ctx context.Context, userID int64, in BookmarkInput) (b Bookmark, created bool, err error) {
+func (s *Store) CreateBookmark(ctx context.Context, sc Scope, in BookmarkInput) (b Bookmark, created bool, err error) {
+	if err := sc.mustWrite(); err != nil {
+		return Bookmark{}, false, err
+	}
 	normalized, domain, err := in.clean()
 	if err != nil {
 		return Bookmark{}, false, err
@@ -104,44 +107,45 @@ func (s *Store) CreateBookmark(ctx context.Context, userID int64, in BookmarkInp
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		now := unix(s.now())
 		err := tx.QueryRowContext(ctx,
-			`INSERT INTO bookmarks (user_id, url, url_hash, domain, title, description, notes, is_favourite, created_at, updated_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			 ON CONFLICT (user_id, url_hash) DO NOTHING RETURNING id`,
-			userID, normalized, hash, domain, in.Title, in.Description, in.Notes, in.IsFavourite, now, now,
+			`INSERT INTO bookmarks (space_id, created_by, url, url_hash, domain, title, description, notes, is_favourite,
+			                        created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT (space_id, url_hash) DO NOTHING RETURNING id`,
+			sc.spaceID, sc.userID, normalized, hash, domain, in.Title, in.Description, in.Notes, in.IsFavourite, now, now,
 		).Scan(&id)
 		if err == sql.ErrNoRows {
-			return tx.QueryRowContext(ctx, "SELECT id FROM bookmarks WHERE user_id = ? AND url_hash = ?", userID, hash).Scan(&id)
+			return tx.QueryRowContext(ctx, "SELECT id FROM bookmarks WHERE space_id = ? AND url_hash = ?", sc.spaceID, hash).Scan(&id)
 		}
 		if err != nil {
 			return err
 		}
 		created = true
-		return setTags(ctx, tx, userID, id, in.Tags)
+		return setTags(ctx, tx, sc.spaceID, id, in.Tags)
 	})
 	if err != nil {
 		return Bookmark{}, false, err
 	}
-	b, err = s.GetBookmark(ctx, userID, id)
+	b, err = s.GetBookmark(ctx, sc, id)
 	return b, created, err
 }
 
-// FindBookmarkByURL returns the user's bookmark for url, if any.
-func (s *Store) FindBookmarkByURL(ctx context.Context, userID int64, rawURL string) (Bookmark, error) {
+// FindBookmarkByURL returns the space's bookmark for url, if any.
+func (s *Store) FindBookmarkByURL(ctx context.Context, sc Scope, rawURL string) (Bookmark, error) {
 	normalized, _, err := NormalizeURL(rawURL)
 	if err != nil {
 		return Bookmark{}, ErrNotFound
 	}
 	b, err := scanBookmark(s.r.QueryRowContext(ctx,
-		"SELECT "+bookmarkCols+" FROM bookmarks b WHERE b.user_id = ? AND b.url_hash = ?", userID, urlHash(normalized)))
+		"SELECT "+bookmarkCols+" FROM bookmarks b WHERE b.space_id = ? AND b.url_hash = ?", sc.spaceID, urlHash(normalized)))
 	if err != nil {
 		return Bookmark{}, err
 	}
 	return b, s.loadTags(ctx, []*Bookmark{&b})
 }
 
-func (s *Store) GetBookmark(ctx context.Context, userID, id int64) (Bookmark, error) {
+func (s *Store) GetBookmark(ctx context.Context, sc Scope, id int64) (Bookmark, error) {
 	b, err := scanBookmark(s.r.QueryRowContext(ctx,
-		"SELECT "+bookmarkCols+" FROM bookmarks b WHERE b.user_id = ? AND b.id = ?", userID, id))
+		"SELECT "+bookmarkCols+" FROM bookmarks b WHERE b.space_id = ? AND b.id = ?", sc.spaceID, id))
 	if err != nil {
 		return Bookmark{}, err
 	}
@@ -151,7 +155,10 @@ func (s *Store) GetBookmark(ctx context.Context, userID, id int64) (Bookmark, er
 // UpdateBookmark replaces a bookmark's editable fields. It returns
 // ErrConflict if the new URL is already saved as another bookmark. A new URL
 // drops the old icon and queues the page details to be fetched again.
-func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in BookmarkInput) (Bookmark, error) {
+func (s *Store) UpdateBookmark(ctx context.Context, sc Scope, id int64, in BookmarkInput) (Bookmark, error) {
+	if err := sc.mustWrite(); err != nil {
+		return Bookmark{}, err
+	}
 	normalized, domain, err := in.clean()
 	if err != nil {
 		return Bookmark{}, err
@@ -162,9 +169,9 @@ func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in Bookmar
 			 is_favourite = ?, updated_at = ?,
 			 favicon_id = CASE WHEN url = ? THEN favicon_id END,
 			 fetch_status = CASE WHEN url = ? THEN fetch_status ELSE 'pending' END
-			 WHERE user_id = ? AND id = ?`,
+			 WHERE space_id = ? AND id = ?`,
 			normalized, urlHash(normalized), domain, in.Title, in.Description, in.Notes,
-			in.IsFavourite, unix(s.now()), normalized, normalized, userID, id)
+			in.IsFavourite, unix(s.now()), normalized, normalized, sc.spaceID, id)
 		if isUniqueViolation(err) {
 			return ErrConflict
 		}
@@ -174,21 +181,24 @@ func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in Bookmar
 		if n, _ := res.RowsAffected(); n == 0 {
 			return ErrNotFound
 		}
-		return setTags(ctx, tx, userID, id, in.Tags)
+		return setTags(ctx, tx, sc.spaceID, id, in.Tags)
 	})
 	if err != nil {
 		return Bookmark{}, err
 	}
-	return s.GetBookmark(ctx, userID, id)
+	return s.GetBookmark(ctx, sc, id)
 }
 
-func (s *Store) SetFlag(ctx context.Context, userID, id int64, flag Flag, on bool) error {
+func (s *Store) SetFlag(ctx context.Context, sc Scope, id int64, flag Flag, on bool) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
 	col, ok := flagColumns[flag]
 	if !ok {
 		return fmt.Errorf("unknown flag %q", flag)
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET "+col+" = ?, updated_at = ? WHERE user_id = ? AND id = ?",
-		on, unix(s.now()), userID, id)
+	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET "+col+" = ?, updated_at = ? WHERE space_id = ? AND id = ?",
+		on, unix(s.now()), sc.spaceID, id)
 	if err != nil {
 		return err
 	}
@@ -198,8 +208,11 @@ func (s *Store) SetFlag(ctx context.Context, userID, id int64, flag Flag, on boo
 	return nil
 }
 
-func (s *Store) DeleteBookmark(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE user_id = ? AND id = ?", userID, id)
+func (s *Store) DeleteBookmark(ctx context.Context, sc Scope, id int64) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
+	res, err := s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE space_id = ? AND id = ?", sc.spaceID, id)
 	if err != nil {
 		return err
 	}
@@ -215,13 +228,13 @@ const (
 	SortTitle  = "title" // A–Z by title, or by URL when there is no title
 )
 
-// Search returns one page of the user's bookmarks matching q, best match
+// Search returns one page of the space's bookmarks matching q, best match
 // first for free-text queries and then in sort order (one of Sorts; anything
 // else means newest first). total is how many match in all.
-func (s *Store) Search(ctx context.Context, userID int64, q search.Query, sort string, limit, offset int) (list []Bookmark, total int, err error) {
+func (s *Store) Search(ctx context.Context, sc Scope, q search.Query, sort string, limit, offset int) (list []Bookmark, total int, err error) {
 	var (
 		from  = "bookmarks b"
-		where = []string{"b.user_id = ?"}
+		where = []string{"b.space_id = ?"}
 		args  []any
 		order = "b.created_at DESC, b.id DESC"
 	)
@@ -232,10 +245,10 @@ func (s *Store) Search(ctx context.Context, userID int64, q search.Query, sort s
 		// Title weighted ×3 over description, notes, URL and tags.
 		from = "bookmarks b JOIN bookmarks_fts ON bookmarks_fts.rowid = b.id"
 		where = append(where, "bookmarks_fts MATCH ?")
-		args = append(args, userID, fts)
+		args = append(args, sc.spaceID, fts)
 		order = "bm25(bookmarks_fts, 3.0, 1.0, 1.0, 1.0, 1.0), " + order
 	} else {
-		args = append(args, userID)
+		args = append(args, sc.spaceID)
 	}
 	const hasTag = "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ?)"
 	for _, t := range q.Tags {
@@ -300,7 +313,7 @@ func (s *Store) Search(ctx context.Context, userID int64, q search.Query, sort s
 	return list, total, s.loadTags(ctx, ptrs)
 }
 
-// loadTags fills in Tags for bookmarks that were already loaded for one user.
+// loadTags fills in Tags for bookmarks that were already loaded for one space.
 func (s *Store) loadTags(ctx context.Context, bs []*Bookmark) error {
 	if len(bs) == 0 {
 		return nil
@@ -336,11 +349,11 @@ type Counts struct {
 	Archived   int
 }
 
-func (s *Store) CountBookmarks(ctx context.Context, userID int64) (Counts, error) {
+func (s *Store) CountBookmarks(ctx context.Context, sc Scope) (Counts, error) {
 	var c Counts
 	err := s.r.QueryRowContext(ctx,
 		`SELECT coalesce(sum(is_archived = 0), 0), coalesce(sum(is_archived = 0 AND is_favourite = 1), 0),
 		        coalesce(sum(is_archived = 1), 0)
-		 FROM bookmarks WHERE user_id = ?`, userID).Scan(&c.All, &c.Favourites, &c.Archived)
+		 FROM bookmarks WHERE space_id = ?`, sc.spaceID).Scan(&c.All, &c.Favourites, &c.Archived)
 	return c, err
 }

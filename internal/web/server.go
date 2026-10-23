@@ -151,7 +151,7 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/s/{token}", s.sharedBookmark)
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.requireUser, s.enforce2FA)
+			r.Use(s.requireUser, s.enforce2FA, s.loadScope)
 			r.Get("/", s.list)
 			r.Get("/bookmarks/new", s.newBookmark)
 			r.Post("/bookmarks", s.createBookmark)

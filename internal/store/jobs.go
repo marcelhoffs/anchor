@@ -16,6 +16,7 @@ const JobImport = "import"
 type Job struct {
 	ID         int64
 	UserID     int64
+	SpaceID    int64 // the space an import goes into
 	Kind       string
 	Status     string // queued | running | done | failed
 	Progress   int
@@ -28,13 +29,13 @@ type Job struct {
 
 func (j Job) Finished() bool { return j.Status == "done" || j.Status == "failed" }
 
-const jobCols = `id, coalesce(user_id, 0), kind, status, progress, total, result, coalesce(last_error, ''), created_at,
+const jobCols = `id, coalesce(user_id, 0), coalesce(space_id, 0), kind, status, progress, total, result, coalesce(last_error, ''), created_at,
 	coalesce(finished_at, 0)`
 
 func scanJob(row interface{ Scan(...any) error }) (Job, error) {
 	var j Job
 	var created, finished int64
-	err := row.Scan(&j.ID, &j.UserID, &j.Kind, &j.Status, &j.Progress, &j.Total, &j.Result, &j.LastError, &created, &finished)
+	err := row.Scan(&j.ID, &j.UserID, &j.SpaceID, &j.Kind, &j.Status, &j.Progress, &j.Total, &j.Result, &j.LastError, &created, &finished)
 	j.CreatedAt = fromUnix(created)
 	if finished > 0 {
 		j.FinishedAt = fromUnix(finished)
@@ -42,12 +43,17 @@ func scanJob(row interface{ Scan(...any) error }) (Job, error) {
 	return j, notFound(err)
 }
 
-func (s *Store) CreateJob(ctx context.Context, userID int64, kind, payload string) (int64, error) {
+// CreateJob queues a job for the scope's user. Jobs change their space (an
+// import adds bookmarks), so they need write access.
+func (s *Store) CreateJob(ctx context.Context, sc Scope, kind, payload string) (int64, error) {
+	if err := sc.mustWrite(); err != nil {
+		return 0, err
+	}
 	now := unix(s.now())
 	var id int64
 	err := s.w.QueryRowContext(ctx,
-		"INSERT INTO jobs (user_id, kind, payload, run_after, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id",
-		userID, kind, payload, now, now).Scan(&id)
+		"INSERT INTO jobs (user_id, space_id, kind, payload, run_after, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
+		sc.userID, sc.spaceID, kind, payload, now, now).Scan(&id)
 	return id, err
 }
 
@@ -122,11 +128,14 @@ type ImportResult struct {
 	Skipped int `json:"skipped"` // not http(s), or otherwise invalid
 }
 
-// ImportBookmarks adds items for a user in one transaction. A URL the user
+// ImportBookmarks adds items to a space in one transaction. A URL the space
 // already has is merged rather than duplicated: its tags gain the imported
 // ones, empty fields are filled in, and the flags can only be turned on.
-func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []importexport.Item) (ImportResult, error) {
+func (s *Store) ImportBookmarks(ctx context.Context, sc Scope, items []importexport.Item) (ImportResult, error) {
 	var r ImportResult
+	if err := sc.mustWrite(); err != nil {
+		return r, err
+	}
 	err := s.tx(ctx, func(tx *sql.Tx) error {
 		now := s.now()
 		for _, it := range items {
@@ -148,16 +157,16 @@ func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []impor
 			}
 			var id int64
 			err = tx.QueryRowContext(ctx,
-				`INSERT INTO bookmarks (user_id, url, url_hash, domain, title, description, notes, is_favourite, is_archived,
-				                        created_at, updated_at)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				 ON CONFLICT (user_id, url_hash) DO NOTHING RETURNING id`,
-				userID, normalized, urlHash(normalized), domain, in.Title, in.Description, in.Notes, it.Favourite, it.Archived,
+				`INSERT INTO bookmarks (space_id, created_by, url, url_hash, domain, title, description, notes, is_favourite,
+				                        is_archived, created_at, updated_at)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				 ON CONFLICT (space_id, url_hash) DO NOTHING RETURNING id`,
+				sc.spaceID, sc.userID, normalized, urlHash(normalized), domain, in.Title, in.Description, in.Notes, it.Favourite, it.Archived,
 				unix(created), unix(updated)).Scan(&id)
 			switch {
 			case err == sql.ErrNoRows:
-				if err := tx.QueryRowContext(ctx, "SELECT id FROM bookmarks WHERE user_id = ? AND url_hash = ?",
-					userID, urlHash(normalized)).Scan(&id); err != nil {
+				if err := tx.QueryRowContext(ctx, "SELECT id FROM bookmarks WHERE space_id = ? AND url_hash = ?",
+					sc.spaceID, urlHash(normalized)).Scan(&id); err != nil {
 					return err
 				}
 				if _, err := tx.ExecContext(ctx,
@@ -166,8 +175,8 @@ func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []impor
 					   description = CASE WHEN description = '' THEN ? ELSE description END,
 					   notes = CASE WHEN notes = '' THEN ? ELSE notes END,
 					   is_favourite = is_favourite OR ?, is_archived = is_archived OR ?
-					 WHERE id = ? AND user_id = ?`,
-					in.Title, in.Description, in.Notes, it.Favourite, it.Archived, id, userID); err != nil {
+					 WHERE id = ? AND space_id = ?`,
+					in.Title, in.Description, in.Notes, it.Favourite, it.Archived, id, sc.spaceID); err != nil {
 					return err
 				}
 				r.Merged++
@@ -176,7 +185,7 @@ func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []impor
 			default:
 				r.Created++
 			}
-			if err := addTags(ctx, tx, userID, id, in.Tags); err != nil {
+			if err := addTags(ctx, tx, sc.spaceID, id, in.Tags); err != nil {
 				return err
 			}
 		}
@@ -186,28 +195,28 @@ func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []impor
 }
 
 // addTags adds tags to a bookmark, keeping the ones it has.
-func addTags(ctx context.Context, tx *sql.Tx, userID, bookmarkID int64, tags []string) error {
+func addTags(ctx context.Context, tx *sql.Tx, spaceID, bookmarkID int64, tags []string) error {
 	for _, name := range tags {
-		if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO tags (user_id, name) VALUES (?, ?)", userID, name); err != nil {
+		if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO tags (space_id, name) VALUES (?, ?)", spaceID, name); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx,
 			`INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id)
-			 SELECT ?, id FROM tags WHERE user_id = ? AND name = ?`, bookmarkID, userID, name); err != nil {
+			 SELECT ?, id FROM tags WHERE space_id = ? AND name = ?`, bookmarkID, spaceID, name); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// ExportBookmarks calls fn for each of the user's bookmarks, oldest first,
+// ExportBookmarks calls fn for each of the space's bookmarks, oldest first,
 // streaming rather than loading them all.
-func (s *Store) ExportBookmarks(ctx context.Context, userID int64, fn func(importexport.Item) error) error {
+func (s *Store) ExportBookmarks(ctx context.Context, sc Scope, fn func(importexport.Item) error) error {
 	rows, err := s.r.QueryContext(ctx,
 		`SELECT b.url, b.title, b.description, b.notes, b.is_favourite, b.is_archived, b.created_at, b.updated_at,
 		        coalesce((SELECT group_concat(t.name, char(31)) FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id
 		                  WHERE bt.bookmark_id = b.id), '')
-		 FROM bookmarks b WHERE b.user_id = ? ORDER BY b.created_at, b.id`, userID)
+		 FROM bookmarks b WHERE b.space_id = ? ORDER BY b.created_at, b.id`, sc.spaceID)
 	if err != nil {
 		return err
 	}

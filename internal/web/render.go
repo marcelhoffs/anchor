@@ -170,6 +170,8 @@ func (s *Server) storeError(w http.ResponseWriter, r *http.Request, err error) b
 		return true
 	case errors.Is(err, store.ErrNotFound):
 		s.notFound(w, r)
+	case errors.Is(err, store.ErrForbidden):
+		http.Error(w, "You can read these bookmarks but not change them.", http.StatusForbidden)
 	default:
 		s.serverError(w, r, err)
 	}

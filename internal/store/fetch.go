@@ -63,9 +63,12 @@ func (s *Store) SaveFetch(ctx context.Context, it FetchItem, r FetchResult) erro
 }
 
 // Refetch queues a bookmark's page details to be fetched again.
-func (s *Store) Refetch(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET fetch_status = ? WHERE user_id = ? AND id = ?",
-		FetchPending, userID, id)
+func (s *Store) Refetch(ctx context.Context, sc Scope, id int64) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
+	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET fetch_status = ? WHERE space_id = ? AND id = ?",
+		FetchPending, sc.spaceID, id)
 	if err != nil {
 		return err
 	}
@@ -95,7 +98,7 @@ func (s *Store) FaviconForDomain(ctx context.Context, domain string, since time.
 }
 
 // SaveFavicon stores (or replaces) a domain's icon. Icons are shared by
-// every user with a bookmark on that domain.
+// every bookmark on that domain, in every space.
 func (s *Store) SaveFavicon(ctx context.Context, domain, mime string, data []byte) (int64, error) {
 	var id int64
 	err := s.w.QueryRowContext(ctx,
@@ -105,11 +108,13 @@ func (s *Store) SaveFavicon(ctx context.Context, domain, mime string, data []byt
 	return id, err
 }
 
-// Favicon returns an icon, but only to a user with a bookmark that uses it.
+// Favicon returns an icon, but only to a user who can see a bookmark that
+// uses it, in any of their spaces.
 func (s *Store) Favicon(ctx context.Context, userID, id int64) (mime string, data []byte, err error) {
 	err = s.r.QueryRowContext(ctx,
 		`SELECT mime, data FROM favicons f
-		 WHERE f.id = ? AND EXISTS (SELECT 1 FROM bookmarks WHERE user_id = ? AND favicon_id = f.id)`,
+		 WHERE f.id = ? AND EXISTS (SELECT 1 FROM bookmarks b JOIN space_members m ON m.space_id = b.space_id
+		                            WHERE m.user_id = ? AND b.favicon_id = f.id)`,
 		id, userID).Scan(&mime, &data)
 	return mime, data, notFound(err)
 }

@@ -139,7 +139,7 @@ func (e *env) user(name string) {
 func (e *env) tags(user string, names ...string) {
 	e.t.Helper()
 	for _, n := range names {
-		if _, err := e.store.CreateTag(context.Background(), e.userID(user), n); err != nil {
+		if _, err := e.store.CreateTag(context.Background(), personal(e.store, e.userID(user)), n); err != nil {
 			e.t.Fatal(err)
 		}
 	}
@@ -282,11 +282,11 @@ func TestCrossUserIsolation(t *testing.T) {
 	alice.post("/bookmarks", url.Values{"url": {"https://alice.example/secret"}, "title": {"Alice secret"}, "tags": {"alicetag"}})
 	ctx := context.Background()
 	a, _ := e.store.UserByUsername(ctx, "alice")
-	bm, err := e.store.FindBookmarkByURL(ctx, a.ID, "https://alice.example/secret")
+	bm, err := e.store.FindBookmarkByURL(ctx, personal(e.store, a.ID), "https://alice.example/secret")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tags, _ := e.store.ListTags(ctx, a.ID)
+	tags, _ := e.store.ListTags(ctx, personal(e.store, a.ID))
 	bid, tid := itoa(bm.ID), itoa(tags[0].ID)
 
 	if _, body, _ := alice.get("/tags"); !strings.Contains(body, `href="/?q=%23alicetag"`) {
@@ -322,7 +322,7 @@ func TestCrossUserIsolation(t *testing.T) {
 	sessions, _ := e.store.ListSessions(ctx, a.ID)
 	bob.post("/settings/sessions/revoke", url.Values{"id": {hexOf(sessions[0].TokenHash)}})
 
-	got, err := e.store.GetBookmark(ctx, a.ID, bm.ID)
+	got, err := e.store.GetBookmark(ctx, personal(e.store, a.ID), bm.ID)
 	if err != nil || got.Title != "Alice secret" || got.IsFavourite || len(got.Tags) != 1 || got.Tags[0] != "alicetag" {
 		t.Fatalf("alice's bookmark changed: %+v %v", got, err)
 	}
@@ -410,7 +410,7 @@ func TestPagesAreCSPClean(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go, home lab"}})
 	c.post("/bookmarks/1/share", url.Values{"on": {"1"}})
 	c.post("/bundles", url.Values{"name": {"Go"}, "query": {"#go site:go.dev"}})
-	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
+	b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 1)
 	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope",
 		"/settings/security", "/settings/tokens", "/settings/data", "/reauth", "/bundles", "/?q=%23go+site%3Ago.dev"} {
 		_, body, _ := c.get(path)
@@ -575,8 +575,8 @@ func TestListPreferences(t *testing.T) {
 	e.user("alice")
 	c := e.login("alice")
 	ctx := context.Background()
-	e.store.CreateBookmark(ctx, e.userID("alice"), store.BookmarkInput{URL: "https://a.com", Title: "Aardvark"})
-	e.store.CreateBookmark(ctx, e.userID("alice"), store.BookmarkInput{URL: "https://z.com", Title: "Zebra", Description: "Stripes and more"})
+	e.store.CreateBookmark(ctx, personal(e.store, e.userID("alice")), store.BookmarkInput{URL: "https://a.com", Title: "Aardvark"})
+	e.store.CreateBookmark(ctx, personal(e.store, e.userID("alice")), store.BookmarkInput{URL: "https://z.com", Title: "Zebra", Description: "Stripes and more"})
 	_, body, _ := c.get("/")
 	if strings.Index(body, "Zebra") > strings.Index(body, "Aardvark") || !strings.Contains(body, "Stripes and more") {
 		t.Fatal("default should be newest first, with descriptions")
@@ -605,7 +605,7 @@ func TestPagination(t *testing.T) {
 	c := e.login("alice")
 	id := e.userID("alice")
 	for i := range 2*pageSize + 20 {
-		e.store.CreateBookmark(context.Background(), id, store.BookmarkInput{URL: "https://example.com/" + strconv.Itoa(i)})
+		e.store.CreateBookmark(context.Background(), personal(e.store, id), store.BookmarkInput{URL: "https://example.com/" + strconv.Itoa(i)})
 	}
 	_, body, _ := c.get("/")
 	if n := strings.Count(body, `class="pager"`); n != 2 {
@@ -644,7 +644,7 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	e.user("alice")
 	c := e.login("alice")
 	e.tags("alice", "homelab")
-	e.store.CreateBookmark(context.Background(), e.userID("alice"), store.BookmarkInput{URL: "https://a.com", Tags: []string{"homelab"}})
+	e.store.CreateBookmark(context.Background(), personal(e.store, e.userID("alice")), store.BookmarkInput{URL: "https://a.com", Tags: []string{"homelab"}})
 	_, body, _ := c.get("/")
 	if !strings.Contains(body, `popovertarget="tag-drawer"`) || !strings.Contains(body, `id="tag-drawer"`) {
 		t.Fatal("no Tags button and drawer")
@@ -731,7 +731,7 @@ func TestTagsMustBeCreatedFirst(t *testing.T) {
 			t.Fatalf("create %q: %d %q", name, code, loc)
 		}
 	}
-	if code, body, _ := c.post("/tags", url.Values{"name": {"Home Lab"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "already have a tag") {
+	if code, body, _ := c.post("/tags", url.Values{"name": {"Home Lab"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "already a tag") {
 		t.Fatalf("duplicate: %d", code)
 	}
 	if code, body, _ := c.post("/tags", url.Values{"name": {"a, b"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "commas") {
@@ -761,7 +761,7 @@ func TestTagsMustBeCreatedFirst(t *testing.T) {
 
 	// Deleting the bookmark keeps the tags.
 	c.post("/bookmarks/1/delete", nil)
-	if tags, _ := e.store.ListTags(context.Background(), e.userID("alice")); len(tags) != 2 {
+	if tags, _ := e.store.ListTags(context.Background(), personal(e.store, e.userID("alice"))); len(tags) != 2 {
 		t.Fatalf("tags after delete: %+v", tags)
 	}
 
@@ -786,4 +786,13 @@ func TestFooterLinksSource(t *testing.T) {
 			t.Fatalf("%s: no source code link in the footer", path)
 		}
 	}
+}
+
+// personal is a user's scope in their own space.
+func personal(st *store.Store, userID int64) store.Scope {
+	sc, err := st.PersonalScope(context.Background(), userID)
+	if err != nil {
+		panic(err)
+	}
+	return sc
 }

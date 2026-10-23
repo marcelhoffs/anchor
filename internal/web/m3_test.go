@@ -50,12 +50,12 @@ func TestFetchFillsInDetails(t *testing.T) {
 	if !strings.Contains(body, "A Fine Article") || !strings.Contains(body, "All about anchors.") || !strings.Contains(body, "Kept title") {
 		t.Fatal("details not filled in")
 	}
-	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
+	b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 1)
 	if b.FaviconID == 0 || !strings.Contains(body, `src="/favicons/`) {
 		t.Fatalf("no icon: %+v", b)
 	}
 	// Both bookmarks are on the same host, so they share its icon.
-	if b2, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 2); b2.FaviconID != b.FaviconID || b2.FetchStatus != store.FetchFailed {
+	if b2, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 2); b2.FaviconID != b.FaviconID || b2.FetchStatus != store.FetchFailed {
 		t.Fatalf("second bookmark = %+v", b2)
 	}
 	res, err := c.http.Get(e.srv.URL + "/favicons/" + itoa(b.FaviconID))
@@ -74,7 +74,7 @@ func TestFetchFillsInDetails(t *testing.T) {
 	if code, _, loc := c.post("/bookmarks/2/refetch", url.Values{"next": {"/"}}); code != http.StatusSeeOther || !strings.Contains(loc, "done=refetched") {
 		t.Fatalf("refetch: %d %q", code, loc)
 	}
-	if b2, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 2); b2.FetchStatus != store.FetchPending {
+	if b2, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 2); b2.FetchStatus != store.FetchPending {
 		t.Fatal("refetch didn't queue")
 	}
 }
@@ -93,7 +93,7 @@ func TestSharingFlow(t *testing.T) {
 	if code, _, loc := c.post("/bookmarks/1/share", url.Values{"on": {"1"}, "next": {"/"}}); code != http.StatusSeeOther || !strings.Contains(loc, "done=shared") {
 		t.Fatalf("share: %d %q", code, loc)
 	}
-	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
+	b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 1)
 	link := "/s/" + b.ShareToken
 	if _, body, _ := c.get("/bookmarks/1/edit"); !strings.Contains(body, e.origin+link) {
 		t.Fatal("edit page doesn't show the public link")
@@ -157,7 +157,7 @@ func TestBundlesFlow(t *testing.T) {
 		t.Fatalf("empty name: %d", code)
 	}
 
-	list, _ := e.store.ListBundles(context.Background(), e.userID("alice"))
+	list, _ := e.store.ListBundles(context.Background(), personal(e.store, e.userID("alice")))
 	id := itoa(list[0].ID)
 	bob := e.login("bob")
 	if _, body, _ := bob.get("/"); strings.Contains(body, "Go sites") {
@@ -219,7 +219,7 @@ func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {site.URL + "/news"}})
 	for e.fetcher.RunOnce(context.Background()) {
 	}
-	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
+	b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 1)
 	if b.Title != "" {
 		t.Fatalf("took the consent page's title: %q", b.Title)
 	}
