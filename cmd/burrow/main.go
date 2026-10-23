@@ -20,6 +20,7 @@ import (
 	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/config"
 	"github.com/marcelhoffs/burrow/internal/db"
+	"github.com/marcelhoffs/burrow/internal/fetch"
 	"github.com/marcelhoffs/burrow/internal/jobs"
 	"github.com/marcelhoffs/burrow/internal/store"
 	"github.com/marcelhoffs/burrow/internal/web"
@@ -121,8 +122,12 @@ func serve(ctx context.Context) error {
 	go cleanSessions(ctx, st, log)
 	worker := jobs.NewWorker(st, log)
 	go worker.Run(ctx)
+	fetcher := jobs.NewFetcher(st, fetch.New(cfg.Fetch == "all"), log)
+	if cfg.Fetch != "off" {
+		go fetcher.Run(ctx)
+	}
 
-	srv, err := web.New(cfg, st, log, worker)
+	srv, err := web.New(cfg, st, log, worker, fetcher)
 	if err != nil {
 		return err
 	}

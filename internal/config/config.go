@@ -26,6 +26,10 @@ type Config struct {
 	// admin chooses in the UI. "" / nil = not set.
 	Signup     string
 	Require2FA *bool
+
+	// Fetch is which addresses page details may be fetched from: "public"
+	// (default), "all" (also private networks) or "off".
+	Fetch string
 }
 
 // Load reads the environment. When requireServe is false, the settings only
@@ -75,6 +79,12 @@ func Load(requireServe bool) (*Config, error) {
 		c.Require2FA = new(bool)
 	default:
 		errs = append(errs, errors.New("BURROW_REQUIRE_2FA must be true or false"))
+	}
+
+	switch c.Fetch = strings.ToLower(env("BURROW_FETCH", "public")); c.Fetch {
+	case "public", "all", "off":
+	default:
+		errs = append(errs, errors.New("BURROW_FETCH must be public, all or off"))
 	}
 
 	if raw := os.Getenv("BURROW_BASE_URL"); raw != "" {

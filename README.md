@@ -2,14 +2,14 @@
 
 Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded SQLite database, one Docker volume.
 
-**Status: milestones 1 and 2, plus import/export from milestone 3.**
+**Status: milestones 1 to 3.**
 
-- Bookmarks with tags, full-text search, favourites and an archive; light/dark themes with two accent colours.
+- Bookmarks with tags, full-text search, favourites and an archive; light/dark themes and a choice of accent colours.
+- Page details: an empty title or description, and the site's icon, are fetched from the page for new and imported bookmarks.
+- Bundles (saved searches) in the sidebar, and public read-only links for single bookmarks.
 - Accounts: two-factor authentication (authenticator app, passkeys, recovery codes), API tokens and a REST API.
 - Admin: user management, invites and signup modes, a 2FA policy, rate limits.
 - Import from and export to browsers, linkding, Pocket and Pinboard (Netscape HTML) and Burrow JSON.
-
-Metadata fetching, favicons, bundles and sharing arrive with the rest of milestone 3.
 
 ## Run it
 
@@ -47,6 +47,8 @@ JSON under `/api/v1`, authenticated with a personal token (Settings → API toke
 | GET | `/api/v1/bookmarks/check?url=` | Is this URL saved? |
 | GET / PATCH / DELETE | `/api/v1/bookmarks/{id}` | Read / update (send only the fields to change) / delete |
 | POST | `/api/v1/bookmarks/{id}/archive` | Archive; `{"archived": false}` unarchives |
+| POST | `/api/v1/bookmarks/{id}/share` | Make a public link (`share_url`); `{"shared": false}` removes it |
+| GET | `/api/v1/bundles` | Saved searches; list one with `?q=` its `query` |
 | GET | `/api/v1/tags` | Tags with counts |
 | PATCH / DELETE | `/api/v1/tags/{id}` | Rename (`{"name"}`), merge (`{"merge_into": id}`), delete |
 | POST | `/api/v1/import` | Upload a bookmark file (body or multipart `file`); returns a job |
@@ -69,6 +71,7 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"url":"https://go.dev","tags":["go"]
 | `BURROW_SIGNUP` | admin's choice (`closed`) | `closed` / `invite` / `open`; when set, overrides the admin page |
 | `BURROW_REQUIRE_2FA` | admin's choice (`false`) | Require 2FA for everyone; when set, overrides the admin page |
 | `BURROW_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is honoured |
+| `BURROW_FETCH` | `public` | Fetch page details from public addresses only; `all` also allows your own network (loopback, private, Tailscale ranges); `off` disables fetching |
 | `BURROW_LOG_LEVEL` | `info` | `debug` / `info` / `warn` |
 | `BURROW_ADMIN_USER`, `BURROW_ADMIN_PASSWORD` | empty | Create the first admin on an empty database |
 

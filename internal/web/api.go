@@ -49,6 +49,7 @@ func (s *Server) apiRoutes(r chi.Router) {
 	r.Get("/bookmarks/check", s.apiCheckBookmark)
 	r.Get("/bookmarks/{id}", s.apiGetBookmark)
 	r.Get("/tags", s.apiListTags)
+	r.Get("/bundles", s.apiListBundles)
 	r.Get("/export", s.apiExport)
 	r.Get("/jobs/{id}", s.apiGetJob)
 	r.Group(func(r chi.Router) {
@@ -57,6 +58,7 @@ func (s *Server) apiRoutes(r chi.Router) {
 		r.Patch("/bookmarks/{id}", s.apiUpdateBookmark)
 		r.Delete("/bookmarks/{id}", s.apiDeleteBookmark)
 		r.Post("/bookmarks/{id}/archive", s.apiArchiveBookmark)
+		r.Post("/bookmarks/{id}/share", s.apiShareBookmark)
 		r.Patch("/tags/{id}", s.apiUpdateTag)
 		r.Delete("/tags/{id}", s.apiDeleteTag)
 		r.Post("/import", s.apiImport)
@@ -154,17 +156,23 @@ type apiBookmark struct {
 	Tags        []string  `json:"tags"`
 	IsFavourite bool      `json:"is_favourite"`
 	IsArchived  bool      `json:"is_archived"`
+	ShareURL    *string   `json:"share_url"` // null unless shared
 	Domain      string    `json:"domain"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-func toAPI(b store.Bookmark) apiBookmark {
+func (s *Server) toAPI(b store.Bookmark) apiBookmark {
 	tags := b.Tags
 	if tags == nil {
 		tags = []string{}
 	}
-	return apiBookmark{b.ID, b.URL, b.Title, b.Description, b.Notes, tags, b.IsFavourite, b.IsArchived, b.Domain, b.CreatedAt, b.UpdatedAt}
+	var share *string
+	if b.IsShared {
+		u := s.shareURL(b)
+		share = &u
+	}
+	return apiBookmark{b.ID, b.URL, b.Title, b.Description, b.Notes, tags, b.IsFavourite, b.IsArchived, share, b.Domain, b.CreatedAt, b.UpdatedAt}
 }
 
 func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {
@@ -229,7 +237,7 @@ func (s *Server) apiListBookmarks(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]apiBookmark, len(list))
 	for i, b := range list {
-		out[i] = toAPI(b)
+		out[i] = s.toAPI(b)
 	}
 	var next any
 	if offset+limit < total {
@@ -252,7 +260,7 @@ func (s *Server) apiCheckBookmark(w http.ResponseWriter, r *http.Request) {
 	if !s.apiStoreError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"bookmark": toAPI(b)})
+	writeJSON(w, http.StatusOK, map[string]any{"bookmark": s.toAPI(b)})
 }
 
 func apiID(w http.ResponseWriter, r *http.Request) (int64, bool) {
@@ -272,7 +280,7 @@ func (s *Server) apiGetBookmark(w http.ResponseWriter, r *http.Request) {
 	if !s.apiStoreError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, toAPI(b))
+	writeJSON(w, http.StatusOK, s.toAPI(b))
 }
 
 type apiBookmarkInput struct {
@@ -331,8 +339,9 @@ func (s *Server) apiCreateBookmark(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
 	if created {
 		status = http.StatusCreated
+		s.fetcher.Notify()
 	}
-	writeJSON(w, status, toAPI(b))
+	writeJSON(w, status, s.toAPI(b))
 }
 
 func (s *Server) apiUpdateBookmark(w http.ResponseWriter, r *http.Request) {
@@ -362,7 +371,43 @@ func (s *Server) apiUpdateBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 		b.IsArchived = *p.IsArchived
 	}
-	writeJSON(w, http.StatusOK, toAPI(b))
+	s.fetcher.Notify() // in case the URL changed
+	writeJSON(w, http.StatusOK, s.toAPI(b))
+}
+
+// apiShareBookmark makes a public link (or with {"shared": false} removes it).
+func (s *Server) apiShareBookmark(w http.ResponseWriter, r *http.Request) {
+	id, ok := apiID(w, r)
+	if !ok {
+		return
+	}
+	body := struct {
+		Shared *bool `json:"shared"`
+	}{}
+	if r.ContentLength != 0 && !decodeJSON(w, r, &body) {
+		return
+	}
+	uid := apiCaller(r).user.ID
+	if !s.apiStoreError(w, s.store.SetShared(r.Context(), uid, id, body.Shared == nil || *body.Shared)) {
+		return
+	}
+	b, err := s.store.GetBookmark(r.Context(), uid, id)
+	if !s.apiStoreError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.toAPI(b))
+}
+
+func (s *Server) apiListBundles(w http.ResponseWriter, r *http.Request) {
+	list, err := s.store.ListBundles(r.Context(), apiCaller(r).user.ID)
+	if !s.apiStoreError(w, err) {
+		return
+	}
+	out := make([]map[string]any, len(list))
+	for i, b := range list {
+		out[i] = map[string]any{"id": b.ID, "name": b.Name, "query": b.Query}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"results": out})
 }
 
 func (s *Server) apiDeleteBookmark(w http.ResponseWriter, r *http.Request) {
@@ -397,7 +442,7 @@ func (s *Server) apiArchiveBookmark(w http.ResponseWriter, r *http.Request) {
 	if !s.apiStoreError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusOK, toAPI(b))
+	writeJSON(w, http.StatusOK, s.toAPI(b))
 }
 
 func (s *Server) apiListTags(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,42 @@
+{{define "title"}}Bundles{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>Bundles</h1>
+  {{if .BundleList}}
+  <p class="muted intro">Bundles are saved searches. They're listed in the sidebar and stay up to date as you add bookmarks.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">Name and search</th><th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
+    <tbody>
+    {{range .BundleList}}
+      <tr>
+        <td>
+          <form method="post" action="/bundles/{{.ID}}" class="row-wrap">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <input name="name" value="{{.Name}}" aria-label="Name of bundle {{.Name}}" required maxlength="100">
+            <input class="mono" name="query" value="{{.Query}}" aria-label="Search for bundle {{.Name}}" required autocapitalize="none" spellcheck="false">
+            <button class="btn">Save</button>
+            <a class="btn" href="{{bundleURL .}}">Open</a>
+          </form>
+        </td>
+        <td class="actions">
+          <form method="post" action="/bundles/{{.ID}}/delete">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <button class="icon-btn danger" aria-label="Delete bundle {{.Name}}">{{icon "trash"}}</button>
+          </form>
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <div class="empty-state">
+    <span class="badge-icon">{{icon "layers"}}</span>
+    <p class="title">No bundles yet</p>
+    <p>Search your bookmarks, for example <strong>#homelab site:github.com</strong>, then choose Save search to keep it in the sidebar.</p>
+    <a class="btn btn-primary" href="/">Go to bookmarks</a>
+  </div>
+  {{end}}
+</div>
+{{end}}

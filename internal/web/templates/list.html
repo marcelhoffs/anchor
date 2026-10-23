@@ -7,6 +7,14 @@
     <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star"}}<span class="label">Favourites</span><span class="count">{{.Counts.Favourites}}</span></a>
     <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive"}}<span class="label">Archive</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
+  {{if .Bundles}}
+  <h2 class="side-heading side-heading-row">Bundles<a href="/bundles" class="side-manage">Manage</a></h2>
+  <nav aria-label="Bundles">
+    {{range .Bundles}}
+    <a class="side-link" href="{{bundleURL .}}"{{if eq $.View (print "bundle:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
+    {{end}}
+  </nav>
+  {{end}}
   <div class="side-tags">
     <h2 class="side-heading">Tags</h2>
     {{template "tag-links" .}}
@@ -41,15 +49,32 @@
 
   <div class="list-head">
     <h1>{{.Heading}}</h1>
-    {{if ne .View "all"}}<a class="btn" href="/">Clear filters{{icon "x" "sm"}}</a>{{end}}
+    <div class="list-actions">
+      {{if and .Query (eq .View "")}}<button class="btn" popovertarget="save-bundle">{{icon "layers" "sm"}}Save search</button>{{end}}
+      {{if ne .View "all"}}<a class="btn" href="/">Clear filters{{icon "x" "sm"}}</a>{{end}}
+    </div>
   </div>
 
+  {{if and .Query (eq .View "")}}
+  <div id="save-bundle" class="confirm" popover role="dialog" aria-labelledby="save-bundle-title">
+    <p class="confirm-title" id="save-bundle-title">Save this search</p>
+    <p class="confirm-text">It's listed in the sidebar as a bundle and stays up to date as you add bookmarks.</p>
+    <form method="post" action="/bundles">
+      <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="query" value="{{.Query}}">
+      <label>Name <input name="name" required maxlength="100" autofocus></label>
+      <div class="confirm-actions">
+        <button type="button" class="btn" popovertarget="save-bundle" popovertargetaction="hide">Cancel</button>
+        <button class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+  {{end}}
   {{template "pager" .}}
   {{if .Bookmarks}}
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
-      <span class="avatar" aria-hidden="true">{{initial .Domain}}</span>
+      {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar" aria-hidden="true">{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
         {{if ne $.Prefs.Descriptions "hide"}}{{with .Description}}<p class="bm-desc">{{.}}</p>{{end}}{{end}}
@@ -57,6 +82,7 @@
           <span class="domain">{{.Domain}}</span>
           {{range .Tags}}<a class="tag" href="{{tagURL .}}">#{{.}}</a>{{end}}
           {{if .IsArchived}}<span class="badge">Archived</span>{{end}}
+          {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}Shared</a>{{end}}
           <time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z"}}">{{ago .CreatedAt}}</time>
         </div>
       </div>

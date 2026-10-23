@@ -122,6 +122,7 @@ p { margin: 0; }
 }
 .icon.filled { fill: currentColor; }
 .icon.sm { width: 16px; height: 16px; }
+.icon.xs { width: 12px; height: 12px; }
 
 /* Buttons */
 button { font: inherit; color: inherit; }
@@ -213,6 +214,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .side-link[aria-current="page"] .count, .side-link[aria-current="page"] .hash { color: var(--soft-text); }
 .side-link .hash { color: var(--muted); }
 .side-heading { margin: 20px 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.side-heading-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.side-manage { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
 .side-empty { padding: 0 12px; font-size: 14px; color: var(--muted); }
 
 /* Search */
@@ -232,6 +235,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
   background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12.5px; text-decoration: none;
 }
 .chip:hover { border-color: var(--accent); color: var(--text); }
+.list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
 
 /* Bookmark list */
@@ -242,6 +246,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-top: 2px;
   border-radius: var(--radius); background: var(--soft); color: var(--soft-text); font-size: 15px; font-weight: 600;
 }
+/* A site icon sits in the same box as the letter avatar it replaces. */
+.avatar.favicon { padding: 8px; border: 1px solid var(--border); background: var(--surface); object-fit: contain; }
 .bm-body { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .bm-title { color: var(--text); font-size: 15.5px; font-weight: 600; letter-spacing: -0.005em; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-title:hover { color: var(--accent); }
@@ -253,7 +259,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
   background: var(--soft); color: var(--soft-text); font-size: 12px; font-weight: 500; text-decoration: none;
 }
 .tag:hover { color: var(--soft-text); text-decoration: underline; }
-.badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 500; }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 500; }
+a.badge { text-decoration: none; }
+a.badge:hover { border-color: var(--accent); color: var(--text); }
 .bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
 @media (hover: hover) {
   /* On mouse devices, row actions appear on hover or keyboard focus. */
@@ -291,6 +299,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .confirm-title { margin-bottom: 6px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
 .confirm-text { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
 .confirm-text strong { color: var(--text); font-weight: 600; }
+.confirm form label { margin: 16px 0 0; }
 .confirm-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 @media (prefers-reduced-motion: no-preference) {
   .confirm:popover-open { animation: confirm-in 140ms ease-out; }
@@ -344,6 +353,11 @@ label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-narrow { max-width: 400px; }
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+.mono { font-family: var(--mono); font-size: 13.5px; }
+.edit-extra { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.edit-extra h2 { margin-bottom: 4px; }
+.edit-extra > .muted { margin-bottom: 12px; font-size: 14px; }
+.edit-extra > input { margin-bottom: 4px; }
 .danger-zone { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
 .row { display: flex; align-items: center; gap: 8px; }
 .row input:not([type="checkbox"]) { margin-top: 0; }
@@ -412,6 +426,15 @@ td.actions { text-align: right; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* Public page of a shared bookmark */
+.shared { max-width: 560px; }
+.shared-kicker { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; font-size: 13px; }
+.shared h1 { overflow-wrap: anywhere; }
+.shared h1 a { color: var(--text); text-decoration: none; }
+.shared h1 a:hover { color: var(--accent); }
+.shared .domain { margin: 6px 0 16px; color: var(--muted); font-size: 13px; }
+.shared-desc { margin-bottom: 24px; overflow-wrap: anywhere; }
 
 /* Settings and admin */
 .wide-card { max-width: 960px; }

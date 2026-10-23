@@ -26,14 +26,15 @@ import (
 type pageTemplate = *template.Template
 
 var funcs = template.FuncMap{
-	"ago":     ago,
-	"tagURL":  func(name string) string { return "/?q=" + url.QueryEscape("#"+name) },
-	"join":    strings.Join,
-	"display": func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
-	"asset":   assetURL,
-	"icon":    icon,
-	"initial": initial,
-	"bytes":   humanBytes,
+	"ago":       ago,
+	"tagURL":    func(name string) string { return "/?q=" + url.QueryEscape("#"+name) },
+	"bundleURL": bundleURL,
+	"join":      strings.Join,
+	"display":   func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
+	"asset":     assetURL,
+	"icon":      icon,
+	"initial":   initial,
+	"bytes":     humanBytes,
 }
 
 func humanBytes(n int64) string {
