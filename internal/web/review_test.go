@@ -163,3 +163,15 @@ func TestStaticFilesAreCompressed(t *testing.T) {
 		t.Fatal("HTML page compressed")
 	}
 }
+
+// Confirmation dialogs live inside table cells that right-align and don't
+// wrap; the dialog must undo both or its text is cut off.
+func TestConfirmDialogResetsCellLayout(t *testing.T) {
+	css, _ := assets.ReadFile("static/style.css")
+	start := strings.Index(string(css), ".confirm {")
+	end := strings.Index(string(css)[start:], "}")
+	rule := string(css)[start : start+end]
+	if !strings.Contains(rule, "text-align: left") || !strings.Contains(rule, "white-space: normal") {
+		t.Fatalf(".confirm doesn't reset its table cell's layout: %s", rule)
+	}
+}

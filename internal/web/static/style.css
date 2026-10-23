@@ -316,6 +316,8 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
   border: 1px solid var(--border); border-radius: var(--radius-lg);
   background: var(--surface); color: var(--text);
   box-shadow: var(--shadow), 0 24px 64px rgb(0 0 0 / 0.24);
+  /* Dialogs often sit in a table's actions cell; don't inherit its layout. */
+  text-align: left; white-space: normal;
 }
 .confirm::backdrop { background: rgb(15 23 42 / 0.45); backdrop-filter: blur(2px); }
 .confirm-title { margin-bottom: 6px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
