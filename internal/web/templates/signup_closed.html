@@ -1,6 +1,7 @@
 {{define "title"}}Sign-up unavailable{{end}}
 {{define "content"}}
 <div class="auth">
+  {{template "auth-brand" .}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "users"}}</span>
     <p class="title">{{if .HadInvite}}This invite can't be used{{else}}Sign-up is closed{{end}}</p>

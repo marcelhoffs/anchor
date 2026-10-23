@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/ratelimit"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
@@ -95,14 +96,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 			"OpenSignup": s.signupMode(r.Context()) == "open"})
 	}
 
-	// Failed attempts are limited per IP and username, and per IP overall.
+	// Attempts are limited per IP and username, and per IP overall. Each one
+	// counts before the password is checked, so a burst of parallel guesses
+	// can't all slip in under the limit; signing in resets the username's.
 	for _, l := range []struct {
-		lim interface {
-			Blocked(string) (bool, time.Duration)
-		}
+		lim *ratelimit.Limiter
 		key string
 	}{{s.loginUser, userKey}, {s.loginIP, ip}} {
-		if blocked, retry := l.lim.Blocked(l.key); blocked {
+		if ok, retry := l.lim.Allow(l.key); !ok {
 			w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 			fail(http.StatusTooManyRequests, "Too many failed attempts. Try again in "+retryText(retry)+".")
 			return
@@ -122,8 +123,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if err != nil {
-		s.loginUser.Hit(userKey)
-		s.loginIP.Hit(ip)
 		fail(http.StatusUnauthorized, invalidLogin)
 		return
 	}
@@ -168,6 +167,7 @@ func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User
 		return err
 	}
 	s.setSessionCookie(w, token)
+	s.setCSRFCookie(w, s.newCSRF(token)) // the old one was bound to the old session
 	return nil
 }
 
@@ -317,7 +317,6 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
-		s.mfaUser.Hit(fmt.Sprint(u.ID))
 		fail("Current password is wrong.")
 		return
 	}

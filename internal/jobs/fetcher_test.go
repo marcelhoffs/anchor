@@ -145,3 +145,48 @@ func personal(st *store.Store, userID int64) store.Scope {
 	}
 	return sc
 }
+
+func TestIconFromSiteHomePage(t *testing.T) {
+	ctx := context.Background()
+	d, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	if err := d.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	st := store.New(d)
+	u, _ := st.CreateUser(ctx, "alice", "x", false)
+
+	// One user's page on a shared host points at an image of their choosing;
+	// the host's home page declares the real icon.
+	png := func(b byte) string { return "\x89PNG\r\n\x1a\n" + strings.Repeat(string(b), 40) }
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Write([]byte(`<html><head><title>Wiki</title><link rel="icon" href="/site.png"></head></html>`))
+		case "/user-page":
+			w.Write([]byte(`<html><head><title>Mine</title><link rel="icon" href="/mine.png"></head></html>`))
+		case "/site.png":
+			w.Write([]byte(png('s')))
+		case "/mine.png":
+			w.Write([]byte(png('m')))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(site.Close)
+
+	f := NewFetcher(st, fetch.NewWithTimeout(true, time.Second), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	b, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: site.URL + "/user-page"})
+	for f.RunOnce(ctx) {
+	}
+	got, _ := st.GetBookmark(ctx, personal(st, u.ID), b.ID)
+	if got.Title != "Mine" || got.FaviconID == 0 {
+		t.Fatalf("not fetched: %+v", got)
+	}
+	if _, data, _ := st.Favicon(ctx, u.ID, got.FaviconID); string(data) != png('s') {
+		t.Fatal("the page's own icon became its host's")
+	}
+}

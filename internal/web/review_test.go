@@ -183,3 +183,24 @@ func TestConfirmDialogResetsCellLayout(t *testing.T) {
 		t.Fatalf(".confirm doesn't reset its table cell's layout: %s", rule)
 	}
 }
+
+func TestCSRFTokenBoundToSession(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	alice := e.login("alice")
+	// A valid token, but minted for another browser (signed out): one a
+	// sibling host could plant. It doesn't work for alice's session.
+	own := alice.csrf() // signing in gave alice a token of her own straight away
+	if code, _, _ := alice.post("/settings/appearance", url.Values{"theme": {"dark"}}); code != http.StatusSeeOther {
+		t.Fatalf("own token refused: %d", code)
+	}
+	planted := e.client().csrf()
+	u, _ := url.Parse(e.srv.URL)
+	alice.http.Jar.SetCookies(u, []*http.Cookie{{Name: csrfCookie, Value: planted, Path: "/"}})
+	if code, _, _ := alice.post("/settings/appearance", url.Values{"theme": {"light"}}); code != http.StatusForbidden {
+		t.Fatalf("token from another session accepted: %d", code)
+	}
+	if alice.get("/"); alice.csrf() == planted || alice.csrf() == own {
+		t.Fatal("no new token after a page load")
+	}
+}

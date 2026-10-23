@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -792,4 +793,37 @@ func TestPasskeysDisabledOnIPBaseURL(t *testing.T) {
 		t.Fatalf("passkey begin: %d %v", code, out)
 	}
 	enableTOTP(t, c) // TOTP still works
+}
+
+func TestAPITagWithSpace(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	e.tags("alice", "home lab", "home")
+	alice := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "write")}
+	alice.do("POST", "/bookmarks", map[string]any{"url": "https://a.org", "title": "A", "tags": []string{"home lab"}})
+	alice.do("POST", "/bookmarks", map[string]any{"url": "https://b.org", "title": "B lab", "tags": []string{"home"}})
+	code, out := alice.do("GET", "/bookmarks?tag="+url.QueryEscape("home lab"), nil)
+	res, _ := out["results"].([]any)
+	if code != 200 || len(res) != 1 || res[0].(map[string]any)["title"] != "A" {
+		t.Fatalf("tag with a space: %d %v", code, out)
+	}
+}
+
+func TestAPIArchiveWithEmptyChunkedBody(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	alice := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "write")}
+	_, b := alice.do("POST", "/bookmarks", map[string]any{"url": "https://a.org"})
+	// No Content-Length: the body is sent chunked, and is empty.
+	req, _ := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/bookmarks/%v/archive", e.srv.URL, b["id"]), io.NopCloser(strings.NewReader("")))
+	req.ContentLength = -1
+	req.Header.Set("Authorization", "Bearer "+alice.token)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("archive with an empty chunked body: %d", res.StatusCode)
+	}
 }

@@ -10,8 +10,9 @@
 <link rel="stylesheet" href="{{asset "style.css"}}">
 <link rel="icon" href="{{appIconURL .Prefs.Accent}}" type="image/svg+xml">
 </head>
-<body>
+<body{{if .Bare}} class="bare"{{end}}>
 {{iconSprite}}
+{{if not .Bare}}
 <header class="top">
   <a class="brand" href="/">{{brandMark}}Anchor</a>
   {{if .User}}
@@ -57,6 +58,7 @@
   </nav>
   {{end}}
 </header>
+{{end}}
 <main>
 {{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
@@ -103,3 +105,5 @@
   </form>
 </div>
 {{end}}
+
+{{define "auth-brand"}}{{if .Bare}}<div class="auth-brand">{{brandMark}}<span>Anchor</span></div>{{end}}{{end}}

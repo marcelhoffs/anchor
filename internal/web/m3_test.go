@@ -16,6 +16,8 @@ import (
 func site(t *testing.T) *httptest.Server {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case "/": // where the host's icon is taken from
+			w.Write([]byte(`<html><head><title>Home</title><link rel="icon" href="/fav.png"></head></html>`))
 		case "/article":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write([]byte(`<html><head><title>A Fine Article</title><meta name="description" content="All about anchors.">

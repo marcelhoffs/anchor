@@ -167,6 +167,10 @@ func loadTemplates() (map[string]pageTemplate, error) {
 	return pages, nil
 }
 
+// authPages show no top bar to a signed-out visitor, only the app's mark
+// above their card: there is nothing to navigate to yet.
+var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "signup_closed": true, "verify": true}
+
 // data is what every page template receives; handlers add their own keys.
 type data map[string]any
 
@@ -183,6 +187,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	d["User"] = u
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
+	d["Bare"] = u == nil && authPages[page]
 	prefs := store.Settings{}.Normalized()
 	if u != nil {
 		prefs = u.Settings

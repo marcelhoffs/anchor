@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"net/url"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -158,7 +159,7 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 	if page == "" {
 		page = it.URL
 	}
-	for _, u := range append(m.Icons, fetch.DefaultIcon(page)) {
+	for _, u := range append(f.siteIcons(ctx, page, m), fetch.DefaultIcon(page)) {
 		mime, data, err := f.client.Icon(ctx, u)
 		if err != nil {
 			f.log.Debug("fetch icon", "url", u, "err", err)
@@ -175,6 +176,25 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 		return id
 	}
 	return f.serviceIcon(ctx, it.Domain)
+}
+
+// siteIcons are the icons page's host declares. The stored icon is its
+// whole host's, for every user, so they come from the host's home page:
+// one user of a shared host (a wiki, a paste site) can't edit that, but can
+// point their own page at any image.
+func (f *Fetcher) siteIcons(ctx context.Context, page string, m fetch.Meta) []string {
+	u, err := url.Parse(page)
+	if err != nil {
+		return nil
+	}
+	if (u.Path == "" || u.Path == "/") && u.RawQuery == "" {
+		return m.Icons
+	}
+	home, err := f.client.Page(ctx, u.Scheme+"://"+u.Host+"/")
+	if err != nil || (home.FinalURL != "" && !fetch.SameHost(page, home.FinalURL)) {
+		return nil
+	}
+	return home.Icons
 }
 
 // serviceIcon asks the icon services, in order, for domain's icon and

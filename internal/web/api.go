@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -169,9 +170,19 @@ func (s *Server) apiStoreError(w http.ResponseWriter, err error) bool {
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	return decodeBody(w, r, v, false)
+}
+
+// decodeOptionalJSON is decodeJSON for a body that may be left out. An empty
+// body is only known by reading it: a chunked one has no Content-Length.
+func decodeOptionalJSON(w http.ResponseWriter, r *http.Request, v any) bool {
+	return decodeBody(w, r, v, true)
+}
+
+func decodeBody(w http.ResponseWriter, r *http.Request, v any, optional bool) bool {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
+	if err := dec.Decode(v); err != nil && !(optional && errors.Is(err, io.EOF)) {
 		problem(w, http.StatusBadRequest, "Invalid JSON body: "+err.Error())
 		return false
 	}
@@ -280,7 +291,7 @@ func (s *Server) apiListBookmarks(w http.ResponseWriter, r *http.Request) {
 	}
 	query := q.Get("q")
 	for _, t := range q["tag"] {
-		query += " #" + strings.TrimPrefix(t, "#")
+		query += " " + search.TagQuery(strings.TrimPrefix(t, "#"))
 	}
 	if q.Get("archived") == "true" {
 		query += " !archived"
@@ -441,7 +452,7 @@ func (s *Server) apiShareBookmark(w http.ResponseWriter, r *http.Request) {
 	body := struct {
 		Shared *bool `json:"shared"`
 	}{}
-	if r.ContentLength != 0 && !decodeJSON(w, r, &body) {
+	if !decodeOptionalJSON(w, r, &body) {
 		return
 	}
 	sc := apiCaller(r).scope
@@ -487,7 +498,7 @@ func (s *Server) apiArchiveBookmark(w http.ResponseWriter, r *http.Request) {
 	body := struct {
 		Archived *bool `json:"archived"`
 	}{}
-	if r.ContentLength != 0 && !decodeJSON(w, r, &body) {
+	if !decodeOptionalJSON(w, r, &body) {
 		return
 	}
 	archived := body.Archived == nil || *body.Archived
