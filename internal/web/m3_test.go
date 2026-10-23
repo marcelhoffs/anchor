@@ -184,8 +184,8 @@ func TestBundlesFlow(t *testing.T) {
 	}
 }
 
-// A page that redirects to another site (a cookie-consent wall) must not
-// lend the bookmark that site's title or icon.
+// A page that redirects to another host (a cookie-consent wall, a sign-in
+// page) must not lend the bookmark that page's title or icon.
 func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
@@ -228,8 +228,9 @@ func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
 		t.Fatalf("icon = %q, %v; want the site's own", img, err)
 	}
 
-	// An icon URL that redirects to another site is refused.
-	if _, _, err := fetch.New(true).Icon(context.Background(), site.URL+"/old-icon.ico"); err == nil {
-		t.Fatal("cross-site icon redirect accepted")
+	// Icon redirects are followed anywhere (Gmail's icon is on gstatic.com);
+	// what comes back must still be an image.
+	if _, img, err := fetch.New(true).Icon(context.Background(), site.URL+"/old-icon.ico"); err != nil || string(img) != consentIcon {
+		t.Fatalf("icon redirect: %v", err)
 	}
 }

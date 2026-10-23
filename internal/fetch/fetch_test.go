@@ -108,22 +108,27 @@ func TestPageAndIcon(t *testing.T) {
 	}
 }
 
-func TestSameSite(t *testing.T) {
+func TestSameHost(t *testing.T) {
 	for _, c := range []struct {
 		a, b string
 		want bool
 	}{
-		{"https://www.ad.nl/", "https://statics.ad.nl/img/favicon.ico", true},
 		{"http://ad.nl/x", "https://www.ad.nl/y", true},
 		{"https://www.ad.nl/", "https://myprivacy.dpgmedia.nl/consent", false},
-		{"https://www.bbc.co.uk/", "https://news.bbc.co.uk/", true},
-		{"https://a.co.uk/", "https://b.co.uk/", false},
+		{"https://keep.google.com/", "https://accounts.google.com/signin", false},
+		{"https://WWW.Example.com/", "https://example.com:443/", true},
 		{"http://127.0.0.1:1/", "http://127.0.0.1:2/", true},
-		{"http://127.0.0.1/", "http://localhost/", false},
 		{"not a url", "not a url", false},
 	} {
-		if got := SameSite(c.a, c.b); got != c.want {
-			t.Errorf("SameSite(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		if got := SameHost(c.a, c.b); got != c.want {
+			t.Errorf("SameHost(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+	for host, want := range map[string]string{
+		"cronos.sharepoint.com": "sharepoint.com", "www.bbc.co.uk": "bbc.co.uk", "127.0.0.1": "127.0.0.1", "KEEP.Google.com": "google.com",
+	} {
+		if got := RegistrableDomain(host); got != want {
+			t.Errorf("RegistrableDomain(%q) = %q, want %q", host, got, want)
 		}
 	}
 }

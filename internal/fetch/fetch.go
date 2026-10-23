@@ -195,18 +195,15 @@ loop:
 }
 
 // Icon downloads an icon, accepting only common raster formats (sniffed, not
-// trusted from the header). SVG is refused: it can carry scripts. An icon
-// URL that redirects to another site (a cookie-consent wall, say) is refused
-// too; icons a page links to on another site directly are fine.
+// trusted from the header). SVG is refused: it can carry scripts. Redirects
+// are followed anywhere (mail.google.com/favicon.ico lives on gstatic.com):
+// whatever comes back must be an image.
 func (c *Client) Icon(ctx context.Context, rawURL string) (mime string, data []byte, err error) {
 	res, err := c.get(ctx, rawURL, "image/*")
 	if err != nil {
 		return "", nil, err
 	}
 	defer res.Body.Close()
-	if !SameSite(rawURL, res.Request.URL.String()) {
-		return "", nil, fmt.Errorf("redirected to another site (%s)", res.Request.URL.Host)
-	}
 	if res.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("status %d", res.StatusCode)
 	}
@@ -273,20 +270,20 @@ func cmpOr(a, b string) string {
 	return b
 }
 
-// SameSite reports whether two URLs are on the same site: the same
-// registrable domain, so www.ad.nl and statics.ad.nl match but
-// myprivacy.dpgmedia.nl doesn't.
-func SameSite(a, b string) bool {
-	sa, sb := site(a), site(b)
-	return sa != "" && sa == sb
+// SameHost reports whether two URLs are on the same host, ignoring a leading
+// "www.". A page that redirects elsewhere, even within its site (Keep to
+// accounts.google.com, AD to a consent wall), isn't describing itself.
+func SameHost(a, b string) bool {
+	ha, hb := host(a), host(b)
+	return ha != "" && ha == hb
 }
 
-func site(raw string) string {
+func host(raw string) string {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return ""
 	}
-	return RegistrableDomain(u.Hostname())
+	return strings.TrimPrefix(strings.ToLower(u.Hostname()), "www.")
 }
 
 // RegistrableDomain is host's site: cronos.sharepoint.com → sharepoint.com,
