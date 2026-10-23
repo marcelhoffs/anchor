@@ -26,7 +26,13 @@ import (
 
 type pageTemplate = *template.Template
 
+// sourceURL is where the footer sends people for Anchor's source. The AGPL
+// asks whoever runs a changed version as a service to offer its source to
+// its users: a fork points this at its own repository.
+const sourceURL = "https://github.com/marcelhoffs/anchor"
+
 var funcs = template.FuncMap{
+	"sourceURL":  func() string { return sourceURL },
 	"ago":        ago,
 	"count":      count,
 	"tagURL":     func(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) },
