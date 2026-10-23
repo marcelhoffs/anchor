@@ -153,7 +153,7 @@ button { font: inherit; color: inherit; }
   min-height: 40px; padding: 0 16px; border-radius: var(--radius);
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap; flex-shrink: 0;
-  transition: background-color 120ms, border-color 120ms, color 120ms;
+  transition: background-color 120ms, border-color 120ms, color 120ms, transform 80ms;
 }
 .btn:hover { background: var(--raised); color: var(--text); }
 .btn-primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
@@ -164,7 +164,7 @@ button { font: inherit; color: inherit; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px; padding: 0; border: 0; border-radius: var(--radius);
   background: transparent; color: var(--muted); cursor: pointer;
-  transition: background-color 120ms, color 120ms, opacity 120ms;
+  transition: background-color 120ms, color 120ms, opacity 120ms, transform 80ms;
 }
 .icon-btn:hover { background: var(--raised); color: var(--text); }
 .icon-btn.on { color: var(--accent-text); }
@@ -196,7 +196,7 @@ form.inline { display: inline; }
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 12px;
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
   font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; list-style: none;
-  transition: background-color 120ms, border-color 120ms, color 120ms;
+  transition: background-color 120ms, border-color 120ms, color 120ms, transform 80ms;
 }
 .top-ctl::-webkit-details-marker { display: none; }
 .top-ctl:hover, .top-menu[open] > .top-ctl { background: var(--raised); color: var(--text); }
@@ -268,7 +268,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .search:focus-within { border-color: var(--accent); }
 /* Search syntax help: shown while the ? button is hovered or focused. */
 .search-help { display: flex; }
-.search-help .icon-btn { width: 36px; height: 36px; }
+.search-help .icon-btn, .search-clear { width: 36px; height: 36px; flex-shrink: 0; }
+/* The clear link above replaces the browser's own, which only empties the box. */
+.search input::-webkit-search-cancel-button { display: none; }
 .tooltip {
   position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; width: min(380px, calc(100vw - 32px)); padding: 14px 16px;
   border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text);
@@ -284,7 +286,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .search input { flex-grow: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: none; background: transparent; box-shadow: none; color: var(--text); font: inherit; font-size: 16px; }
 .search .btn { min-height: 36px; }
 .search-btn .icon { display: none; } /* phones show it instead of the label */
-.list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 .list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
 
 /* Bookmark list */
@@ -301,6 +303,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .bm-title { color: var(--text); font-size: 15.5px; line-height: 1.35; font-weight: 600; letter-spacing: -0.005em; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-title:hover { color: var(--accent-text); }
 .bm-desc { color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-desc:empty { display: none; }
 .bm-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 1px; color: var(--muted); font-size: 12.5px; }
 .domain { font-family: var(--mono); }
 .tag {
@@ -319,7 +322,7 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
   .bm-actions .icon-btn:not(.on) { opacity: 0; }
   .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; }
 }
-.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .pager-range { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
 .pager-links { display: flex; align-items: center; gap: 6px; }
 .pager-links .btn { width: 40px; padding: 0; }
@@ -423,6 +426,7 @@ input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin:
 .edit-extra > .muted { margin-bottom: 12px; font-size: 14px; }
 .edit-extra > input { margin-bottom: 4px; }
 .danger-zone { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.danger-zone > .btn-danger { margin-left: auto; } /* right, with or without a note */
 .row { display: flex; align-items: center; gap: 8px; }
 .row input:not([type="checkbox"]) { margin-top: 0; }
 
@@ -502,13 +506,26 @@ td.actions { text-align: right; white-space: nowrap; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
   .avatar.favicon { padding: 6px; }
   .bm-body { gap: 2px; }
-  .bm-meta { margin-top: 1px; }
+  /* Every row is the same height: one line each for the title, the
+     description (kept when empty) and the meta, whose badges go first so
+     only tags run off the edge, fading out. */
+  .bm-desc:empty { display: block; }
+  .bm-desc:empty::before { content: "\00a0"; }
+  .bm-meta {
+    margin-top: 1px; flex-wrap: nowrap; overflow: hidden;
+    mask-image: linear-gradient(to left, transparent, #000 24px);
+  }
+  .bm-meta > * { flex-shrink: 0; }
+  .bm-meta .badge { order: -1; }
+  .bm-meta .domain { order: -2; }
   /* The actions fold into a menu beside the title, so rows stay short. */
   .bm-actions { display: none; }
   .bm-more { display: inline-flex; width: 36px; height: 36px; margin-top: -2px; }
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .top-ctl { width: 40px; padding: 0; }
+  /* So does the list header's, leaving room beside the title for the pager. */
+  .list-actions .btn:has(.label-sm) { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
   .hide-sm { display: none; }
   /* The search button becomes the field's only magnifier. */
@@ -615,3 +632,20 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 .add-member select { width: auto; margin-top: 0; }
 .add-member .combo { flex: 1 1 220px; }
 .add-member .combo input { width: 100%; margin-top: 0; }
+
+/* Taps: no browser highlight box (a grey or blue rectangle on phones);
+   controls show their own pressed state, in their own shape and colours.
+   iOS applies :active on touch only with a touchstart listener: menus.js. */
+html { -webkit-tap-highlight-color: transparent; }
+.btn:not([aria-disabled="true"]):active, .icon-btn:active, .top-ctl:active, .side-link:active,
+.menu a:active, .menu button:active, .tabs a:active, .picker-option:active, tbody tr:active {
+  background: var(--raised); color: var(--text);
+}
+.btn-primary:active, .top-primary:active { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
+.btn-danger-solid:active { background: var(--danger); color: var(--on-danger); filter: brightness(0.92); }
+a:active, .bm-title:active { color: var(--accent-text-hover); }
+.view-bar a:active, .foot a:active { color: var(--text); }
+.tag:active { color: var(--soft-text); text-decoration: underline; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn:not([aria-disabled="true"]):active, .icon-btn:active, .top-ctl:active { transform: scale(0.96); }
+}

@@ -852,3 +852,16 @@ func TestViewBarUnderSearch(t *testing.T) {
 		t.Fatal("view bar doesn't mark Favourites")
 	}
 }
+
+func TestClearFiltersInSearchBox(t *testing.T) {
+	c := newEnv(t).admin()
+	if _, body, _ := c.get("/"); strings.Contains(body, `class="icon-btn search-clear"`) {
+		t.Fatal("clear filters with no filter")
+	}
+	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
+	form := body[strings.Index(body, `role="search"`):]
+	form = form[:strings.Index(form, "</form>")]
+	if !strings.Contains(form, `<a class="icon-btn search-clear" href="/" aria-label="Clear filters">`) {
+		t.Fatal("no clear filters in the search box")
+	}
+}
