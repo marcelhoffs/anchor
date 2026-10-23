@@ -357,7 +357,7 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
 .auth .brand { justify-content: center; margin-bottom: 20px; }
 .auth h1 { text-align: center; margin-bottom: 6px; }
 .auth .lead { text-align: center; color: var(--muted); margin-bottom: 24px; font-size: 14px; }
-.auth .btn-primary { width: 100%; }
+.auth .btn-primary { width: 100%; margin-top: 8px; }
 
 label { display: block; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
 /* :where() keeps these at zero specificity so components like .search can restyle inputs. */
