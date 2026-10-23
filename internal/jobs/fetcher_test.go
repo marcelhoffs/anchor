@@ -99,7 +99,8 @@ func TestIconServiceFallback(t *testing.T) {
 		t.Fatalf("tenant icon: %+v, asked %v", got, asked)
 	}
 	// When the service answers for a host with exactly its main domain's
-	// icon (Keep gets Google's "G"), that's no icon of its own.
+	// A product host the service knows gets no service icon: services answer
+	// with the parent's brand (Keep gets Google's "G").
 	product, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://keep.google.invalid/"})
 	f.serviceURL = func(_, domain string) string { return service.URL + "/" + domain + ".ico" }
 	for f.RunOnce(ctx) {

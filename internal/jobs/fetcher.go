@@ -1,7 +1,6 @@
 package jobs
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"log/slog"
@@ -191,12 +190,13 @@ func (f *Fetcher) serviceIcon(ctx context.Context, domain string) int64 {
 	return 0
 }
 
-// serviceLookup asks one service. When it doesn't know the host, the main
-// domain's icon stands in (a tenant like cronos.sharepoint.com gets
-// SharePoint's). When it answers for a separate product host with exactly
-// the main domain's icon, that's a generic stand-in (Keep gets Google's
-// "G"), and the letter is better. www.nu.nl and nu.nl are one site, so the
-// same icon for both is just right.
+// serviceLookup asks one service for domain's icon. The host and its main
+// domain (www.nu.nl, nu.nl) are one site: the host's icon, else the main
+// domain's. A separate host is different: services answer for a product
+// such as keep.google.com with its parent's brand (Google's "G"), so a known
+// product host gets no service icon and shows its letter. A host they don't
+// know is usually a customer space on a platform (cronos.sharepoint.com),
+// where the platform's icon fits.
 func (f *Fetcher) serviceLookup(ctx context.Context, service, domain string) (string, []byte, bool) {
 	get := func(d string) (string, []byte, error) {
 		u := f.serviceURL(service, d)
@@ -206,15 +206,14 @@ func (f *Fetcher) serviceLookup(ctx context.Context, service, domain string) (st
 		return f.client.Icon(ctx, u)
 	}
 	mime, data, err := get(domain)
-	if main := fetch.RegistrableDomain(domain); main != domain {
-		pmime, pdata, perr := get(main)
-		switch {
-		case err != nil:
-			mime, data, err = pmime, pdata, perr
-		case perr == nil && bytes.Equal(data, pdata) && strings.TrimPrefix(domain, "www.") != main:
-			f.log.Debug("icon service: generic icon", "service", service, "domain", domain)
-			return "", nil, false
-		}
+	main := fetch.RegistrableDomain(domain)
+	switch {
+	case main == domain:
+	case strings.TrimPrefix(domain, "www.") != main && err == nil:
+		f.log.Debug("icon service: product host, parent's brand", "service", service, "domain", domain)
+		return "", nil, false
+	case err != nil:
+		mime, data, err = get(main)
 	}
 	if err != nil {
 		f.log.Debug("icon service", "service", service, "domain", domain, "err", err)
