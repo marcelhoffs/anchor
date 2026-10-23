@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/marcelhoffs/burrow/internal/db"
 	"github.com/marcelhoffs/burrow/internal/fetch"
@@ -40,8 +41,11 @@ func TestIconServiceFallback(t *testing.T) {
 		w.Write([]byte(icon))
 	}))
 	t.Cleanup(service.Close)
+	service2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(icon)) }))
+	t.Cleanup(service2.Close)
 
-	f := NewFetcher(st, fetch.New(true), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// A short timeout: the made-up .invalid hosts below never answer.
+	f := NewFetcher(st, fetch.NewWithTimeout(true, time.Second), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	f.serviceURL = func(_, domain string) string { return service.URL + "/" + domain + ".ico" }
 	b, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: blocked.URL + "/"})
 
@@ -53,7 +57,7 @@ func TestIconServiceFallback(t *testing.T) {
 	}
 
 	// Switched on, iconless bookmarks are fetched again once.
-	f.IconService = "test"
+	f.IconServices = []string{"test"}
 	f.backfillIcons(ctx)
 	for f.RunOnce(ctx) {
 	}
@@ -103,7 +107,31 @@ func TestIconServiceFallback(t *testing.T) {
 	if got, _ := st.GetBookmark(ctx, u.ID, product.ID); got.FaviconID != 0 {
 		t.Fatalf("product got its parent's generic icon: %+v", got)
 	}
-	if fetch.ServiceIcon("duckduckgo", "www.klm.be") != "https://icons.duckduckgo.com/ip3/www.klm.be.ico" || fetch.ServiceIcon("nope", "x") != "" {
+	// www.nu.nl and nu.nl are one site: the same icon for both is its own.
+	www, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://www.nu.invalid/"})
+	for f.RunOnce(ctx) {
+	}
+	if got, _ := st.GetBookmark(ctx, u.ID, www.ID); got.FaviconID == 0 {
+		t.Fatal("www host lost its icon")
+	}
+
+	// Services are asked in order; the second fills in for the first.
+	f.IconServices = []string{"none", "test"}
+	f.serviceURL = func(service, domain string) string {
+		if service == "none" {
+			return service + "://" // fails: not an http URL
+		}
+		return service2.URL + "/" + domain + ".ico"
+	}
+	second, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://telegraaf.invalid/"})
+	for f.RunOnce(ctx) {
+	}
+	if got, _ := st.GetBookmark(ctx, u.ID, second.ID); got.FaviconID == 0 {
+		t.Fatal("second service not asked")
+	}
+
+	if fetch.ServiceIcon("duckduckgo", "www.klm.be") != "https://icons.duckduckgo.com/ip3/www.klm.be.ico" ||
+		fetch.ServiceIcon("google", "telegraaf.nl") != "https://www.google.com/s2/favicons?sz=64&domain=telegraaf.nl" || fetch.ServiceIcon("nope", "x") != "" {
 		t.Fatal("ServiceIcon")
 	}
 }

@@ -30,10 +30,11 @@ type Config struct {
 	// Fetch is which addresses page details may be fetched from: "public"
 	// (default), "all" (also private networks) or "off".
 	Fetch string
-	// IconFallback names a public icon service asked for a site's icon when
-	// the site gives none: "" (off, the default) or "duckduckgo". It learns
-	// the bookmarked domain, so it is opt-in.
-	IconFallback string
+	// IconFallback lists the public icon services asked, in order, for a
+	// site's icon when the site gives none: "duckduckgo", "google". Empty
+	// (the default) is off. A service learns the bookmarked domain, so it is
+	// opt-in.
+	IconFallback []string
 }
 
 // Load reads the environment. When requireServe is false, the settings only
@@ -90,12 +91,15 @@ func Load(requireServe bool) (*Config, error) {
 	default:
 		errs = append(errs, errors.New("BURROW_FETCH must be public, all or off"))
 	}
-	switch v := strings.ToLower(os.Getenv("BURROW_FAVICON_FALLBACK")); v {
-	case "", "off":
-	case "duckduckgo":
-		c.IconFallback = v
-	default:
-		errs = append(errs, errors.New("BURROW_FAVICON_FALLBACK must be off or duckduckgo"))
+	if v := strings.ToLower(strings.TrimSpace(os.Getenv("BURROW_FAVICON_FALLBACK"))); v != "" && v != "off" {
+		for _, s := range strings.Split(v, ",") {
+			switch s = strings.TrimSpace(s); s {
+			case "duckduckgo", "google":
+				c.IconFallback = append(c.IconFallback, s)
+			default:
+				errs = append(errs, errors.New("BURROW_FAVICON_FALLBACK must be off, or duckduckgo and/or google (comma-separated)"))
+			}
+		}
 	}
 
 	if raw := os.Getenv("BURROW_BASE_URL"); raw != "" {
