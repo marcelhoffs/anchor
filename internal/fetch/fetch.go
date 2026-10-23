@@ -296,6 +296,16 @@ func site(raw string) string {
 	return host
 }
 
+// ServiceIcon is the URL of domain's icon at a public icon service, or ""
+// for an unknown service.
+func ServiceIcon(service, domain string) string {
+	switch service {
+	case "duckduckgo":
+		return "https://icons.duckduckgo.com/ip3/" + url.PathEscape(domain) + ".ico"
+	}
+	return ""
+}
+
 // DefaultIcon is where a site's icon lives when the page doesn't say.
 func DefaultIcon(pageURL string) string {
 	u, err := url.Parse(pageURL)

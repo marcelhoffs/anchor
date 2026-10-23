@@ -27,10 +27,15 @@ type Fetcher struct {
 	client *fetch.Client
 	log    *slog.Logger
 	wake   chan struct{}
+
+	// IconService, when set ("duckduckgo"), is asked for the icon of a site
+	// that gives none itself. Set it before Run.
+	IconService string
+	serviceURL  func(service, domain string) string // fetch.ServiceIcon; tests swap it
 }
 
 func NewFetcher(st *store.Store, client *fetch.Client, log *slog.Logger) *Fetcher {
-	return &Fetcher{store: st, client: client, log: log, wake: make(chan struct{}, 1)}
+	return &Fetcher{store: st, client: client, log: log, wake: make(chan struct{}, 1), serviceURL: fetch.ServiceIcon}
 }
 
 // Notify tells the fetcher a bookmark was saved.
@@ -43,6 +48,7 @@ func (f *Fetcher) Notify() {
 
 // Run fetches until ctx is cancelled.
 func (f *Fetcher) Run(ctx context.Context) {
+	f.backfillIcons(ctx)
 	t := time.NewTicker(time.Minute)
 	defer t.Stop()
 	for {
@@ -107,9 +113,31 @@ func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchR
 	return r
 }
 
+// backfillIcons queues bookmarks without an icon to be fetched again once,
+// when an icon service is first switched on.
+func (f *Fetcher) backfillIcons(ctx context.Context) {
+	if f.IconService == "" {
+		return
+	}
+	done, err := f.store.InstanceSetting(ctx, store.SettingIconBackfill, "")
+	if err != nil || done == f.IconService {
+		return
+	}
+	n, err := f.store.RequeueIconless(ctx)
+	if err == nil {
+		err = f.store.SetInstanceSetting(ctx, store.SettingIconBackfill, f.IconService)
+	}
+	if err != nil {
+		f.log.Error("icon backfill", "err", err)
+		return
+	}
+	f.log.Info("fetching icons again for bookmarks without one", "service", f.IconService, "bookmarks", n)
+}
+
 // icon returns the domain's stored icon, fetching it when it is missing or
 // old. When fetching fails, an old (or meanwhile stored) icon is better than
-// none. 0 means there is none.
+// none; after that the icon service, if one is set, is asked. 0 means there
+// is none.
 func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) int64 {
 	if id, err := f.store.FaviconForDomain(ctx, it.Domain, time.Now().Add(-iconMaxAge)); err == nil {
 		return id
@@ -133,6 +161,15 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 	}
 	if id, err := f.store.FaviconForDomain(ctx, it.Domain, time.Time{}); err == nil {
 		return id
+	}
+	if u := f.serviceURL(f.IconService, it.Domain); f.IconService != "" && u != "" {
+		if mime, data, err := f.client.Icon(ctx, u); err == nil {
+			if id, err := f.store.SaveFavicon(ctx, it.Domain, mime, data); err == nil {
+				return id
+			}
+		} else {
+			f.log.Debug("icon service", "domain", it.Domain, "err", err)
+		}
 	}
 	return 0
 }
