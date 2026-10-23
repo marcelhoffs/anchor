@@ -1,6 +1,10 @@
-// Package store is Anchor's data access layer. Every method that touches
-// user-owned rows takes the owning userID as a required argument and filters
-// on it; there is no way to read or change another user's data through it.
+// Package store is Anchor's data access layer. Bookmarks, tags and bundles
+// live in spaces (a user's personal space, or an organization's), and every
+// method that touches them takes a Scope, which only Access and its siblings
+// hand out after checking the user is a member; writes also check the
+// member's role. Account data (sessions, tokens, second factors) is filtered
+// on the owning userID. There is no way to reach data a user has no access
+// to through this package.
 package store
 
 import (

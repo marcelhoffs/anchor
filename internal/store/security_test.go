@@ -155,12 +155,12 @@ func TestJobsAndImport(t *testing.T) {
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
 	mustTags(t, s, u.ID, "old")
-	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://go.dev", Tags: []string{"old"}})
+	s.CreateBookmark(ctx, personal(s, u.ID), BookmarkInput{URL: "https://go.dev", Tags: []string{"old"}})
 
 	if _, _, err := s.ClaimJob(ctx); err != ErrNotFound {
 		t.Fatalf("empty queue: %v", err)
 	}
-	id, _ := s.CreateJob(ctx, u.ID, JobImport, "payload")
+	id, _ := s.CreateJob(ctx, personal(s, u.ID), JobImport, "payload")
 	j, payload, err := s.ClaimJob(ctx)
 	if err != nil || j.ID != id || payload != "payload" || j.Status != "running" {
 		t.Fatalf("claim: %+v %q %v", j, payload, err)
@@ -169,7 +169,7 @@ func TestJobsAndImport(t *testing.T) {
 		t.Fatal("running job claimed twice")
 	}
 
-	r, err := s.ImportBookmarks(ctx, u.ID, []importexport.Item{
+	r, err := s.ImportBookmarks(ctx, personal(s, u.ID), []importexport.Item{
 		{URL: "https://go.dev/", Title: "Go", Tags: []string{"new", `bad"name`}, Favourite: true}, // an import creates its tags
 		{URL: "https://sqlite.org", Title: "SQLite", CreatedAt: time.Unix(1_600_000_000, 0)},
 		{URL: "place:sort=8", Title: "Firefox smart folder"},
@@ -177,11 +177,11 @@ func TestJobsAndImport(t *testing.T) {
 	if err != nil || r != (ImportResult{Created: 1, Merged: 1, Skipped: 1}) {
 		t.Fatalf("import = %+v, %v", r, err)
 	}
-	b, _ := s.FindBookmarkByURL(ctx, u.ID, "https://go.dev")
+	b, _ := s.FindBookmarkByURL(ctx, personal(s, u.ID), "https://go.dev")
 	if b.Title != "Go" || !b.IsFavourite || !slices.Equal(b.Tags, []string{"new", "old"}) {
 		t.Fatalf("merged bookmark: %+v", b)
 	}
-	sq, _ := s.FindBookmarkByURL(ctx, u.ID, "https://sqlite.org")
+	sq, _ := s.FindBookmarkByURL(ctx, personal(s, u.ID), "https://sqlite.org")
 	if sq.CreatedAt.Unix() != 1_600_000_000 {
 		t.Fatalf("import lost the saved date: %v", sq.CreatedAt)
 	}
@@ -190,7 +190,7 @@ func TestJobsAndImport(t *testing.T) {
 	}
 
 	var exported []string
-	s.ExportBookmarks(ctx, u.ID, func(it importexport.Item) error { exported = append(exported, it.URL); return nil })
+	s.ExportBookmarks(ctx, personal(s, u.ID), func(it importexport.Item) error { exported = append(exported, it.URL); return nil })
 	if !slices.Equal(exported, []string{"https://sqlite.org/", "https://go.dev/"}) {
 		t.Fatalf("export order = %v", exported)
 	}

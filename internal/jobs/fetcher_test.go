@@ -47,12 +47,12 @@ func TestIconServiceFallback(t *testing.T) {
 	// A short timeout: the made-up .invalid hosts below never answer.
 	f := NewFetcher(st, fetch.NewWithTimeout(true, time.Second), slog.New(slog.NewTextHandler(io.Discard, nil)))
 	f.serviceURL = func(_, domain string) string { return service.URL + "/" + domain + ".ico" }
-	b, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: blocked.URL + "/"})
+	b, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: blocked.URL + "/"})
 
 	// Off by default: the service is never asked.
 	for f.RunOnce(ctx) {
 	}
-	if got, _ := st.GetBookmark(ctx, u.ID, b.ID); got.FaviconID != 0 || len(asked) != 0 {
+	if got, _ := st.GetBookmark(ctx, personal(st, u.ID), b.ID); got.FaviconID != 0 || len(asked) != 0 {
 		t.Fatalf("service used while off: %+v %v", got, asked)
 	}
 
@@ -61,7 +61,7 @@ func TestIconServiceFallback(t *testing.T) {
 	f.backfillIcons(ctx)
 	for f.RunOnce(ctx) {
 	}
-	got, _ := st.GetBookmark(ctx, u.ID, b.ID)
+	got, _ := st.GetBookmark(ctx, personal(st, u.ID), b.ID)
 	if got.FaviconID == 0 || len(asked) != 1 || asked[0] != "/127.0.0.1.ico" {
 		t.Fatalf("after backfill: %+v, asked %v", got, asked)
 	}
@@ -69,7 +69,7 @@ func TestIconServiceFallback(t *testing.T) {
 		t.Fatal("stored the wrong icon")
 	}
 	// The backfill runs once per service, not on every start.
-	st.SetFlag(ctx, u.ID, b.ID, store.FlagFavourite, true) // any write; the bookmark keeps its icon
+	st.SetFlag(ctx, personal(st, u.ID), b.ID, store.FlagFavourite, true) // any write; the bookmark keeps its icon
 	if f.backfillIcons(ctx); len(asked) != 1 {
 		t.Fatal("backfill ran again")
 	}
@@ -77,7 +77,7 @@ func TestIconServiceFallback(t *testing.T) {
 		t.Fatalf("requeued again: %+v", items)
 	}
 	// A tenant host the service doesn't know falls back to its site's icon.
-	tenant, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://cronos.sharepoint.invalid/"})
+	tenant, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: "https://cronos.sharepoint.invalid/"})
 	f.serviceURL = func(_, domain string) string {
 		if domain != "sharepoint.invalid" {
 			return service.URL + "/unknown"
@@ -95,24 +95,24 @@ func TestIconServiceFallback(t *testing.T) {
 	service.Config.Handler = unknown
 	for f.RunOnce(ctx) {
 	}
-	if got, _ := st.GetBookmark(ctx, u.ID, tenant.ID); got.FaviconID == 0 || asked[len(asked)-1] != "/sharepoint.invalid.ico" {
+	if got, _ := st.GetBookmark(ctx, personal(st, u.ID), tenant.ID); got.FaviconID == 0 || asked[len(asked)-1] != "/sharepoint.invalid.ico" {
 		t.Fatalf("tenant icon: %+v, asked %v", got, asked)
 	}
 	// When the service answers for a host with exactly its main domain's
 	// A product host the service knows gets no service icon: services answer
 	// with the parent's brand (Keep gets Google's "G").
-	product, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://keep.google.invalid/"})
+	product, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: "https://keep.google.invalid/"})
 	f.serviceURL = func(_, domain string) string { return service.URL + "/" + domain + ".ico" }
 	for f.RunOnce(ctx) {
 	}
-	if got, _ := st.GetBookmark(ctx, u.ID, product.ID); got.FaviconID != 0 {
+	if got, _ := st.GetBookmark(ctx, personal(st, u.ID), product.ID); got.FaviconID != 0 {
 		t.Fatalf("product got its parent's generic icon: %+v", got)
 	}
 	// www.nu.nl and nu.nl are one site: the same icon for both is its own.
-	www, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://www.nu.invalid/"})
+	www, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: "https://www.nu.invalid/"})
 	for f.RunOnce(ctx) {
 	}
-	if got, _ := st.GetBookmark(ctx, u.ID, www.ID); got.FaviconID == 0 {
+	if got, _ := st.GetBookmark(ctx, personal(st, u.ID), www.ID); got.FaviconID == 0 {
 		t.Fatal("www host lost its icon")
 	}
 
@@ -124,10 +124,10 @@ func TestIconServiceFallback(t *testing.T) {
 		}
 		return service2.URL + "/" + domain + ".ico"
 	}
-	second, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://telegraaf.invalid/"})
+	second, _, _ := st.CreateBookmark(ctx, personal(st, u.ID), store.BookmarkInput{URL: "https://telegraaf.invalid/"})
 	for f.RunOnce(ctx) {
 	}
-	if got, _ := st.GetBookmark(ctx, u.ID, second.ID); got.FaviconID == 0 {
+	if got, _ := st.GetBookmark(ctx, personal(st, u.ID), second.ID); got.FaviconID == 0 {
 		t.Fatal("second service not asked")
 	}
 
@@ -135,4 +135,13 @@ func TestIconServiceFallback(t *testing.T) {
 		fetch.ServiceIcon("google", "telegraaf.nl") != "https://www.google.com/s2/favicons?sz=64&domain=telegraaf.nl" || fetch.ServiceIcon("nope", "x") != "" {
 		t.Fatal("ServiceIcon")
 	}
+}
+
+// personal is a user's scope in their own space.
+func personal(st *store.Store, userID int64) store.Scope {
+	sc, err := st.PersonalScope(context.Background(), userID)
+	if err != nil {
+		panic(err)
+	}
+	return sc
 }

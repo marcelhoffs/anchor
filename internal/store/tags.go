@@ -73,13 +73,13 @@ func CleanTags(raw []string) []string {
 
 // setTags replaces a bookmark's tags. Tags must already exist: they are
 // created on the Tags page (or by an import), never by tagging a bookmark.
-// The caller has already confirmed the bookmark belongs to userID.
-func setTags(ctx context.Context, tx *sql.Tx, userID, bookmarkID int64, tags []string) error {
+// The caller has already confirmed the bookmark belongs to spaceID.
+func setTags(ctx context.Context, tx *sql.Tx, spaceID, bookmarkID int64, tags []string) error {
 	ids := make([]int64, 0, len(tags))
 	var missing []string
 	for _, name := range tags {
 		var id int64
-		err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE user_id = ? AND name = ?", userID, name).Scan(&id)
+		err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE space_id = ? AND name = ?", spaceID, name).Scan(&id)
 		switch {
 		case err == sql.ErrNoRows:
 			missing = append(missing, `"`+name+`"`)
@@ -108,25 +108,28 @@ func setTags(ctx context.Context, tx *sql.Tx, userID, bookmarkID int64, tags []s
 }
 
 // CreateTag adds a tag, ready to be put on bookmarks.
-func (s *Store) CreateTag(ctx context.Context, userID int64, name string) (Tag, error) {
+func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, error) {
+	if err := sc.mustWrite(); err != nil {
+		return Tag{}, err
+	}
 	name, err := CleanTagName(name)
 	if err != nil {
 		return Tag{}, err
 	}
 	t := Tag{Name: name}
-	err = s.w.QueryRowContext(ctx, "INSERT INTO tags (user_id, name) VALUES (?, ?) RETURNING id", userID, name).Scan(&t.ID)
+	err = s.w.QueryRowContext(ctx, "INSERT INTO tags (space_id, name) VALUES (?, ?) RETURNING id", sc.spaceID, name).Scan(&t.ID)
 	if isUniqueViolation(err) {
-		return Tag{}, invalid("You already have a tag called %q.", name)
+		return Tag{}, invalid("There's already a tag called %q.", name)
 	}
 	return t, err
 }
 
-// ListTags returns the user's tags with bookmark counts, by name.
-func (s *Store) ListTags(ctx context.Context, userID int64) ([]Tag, error) {
+// ListTags returns the space's tags with bookmark counts, by name.
+func (s *Store) ListTags(ctx context.Context, sc Scope) ([]Tag, error) {
 	rows, err := s.r.QueryContext(ctx,
 		`SELECT t.id, t.name, count(bt.bookmark_id) FROM tags t
 		 LEFT JOIN bookmark_tags bt ON bt.tag_id = t.id
-		 WHERE t.user_id = ? GROUP BY t.id ORDER BY t.name`, userID)
+		 WHERE t.space_id = ? GROUP BY t.id ORDER BY t.name`, sc.spaceID)
 	if err != nil {
 		return nil, err
 	}
@@ -142,23 +145,26 @@ func (s *Store) ListTags(ctx context.Context, userID int64) ([]Tag, error) {
 	return out, rows.Err()
 }
 
-// RenameTag renames a tag. If the user already has a tag with the new name,
+// RenameTag renames a tag. If the space already has a tag with the new name,
 // the two are merged into that one.
-func (s *Store) RenameTag(ctx context.Context, userID, id int64, newName string) error {
+func (s *Store) RenameTag(ctx context.Context, sc Scope, id int64, newName string) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
 	newName, err := CleanTagName(newName)
 	if err != nil {
 		return err
 	}
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		var exists bool
-		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE user_id = ? AND id = ?", userID, id).Scan(&exists); err != nil {
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, id).Scan(&exists); err != nil {
 			return notFound(err)
 		}
 		var targetID int64
-		err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE user_id = ? AND name = ? AND id != ?", userID, newName, id).Scan(&targetID)
+		err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE space_id = ? AND name = ? AND id != ?", sc.spaceID, newName, id).Scan(&targetID)
 		switch {
 		case err == sql.ErrNoRows:
-			_, err = tx.ExecContext(ctx, "UPDATE tags SET name = ? WHERE user_id = ? AND id = ?", newName, userID, id)
+			_, err = tx.ExecContext(ctx, "UPDATE tags SET name = ? WHERE space_id = ? AND id = ?", newName, sc.spaceID, id)
 			return err
 		case err != nil:
 			return err
@@ -168,15 +174,18 @@ func (s *Store) RenameTag(ctx context.Context, userID, id int64, newName string)
 			targetID, id); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "DELETE FROM tags WHERE user_id = ? AND id = ?", userID, id)
+		_, err = tx.ExecContext(ctx, "DELETE FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, id)
 		return err
 	})
 }
 
-// DeleteTag removes a tag from all of the user's bookmarks. Tags are only
+// DeleteTag removes a tag from all of the space's bookmarks. Tags are only
 // ever removed this way: a tag no bookmark uses yet is kept.
-func (s *Store) DeleteTag(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM tags WHERE user_id = ? AND id = ?", userID, id)
+func (s *Store) DeleteTag(ctx context.Context, sc Scope, id int64) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
+	res, err := s.w.ExecContext(ctx, "DELETE FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, id)
 	if err != nil {
 		return err
 	}

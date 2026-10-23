@@ -62,9 +62,9 @@ func readImport(r io.Reader) ([]byte, error) {
 	return b, nil
 }
 
-// queueImport starts a background import job.
-func (s *Server) queueImport(ctx context.Context, userID int64, file []byte) (int64, error) {
-	id, err := s.store.CreateJob(ctx, userID, store.JobImport, string(file))
+// queueImport starts a background import job into sc's space.
+func (s *Server) queueImport(ctx context.Context, sc store.Scope, file []byte) (int64, error) {
+	id, err := s.store.CreateJob(ctx, sc, store.JobImport, string(file))
 	if err == nil && s.jobs != nil {
 		s.jobs.Notify()
 	}
@@ -83,19 +83,18 @@ func (s *Server) importFile(w http.ResponseWriter, r *http.Request) {
 		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": "Couldn't import that file: " + err.Error() + "."})
 		return
 	}
-	if _, err := s.queueImport(r.Context(), currentUser(r).ID, b); err != nil {
-		s.serverError(w, r, err)
+	if _, err := s.queueImport(r.Context(), currentScope(r), b); !s.storeError(w, r, err) {
 		return
 	}
 	http.Redirect(w, r, "/settings/data", http.StatusSeeOther)
 }
 
 func (s *Server) exportFile(w http.ResponseWriter, r *http.Request) {
-	s.writeExport(w, r, currentUser(r).ID, r.URL.Query().Get("format"))
+	s.writeExport(w, r, currentScope(r), r.URL.Query().Get("format"))
 }
 
-// writeExport streams the user's bookmarks as html (default) or json.
-func (s *Server) writeExport(w http.ResponseWriter, r *http.Request, userID int64, format string) {
+// writeExport streams the space's bookmarks as html (default) or json.
+func (s *Server) writeExport(w http.ResponseWriter, r *http.Request, sc store.Scope, format string) {
 	if format != "json" {
 		format = "html"
 	}
@@ -116,14 +115,14 @@ func (s *Server) writeExport(w http.ResponseWriter, r *http.Request, userID int6
 		out, err = importexport.NewNetscapeWriter(w)
 	}
 	if err == nil {
-		err = s.store.ExportBookmarks(r.Context(), userID, out.Write)
+		err = s.store.ExportBookmarks(r.Context(), sc, out.Write)
 	}
 	if err == nil {
 		err = out.Close()
 	}
 	if err != nil {
 		// Headers are gone; all we can do is log and cut the response short.
-		s.log.Error("export", "user", userID, "err", err)
+		s.log.Error("export", "user", sc.UserID(), "space", sc.SpaceID(), "err", err)
 		return
 	}
 }

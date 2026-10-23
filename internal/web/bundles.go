@@ -12,7 +12,7 @@ func (s *Server) bundles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderBundles(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
-	list, err := s.store.ListBundles(r.Context(), currentUser(r).ID)
+	list, err := s.store.ListBundles(r.Context(), currentScope(r))
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -22,7 +22,7 @@ func (s *Server) renderBundles(w http.ResponseWriter, r *http.Request, status in
 
 // createBundle saves the search on the list page and shows it.
 func (s *Server) createBundle(w http.ResponseWriter, r *http.Request) {
-	b, err := s.store.CreateBundle(r.Context(), currentUser(r).ID, r.PostFormValue("name"), r.PostFormValue("query"))
+	b, err := s.store.CreateBundle(r.Context(), currentScope(r), r.PostFormValue("name"), r.PostFormValue("query"))
 	if isValidation(err) {
 		s.renderBundles(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -40,7 +40,7 @@ func (s *Server) updateBundle(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	err := s.store.UpdateBundle(r.Context(), currentUser(r).ID, id, r.PostFormValue("name"), r.PostFormValue("query"))
+	err := s.store.UpdateBundle(r.Context(), currentScope(r), id, r.PostFormValue("name"), r.PostFormValue("query"))
 	if isValidation(err) {
 		s.renderBundles(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -57,7 +57,7 @@ func (s *Server) deleteBundle(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if !s.storeError(w, r, s.store.DeleteBundle(r.Context(), currentUser(r).ID, id)) {
+	if !s.storeError(w, r, s.store.DeleteBundle(r.Context(), currentScope(r), id)) {
 		return
 	}
 	http.Redirect(w, r, "/bundles", http.StatusSeeOther)

@@ -26,6 +26,7 @@ const (
 	userKey ctxKey = iota
 	sessionKey
 	csrfKey
+	scopeKey
 )
 
 func currentUser(r *http.Request) *store.User {
@@ -36,6 +37,26 @@ func currentUser(r *http.Request) *store.User {
 func currentSession(r *http.Request) *store.Session {
 	ss, _ := r.Context().Value(sessionKey).(*store.Session)
 	return ss
+}
+
+// currentScope is the signed-in user's access to the space they're looking
+// at. Pages about one bookmark use that bookmark's space instead (see
+// bookmarkScope), so a link to it works whichever space is selected.
+func currentScope(r *http.Request) store.Scope {
+	sc, _ := r.Context().Value(scopeKey).(store.Scope)
+	return sc
+}
+
+// loadScope puts the user's current space on the request, after requireUser.
+func (s *Server) loadScope(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sc, err := s.store.PersonalScope(r.Context(), currentUser(r).ID)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), scopeKey, sc)))
+	})
 }
 
 func csrfToken(r *http.Request) string {

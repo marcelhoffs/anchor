@@ -15,27 +15,27 @@ import (
 )
 
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
-	u := currentUser(r)
+	sc := currentScope(r)
 	q := r.URL.Query().Get("q")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	page = max(page, 1)
 
-	list, total, err := s.store.Search(r.Context(), u.ID, search.Parse(q), u.Settings.Sort, pageSize, (page-1)*pageSize)
+	list, total, err := s.store.Search(r.Context(), sc, search.Parse(q), currentUser(r).Settings.Sort, pageSize, (page-1)*pageSize)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	tags, err := s.store.ListTags(r.Context(), u.ID)
+	tags, err := s.store.ListTags(r.Context(), sc)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	counts, err := s.store.CountBookmarks(r.Context(), u.ID)
+	counts, err := s.store.CountBookmarks(r.Context(), sc)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	bundles, err := s.store.ListBundles(r.Context(), u.ID)
+	bundles, err := s.store.ListBundles(r.Context(), sc)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -146,10 +146,17 @@ func formData(in store.BookmarkInput) data {
 	}
 }
 
-// renderEdit shows the add/edit form. The tags field suggests the user's
-// tags as they type, most used first.
-func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, status int, d data) {
-	tags, err := s.store.ListTags(r.Context(), currentUser(r).ID)
+// bookmarkScope is the user's scope in the space that holds bookmark id;
+// false after answering (404 when they aren't a member there).
+func (s *Server) bookmarkScope(w http.ResponseWriter, r *http.Request, id int64) (store.Scope, bool) {
+	sc, err := s.store.BookmarkScope(r.Context(), currentUser(r).ID, id)
+	return sc, s.storeError(w, r, err)
+}
+
+// renderEdit shows the add/edit form for a bookmark in sc's space. The tags
+// field suggests the space's tags as they type, most used first.
+func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, sc store.Scope, status int, d data) {
+	tags, err := s.store.ListTags(r.Context(), sc)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -169,7 +176,7 @@ func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, status int, 
 func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	if raw := q.Get("url"); raw != "" {
-		b, err := s.store.FindBookmarkByURL(r.Context(), currentUser(r).ID, raw)
+		b, err := s.store.FindBookmarkByURL(r.Context(), currentScope(r), raw)
 		if err == nil {
 			http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(b.ID, 10)+"/edit?dup=1", http.StatusSeeOther)
 			return
@@ -181,21 +188,21 @@ func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	d := formData(store.BookmarkInput{URL: q.Get("url"), Title: q.Get("title"), Description: q.Get("description")})
 	d["Next"] = safeNext(q.Get("next"))
-	s.renderEdit(w, r, http.StatusOK, d)
+	s.renderEdit(w, r, currentScope(r), http.StatusOK, d)
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
+	sc := currentScope(r)
 	in := bookmarkForm(r)
-	b, created, err := s.store.CreateBookmark(r.Context(), currentUser(r).ID, in)
-	if err != nil {
-		if isValidation(err) {
-			d := formData(in)
-			d["Error"] = err.Error()
-			d["Next"] = safeNext(r.PostFormValue("next"))
-			s.renderEdit(w, r, http.StatusUnprocessableEntity, d)
-			return
-		}
-		s.serverError(w, r, err)
+	b, created, err := s.store.CreateBookmark(r.Context(), sc, in)
+	if isValidation(err) {
+		d := formData(in)
+		d["Error"] = err.Error()
+		d["Next"] = safeNext(r.PostFormValue("next"))
+		s.renderEdit(w, r, sc, http.StatusUnprocessableEntity, d)
+		return
+	}
+	if !s.storeError(w, r, err) {
 		return
 	}
 	if !created {
@@ -212,7 +219,11 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	b, err := s.store.GetBookmark(r.Context(), currentUser(r).ID, id)
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
+	b, err := s.store.GetBookmark(r.Context(), sc, id)
 	if !s.storeError(w, r, err) {
 		return
 	}
@@ -230,7 +241,7 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 	} else if n := bookmarkNotices[r.URL.Query().Get("done")]; n != "" {
 		d["Notice"] = n
 	}
-	s.renderEdit(w, r, http.StatusOK, d)
+	s.renderEdit(w, r, sc, http.StatusOK, d)
 }
 
 func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
@@ -239,11 +250,14 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	u := currentUser(r)
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
 	in := bookmarkForm(r)
-	_, err := s.store.UpdateBookmark(r.Context(), u.ID, id, in)
+	_, err := s.store.UpdateBookmark(r.Context(), sc, id, in)
 	if errors.Is(err, store.ErrConflict) || isValidation(err) {
-		b, gerr := s.store.GetBookmark(r.Context(), u.ID, id)
+		b, gerr := s.store.GetBookmark(r.Context(), sc, id)
 		if !s.storeError(w, r, gerr) {
 			return
 		}
@@ -254,7 +268,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrConflict) {
 			d["Error"] = "Another bookmark already has this URL."
 		}
-		s.renderEdit(w, r, http.StatusUnprocessableEntity, d)
+		s.renderEdit(w, r, sc, http.StatusUnprocessableEntity, d)
 		return
 	}
 	if !s.storeError(w, r, err) {
@@ -281,8 +295,12 @@ func (s *Server) shareBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
 	on := r.PostFormValue("on") == "1"
-	if !s.storeError(w, r, s.store.SetShared(r.Context(), currentUser(r).ID, id, on)) {
+	if !s.storeError(w, r, s.store.SetShared(r.Context(), sc, id, on)) {
 		return
 	}
 	done := "unshared"
@@ -298,7 +316,11 @@ func (s *Server) refetchBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if !s.storeError(w, r, s.store.Refetch(r.Context(), currentUser(r).ID, id)) {
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
+	if !s.storeError(w, r, s.store.Refetch(r.Context(), sc, id)) {
 		return
 	}
 	s.fetcher.Notify()
@@ -321,7 +343,7 @@ func (s *Server) sharedBookmark(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, http.StatusOK, "shared", data{"Shared": b})
 }
 
-// favicon serves a stored site icon to a user who has a bookmark using it.
+// favicon serves a stored site icon to a user who can see a bookmark using it.
 func (s *Server) favicon(w http.ResponseWriter, r *http.Request) {
 	id, ok := idParam(r)
 	if !ok {
@@ -349,7 +371,11 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if !s.storeError(w, r, s.store.DeleteBookmark(r.Context(), currentUser(r).ID, id)) {
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
+	if !s.storeError(w, r, s.store.DeleteBookmark(r.Context(), sc, id)) {
 		return
 	}
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
@@ -368,7 +394,11 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unknown flag", http.StatusBadRequest)
 		return
 	}
-	err := s.store.SetFlag(r.Context(), currentUser(r).ID, id, flag, r.PostFormValue("on") == "1")
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
+	err := s.store.SetFlag(r.Context(), sc, id, flag, r.PostFormValue("on") == "1")
 	if !s.storeError(w, r, err) {
 		return
 	}
@@ -380,7 +410,7 @@ func (s *Server) tags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
-	tags, err := s.store.ListTags(r.Context(), currentUser(r).ID)
+	tags, err := s.store.ListTags(r.Context(), currentScope(r))
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -389,13 +419,12 @@ func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, 
 }
 
 func (s *Server) createTag(w http.ResponseWriter, r *http.Request) {
-	_, err := s.store.CreateTag(r.Context(), currentUser(r).ID, r.PostFormValue("name"))
+	_, err := s.store.CreateTag(r.Context(), currentScope(r), r.PostFormValue("name"))
 	if isValidation(err) {
 		s.renderTags(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
 	}
-	if err != nil {
-		s.serverError(w, r, err)
+	if !s.storeError(w, r, err) {
 		return
 	}
 	http.Redirect(w, r, "/tags", http.StatusSeeOther)
@@ -407,7 +436,7 @@ func (s *Server) renameTag(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	err := s.store.RenameTag(r.Context(), currentUser(r).ID, id, r.PostFormValue("name"))
+	err := s.store.RenameTag(r.Context(), currentScope(r), id, r.PostFormValue("name"))
 	if isValidation(err) {
 		s.renderTags(w, r, http.StatusUnprocessableEntity, err.Error())
 		return
@@ -424,7 +453,7 @@ func (s *Server) deleteTag(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	if !s.storeError(w, r, s.store.DeleteTag(r.Context(), currentUser(r).ID, id)) {
+	if !s.storeError(w, r, s.store.DeleteTag(r.Context(), currentScope(r), id)) {
 		return
 	}
 	http.Redirect(w, r, "/tags", http.StatusSeeOther)

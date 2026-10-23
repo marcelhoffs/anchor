@@ -26,6 +26,7 @@ type apiCtxKey struct{}
 type apiAuth struct {
 	user  store.User
 	token store.APIToken
+	scope store.Scope // the space the request works on
 }
 
 func apiCaller(r *http.Request) apiAuth {
@@ -106,7 +107,13 @@ func (s *Server) apiAuthenticate(next http.Handler) http.Handler {
 			limit = maxImportBody
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		ctx := context.WithValue(r.Context(), apiCtxKey{}, apiAuth{user: u, token: t})
+		sc, err := s.store.PersonalScope(r.Context(), u.ID)
+		if err != nil {
+			s.log.Error("api scope", "err", err)
+			problem(w, http.StatusInternalServerError, "Something went wrong.")
+			return
+		}
+		ctx := context.WithValue(r.Context(), apiCtxKey{}, apiAuth{user: u, token: t, scope: sc})
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -131,6 +138,8 @@ func (s *Server) apiStoreError(w http.ResponseWriter, err error) bool {
 		return true
 	case errors.Is(err, store.ErrNotFound):
 		problem(w, http.StatusNotFound, "Not found.")
+	case errors.Is(err, store.ErrForbidden):
+		problem(w, http.StatusForbidden, "You can read this space's bookmarks but not change them.")
 	case errors.Is(err, store.ErrConflict):
 		problem(w, http.StatusConflict, "Another bookmark already has this URL.")
 	case errors.As(err, &v):
@@ -236,7 +245,7 @@ func (s *Server) apiListBookmarks(w http.ResponseWriter, r *http.Request) {
 	if q.Get("favourite") == "true" {
 		query += " !fav"
 	}
-	list, total, err := s.store.Search(r.Context(), apiCaller(r).user.ID, search.Parse(query), store.SortNewest, limit, offset)
+	list, total, err := s.store.Search(r.Context(), apiCaller(r).scope, search.Parse(query), store.SortNewest, limit, offset)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -257,7 +266,7 @@ func (s *Server) apiCheckBookmark(w http.ResponseWriter, r *http.Request) {
 		problem(w, http.StatusBadRequest, "Pass the URL to check as ?url=.")
 		return
 	}
-	b, err := s.store.FindBookmarkByURL(r.Context(), apiCaller(r).user.ID, raw)
+	b, err := s.store.FindBookmarkByURL(r.Context(), apiCaller(r).scope, raw)
 	if errors.Is(err, store.ErrNotFound) {
 		writeJSON(w, http.StatusOK, map[string]any{"bookmark": nil})
 		return
@@ -281,7 +290,7 @@ func (s *Server) apiGetBookmark(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	b, err := s.store.GetBookmark(r.Context(), apiCaller(r).user.ID, id)
+	b, err := s.store.GetBookmark(r.Context(), apiCaller(r).scope, id)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -330,13 +339,13 @@ func (s *Server) apiCreateBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	var in store.BookmarkInput
 	p.apply(&in)
-	uid := apiCaller(r).user.ID
-	b, created, err := s.store.CreateBookmark(r.Context(), uid, in)
+	sc := apiCaller(r).scope
+	b, created, err := s.store.CreateBookmark(r.Context(), sc, in)
 	if !s.apiStoreError(w, err) {
 		return
 	}
 	if created && p.IsArchived != nil && *p.IsArchived {
-		if !s.apiStoreError(w, s.store.SetFlag(r.Context(), uid, b.ID, store.FlagArchived, true)) {
+		if !s.apiStoreError(w, s.store.SetFlag(r.Context(), sc, b.ID, store.FlagArchived, true)) {
 			return
 		}
 		b.IsArchived = true
@@ -358,20 +367,20 @@ func (s *Server) apiUpdateBookmark(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &p) {
 		return
 	}
-	uid := apiCaller(r).user.ID
-	cur, err := s.store.GetBookmark(r.Context(), uid, id)
+	sc := apiCaller(r).scope
+	cur, err := s.store.GetBookmark(r.Context(), sc, id)
 	if !s.apiStoreError(w, err) {
 		return
 	}
 	in := store.BookmarkInput{URL: cur.URL, Title: cur.Title, Description: cur.Description, Notes: cur.Notes,
 		Tags: cur.Tags, IsFavourite: cur.IsFavourite}
 	p.apply(&in)
-	b, err := s.store.UpdateBookmark(r.Context(), uid, id, in)
+	b, err := s.store.UpdateBookmark(r.Context(), sc, id, in)
 	if !s.apiStoreError(w, err) {
 		return
 	}
 	if p.IsArchived != nil && *p.IsArchived != b.IsArchived {
-		if !s.apiStoreError(w, s.store.SetFlag(r.Context(), uid, id, store.FlagArchived, *p.IsArchived)) {
+		if !s.apiStoreError(w, s.store.SetFlag(r.Context(), sc, id, store.FlagArchived, *p.IsArchived)) {
 			return
 		}
 		b.IsArchived = *p.IsArchived
@@ -392,11 +401,11 @@ func (s *Server) apiShareBookmark(w http.ResponseWriter, r *http.Request) {
 	if r.ContentLength != 0 && !decodeJSON(w, r, &body) {
 		return
 	}
-	uid := apiCaller(r).user.ID
-	if !s.apiStoreError(w, s.store.SetShared(r.Context(), uid, id, body.Shared == nil || *body.Shared)) {
+	sc := apiCaller(r).scope
+	if !s.apiStoreError(w, s.store.SetShared(r.Context(), sc, id, body.Shared == nil || *body.Shared)) {
 		return
 	}
-	b, err := s.store.GetBookmark(r.Context(), uid, id)
+	b, err := s.store.GetBookmark(r.Context(), sc, id)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -404,7 +413,7 @@ func (s *Server) apiShareBookmark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiListBundles(w http.ResponseWriter, r *http.Request) {
-	list, err := s.store.ListBundles(r.Context(), apiCaller(r).user.ID)
+	list, err := s.store.ListBundles(r.Context(), apiCaller(r).scope)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -420,7 +429,7 @@ func (s *Server) apiDeleteBookmark(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.apiStoreError(w, s.store.DeleteBookmark(r.Context(), apiCaller(r).user.ID, id)) {
+	if !s.apiStoreError(w, s.store.DeleteBookmark(r.Context(), apiCaller(r).scope, id)) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -439,11 +448,11 @@ func (s *Server) apiArchiveBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	archived := body.Archived == nil || *body.Archived
-	uid := apiCaller(r).user.ID
-	if !s.apiStoreError(w, s.store.SetFlag(r.Context(), uid, id, store.FlagArchived, archived)) {
+	sc := apiCaller(r).scope
+	if !s.apiStoreError(w, s.store.SetFlag(r.Context(), sc, id, store.FlagArchived, archived)) {
 		return
 	}
-	b, err := s.store.GetBookmark(r.Context(), uid, id)
+	b, err := s.store.GetBookmark(r.Context(), sc, id)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -458,7 +467,7 @@ func (s *Server) apiCreateTag(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	t, err := s.store.CreateTag(r.Context(), apiCaller(r).user.ID, body.Name)
+	t, err := s.store.CreateTag(r.Context(), apiCaller(r).scope, body.Name)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -466,7 +475,7 @@ func (s *Server) apiCreateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiListTags(w http.ResponseWriter, r *http.Request) {
-	tags, err := s.store.ListTags(r.Context(), apiCaller(r).user.ID)
+	tags, err := s.store.ListTags(r.Context(), apiCaller(r).scope)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -491,13 +500,13 @@ func (s *Server) apiUpdateTag(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &body) {
 		return
 	}
-	uid := apiCaller(r).user.ID
+	sc := apiCaller(r).scope
 	var newName string
 	switch {
 	case body.Name != nil && body.MergeInto == nil:
 		newName = *body.Name
 	case body.MergeInto != nil && body.Name == nil:
-		tags, err := s.store.ListTags(r.Context(), uid)
+		tags, err := s.store.ListTags(r.Context(), sc)
 		if !s.apiStoreError(w, err) {
 			return
 		}
@@ -514,7 +523,7 @@ func (s *Server) apiUpdateTag(w http.ResponseWriter, r *http.Request) {
 		problem(w, http.StatusBadRequest, "Send either name or merge_into.")
 		return
 	}
-	if !s.apiStoreError(w, s.store.RenameTag(r.Context(), uid, id, newName)) {
+	if !s.apiStoreError(w, s.store.RenameTag(r.Context(), sc, id, newName)) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -525,7 +534,7 @@ func (s *Server) apiDeleteTag(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.apiStoreError(w, s.store.DeleteTag(r.Context(), apiCaller(r).user.ID, id)) {
+	if !s.apiStoreError(w, s.store.DeleteTag(r.Context(), apiCaller(r).scope, id)) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -549,7 +558,7 @@ func (s *Server) apiImport(w http.ResponseWriter, r *http.Request) {
 		problem(w, http.StatusUnprocessableEntity, "Couldn't import that file: "+err.Error()+".")
 		return
 	}
-	id, err := s.queueImport(r.Context(), apiCaller(r).user.ID, b)
+	id, err := s.queueImport(r.Context(), apiCaller(r).scope, b)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -577,5 +586,5 @@ func (s *Server) apiGetJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
-	s.writeExport(w, r, apiCaller(r).user.ID, r.URL.Query().Get("format"))
+	s.writeExport(w, r, apiCaller(r).scope, r.URL.Query().Get("format"))
 }
