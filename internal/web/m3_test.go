@@ -83,6 +83,7 @@ func TestSharingFlow(t *testing.T) {
 	e.user("alice")
 	e.user("bob")
 	c := e.login("alice")
+	e.tags("alice", "private-tag")
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "description": {"The Go site"},
 		"notes": {"secret note"}, "tags": {"private-tag"}})
 	if code, _, _ := e.login("bob").post("/bookmarks/1/share", url.Values{"on": {"1"}}); code != http.StatusNotFound {
@@ -129,6 +130,7 @@ func TestBundlesFlow(t *testing.T) {
 	e.user("alice")
 	e.user("bob")
 	c := e.login("alice")
+	e.tags("alice", "go")
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
 	c.post("/bookmarks", url.Values{"url": {"https://rust-lang.org"}, "title": {"Rust"}})
 

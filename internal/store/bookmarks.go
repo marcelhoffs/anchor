@@ -86,7 +86,9 @@ func (in *BookmarkInput) clean() (normalized, domain string, err error) {
 	case utf8.RuneCountInString(in.Notes) > maxNotes:
 		return "", "", invalid("Notes are longer than %d characters.", maxNotes)
 	}
-	in.Tags = CleanTags(in.Tags)
+	if in.Tags, err = ParseTags(in.Tags); err != nil {
+		return "", "", err
+	}
 	return normalized, domain, nil
 }
 
@@ -197,16 +199,14 @@ func (s *Store) SetFlag(ctx context.Context, userID, id int64, flag Flag, on boo
 }
 
 func (s *Store) DeleteBookmark(ctx context.Context, userID, id int64) error {
-	return s.tx(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, "DELETE FROM bookmarks WHERE user_id = ? AND id = ?", userID, id)
-		if err != nil {
-			return err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
-		}
-		return deleteOrphanTags(ctx, tx, userID)
-	})
+	res, err := s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE user_id = ? AND id = ?", userID, id)
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // List orders.

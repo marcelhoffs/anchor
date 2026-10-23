@@ -35,7 +35,7 @@ func TestParseNetscape(t *testing.T) {
 	}
 	want := []Item{
 		{URL: "https://go.dev/", Title: "Go & friends", Description: "The Go website", CreatedAt: time.Unix(1700000001, 0).UTC()},
-		{URL: "https://pve.proxmox.com/", Title: "Proxmox", Tags: []string{"Home-Lab", "proxmox", "virtualisation"}, CreatedAt: time.Unix(1700000002, 0).UTC()},
+		{URL: "https://pve.proxmox.com/", Title: "Proxmox", Tags: []string{"Home Lab", "proxmox", "virtualisation"}, CreatedAt: time.Unix(1700000002, 0).UTC()},
 		{URL: "https://example.org/", Title: "Pocket item", Tags: []string{"pocket"}, CreatedAt: time.Unix(1700000003, 0).UTC()},
 	}
 	if !reflect.DeepEqual(items, want) {

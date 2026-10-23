@@ -39,7 +39,7 @@ type Settings struct {
 // Accents, Themes, Sidebars, Sorts and DescriptionModes list the allowed
 // values, the default first.
 var (
-	Accents          = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
+	Accents          = []string{"indigo", "terracotta", "yellow", "emerald", "forest", "ocean", "rose", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
 	Sidebars         = []string{"left", "right"}
 	Sorts            = []string{SortNewest, SortTitle}

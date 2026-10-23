@@ -135,6 +135,16 @@ func (e *env) user(name string) {
 	}
 }
 
+// tags creates tags for a user, as on the Tags page.
+func (e *env) tags(user string, names ...string) {
+	e.t.Helper()
+	for _, n := range names {
+		if _, err := e.store.CreateTag(context.Background(), e.userID(user), n); err != nil {
+			e.t.Fatal(err)
+		}
+	}
+}
+
 func (e *env) login(name string) *client {
 	e.t.Helper()
 	c := e.client()
@@ -216,6 +226,7 @@ func TestBookmarkFlow(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
+	e.tags("alice", "go", "reading", "golang")
 
 	if code, body, _ := c.post("/bookmarks", url.Values{"url": {"javascript:alert(1)"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "valid http") {
 		t.Fatalf("javascript: URL accepted: %d", code)
@@ -266,6 +277,7 @@ func TestCrossUserIsolation(t *testing.T) {
 	e.user("alice")
 	e.user("bob")
 	alice, bob := e.login("alice"), e.login("bob")
+	e.tags("alice", "alicetag")
 
 	alice.post("/bookmarks", url.Values{"url": {"https://alice.example/secret"}, "title": {"Alice secret"}, "tags": {"alicetag"}})
 	ctx := context.Background()
@@ -394,7 +406,8 @@ func TestPagesAreCSPClean(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
-	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
+	e.tags("alice", "go", "home lab")
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go, home lab"}})
 	c.post("/bookmarks/1/share", url.Values{"on": {"1"}})
 	c.post("/bundles", url.Values{"name": {"Go"}, "query": {"#go site:go.dev"}})
 	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
@@ -414,7 +427,7 @@ func TestPagesAreCSPClean(t *testing.T) {
 
 func TestVersionedAssets(t *testing.T) {
 	e := newEnv(t)
-	for _, name := range []string{"style.css", "icons.svg", "icon.svg", "fonts/inter-latin.woff2"} {
+	for _, name := range []string{"style.css", "icons.svg", "fonts/inter-latin.woff2"} {
 		res, err := http.Get(e.srv.URL + assetURL(name))
 		if err != nil {
 			t.Fatal(err)
@@ -482,16 +495,43 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		if !strings.Contains(string(css), ".swatch."+a+" ") {
 			t.Errorf("accent %q has no swatch", a)
 		}
+		// The favicon uses the accent's light-mode colour.
+		if c, ok := iconColours[a]; !ok || !strings.Contains(string(css), "--accent: light-dark("+c[0]+",") {
+			t.Errorf("accent %q has no favicon colours matching its CSS", a)
+		}
 	}
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
-	if code, _, _ := c.post("/settings/appearance", url.Values{"accent": {"violet"}, "theme": {"system"}}); code != http.StatusSeeOther {
-		t.Fatalf("save violet: %d", code)
+	if code, _, _ := c.post("/settings/appearance", url.Values{"accent": {"forest"}, "theme": {"system"}}); code != http.StatusSeeOther {
+		t.Fatalf("save forest: %d", code)
 	}
 	_, body, _ := c.get("/settings")
-	if !strings.Contains(body, `data-accent="violet"`) || strings.Count(body, `name="accent"`) != len(store.Accents) {
+	if !strings.Contains(body, `data-accent="forest"`) || strings.Count(body, `name="accent"`) != len(store.Accents) {
 		t.Fatal("settings page doesn't offer every accent")
+	}
+	// The favicon and header logo follow the accent.
+	if !strings.Contains(body, `<link rel="icon" href="/icon/forest.svg?v=`) || !strings.Contains(body, `<svg class="brand-mark"`) {
+		t.Fatal("app icon doesn't follow the accent")
+	}
+	res, err := http.Get(e.srv.URL + "/icon/forest.svg")
+	if err != nil || res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/svg+xml" {
+		t.Fatalf("favicon: %v %v", res, err)
+	}
+	svg, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if !strings.Contains(string(svg), `fill="#2d6a4f"`) || strings.Contains(string(svg), `class="eye"`) {
+		t.Fatalf("favicon = %s", svg)
+	}
+	for _, bad := range []string{"/icon/violet.svg", "/icon/forest", "/icon/..%2fstyle.css"} {
+		if code, _, _ := e.client().get(bad); code != http.StatusNotFound {
+			t.Errorf("%s: %d", bad, code)
+		}
+	}
+	// A saved accent that no longer exists falls back to the default.
+	e.db.W.Exec(`UPDATE users SET settings = '{"accent":"violet"}' WHERE username = 'alice'`)
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="indigo"`) {
+		t.Fatal("removed accent didn't fall back to indigo")
 	}
 }
 
@@ -603,6 +643,7 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
+	e.tags("alice", "homelab")
 	e.store.CreateBookmark(context.Background(), e.userID("alice"), store.BookmarkInput{URL: "https://a.com", Tags: []string{"homelab"}})
 	_, body, _ := c.get("/")
 	if !strings.Contains(body, `popovertarget="tag-drawer"`) || !strings.Contains(body, `id="tag-drawer"`) {
@@ -638,12 +679,13 @@ func TestTagTypeAhead(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
-	c.post("/bookmarks", url.Values{"url": {"https://a.com"}, "tags": {"go homelab"}})
-	c.post("/bookmarks", url.Values{"url": {"https://b.com"}, "tags": {"homelab"}})
+	e.tags("alice", "go", "home lab")
+	c.post("/bookmarks", url.Values{"url": {"https://a.com"}, "tags": {"go, home lab"}})
+	c.post("/bookmarks", url.Values{"url": {"https://b.com"}, "tags": {"home lab"}})
 	for _, path := range []string{"/bookmarks/new", "/bookmarks/1/edit"} {
 		_, body, _ := c.get(path)
 		// Most used first.
-		if !strings.Contains(body, `data-tags="homelab go"`) || !strings.Contains(body, `role="combobox"`) {
+		if !strings.Contains(body, `data-tags="home lab,go"`) || !strings.Contains(body, `role="combobox"`) {
 			t.Errorf("%s: no tag suggestions", path)
 		}
 		if !strings.Contains(body, `<script src="/static/tags.js?v=`) {
@@ -651,7 +693,7 @@ func TestTagTypeAhead(t *testing.T) {
 		}
 	}
 	// An invalid form shows the field again with its suggestions.
-	if code, body, _ := c.post("/bookmarks", url.Values{"url": {"not a url"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, `data-tags="homelab go"`) {
+	if code, body, _ := c.post("/bookmarks", url.Values{"url": {"not a url"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, `data-tags="home lab,go"`) {
 		t.Fatalf("error page: %d", code)
 	}
 }
@@ -669,5 +711,69 @@ func TestAdminUserMenuIsAPopover(t *testing.T) {
 	}
 	if strings.Contains(body, `<details class="row-menu"`) {
 		t.Fatal("old details menu still there")
+	}
+}
+
+func TestTagsMustBeCreatedFirst(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+
+	// Unknown tags are refused, and the form keeps what was typed.
+	code, body, _ := c.post("/bookmarks", url.Values{"url": {"https://a.com"}, "title": {"A"}, "tags": {"home lab, go"}})
+	if code != http.StatusUnprocessableEntity || !strings.Contains(body, "Create them under Tags first") || !strings.Contains(body, `value="home lab, go"`) {
+		t.Fatalf("unknown tags: %d", code)
+	}
+
+	// Create them on the Tags page.
+	for _, name := range []string{"home lab", "go"} {
+		if code, _, loc := c.post("/tags", url.Values{"name": {name}}); code != http.StatusSeeOther || loc != "/tags" {
+			t.Fatalf("create %q: %d %q", name, code, loc)
+		}
+	}
+	if code, body, _ := c.post("/tags", url.Values{"name": {"Home Lab"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "already have a tag") {
+		t.Fatalf("duplicate: %d", code)
+	}
+	if code, body, _ := c.post("/tags", url.Values{"name": {"a, b"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "commas") {
+		t.Fatalf("comma: %d", code)
+	}
+	_, body, _ = c.get("/tags")
+	if !strings.Contains(body, `value="home lab"`) {
+		t.Fatal("new tag not listed")
+	}
+
+	if code, _, _ := c.post("/bookmarks", url.Values{"url": {"https://a.com"}, "title": {"A"}, "tags": {"home lab, go"}}); code != http.StatusSeeOther {
+		t.Fatalf("create with existing tags: %d", code)
+	}
+	// A tag with spaces links to a quoted search, which shows as its view.
+	link := "/?q=" + url.QueryEscape(`#"home lab"`)
+	_, body, _ = c.get("/")
+	if !strings.Contains(body, `href="/?q=%23%22home&#43;lab%22"`) { // html/template writes + as &#43;
+		t.Fatal("tag link isn't a quoted search")
+	}
+	_, body, _ = c.get(link)
+	if !strings.Contains(body, "<h1>#home lab</h1>") || !strings.Contains(body, ">A</a>") {
+		t.Fatal("spaced tag view")
+	}
+	if _, body, _ := c.get("/bookmarks/1/edit"); !strings.Contains(body, `value="go, home lab"`) {
+		t.Fatal("edit form doesn't show comma-separated tags")
+	}
+
+	// Deleting the bookmark keeps the tags.
+	c.post("/bookmarks/1/delete", nil)
+	if tags, _ := e.store.ListTags(context.Background(), e.userID("alice")); len(tags) != 2 {
+		t.Fatalf("tags after delete: %+v", tags)
+	}
+
+	// The API refuses unknown tags too, and can create them.
+	api := apiClient{t, e.srv.URL, apiToken(t, c, "write")}
+	if code, out := api.do("POST", "/bookmarks", map[string]any{"url": "https://b.com", "tags": []string{"new one"}}); code != http.StatusUnprocessableEntity || !strings.Contains(out["detail"].(string), `"new one"`) {
+		t.Fatalf("api unknown tag: %d %v", code, out)
+	}
+	if code, out := api.do("POST", "/tags", map[string]any{"name": "new one"}); code != http.StatusCreated || out["name"] != "new one" {
+		t.Fatalf("api create tag: %d %v", code, out)
+	}
+	if code, _ := api.do("POST", "/bookmarks", map[string]any{"url": "https://b.com", "tags": []string{"new one"}}); code != http.StatusCreated {
+		t.Fatalf("api create with tag: %d", code)
 	}
 }

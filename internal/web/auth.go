@@ -284,8 +284,8 @@ var settingsNotices = map[string]string{
 
 // accentLabels names each store.Accents value in the appearance picker.
 var accentLabels = map[string]string{
-	"indigo": "Indigo", "terracotta": "Terracotta", "emerald": "Emerald", "ocean": "Ocean",
-	"violet": "Violet", "rose": "Rose", "graphite": "Graphite",
+	"indigo": "Indigo", "terracotta": "Terracotta", "yellow": "Yellow", "emerald": "Emerald",
+	"forest": "Forest", "ocean": "Ocean", "rose": "Rose", "graphite": "Graphite",
 }
 
 type choice struct{ Value, Label string }

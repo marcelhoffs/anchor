@@ -130,8 +130,10 @@ func (s *Store) ImportBookmarks(ctx context.Context, userID int64, items []impor
 	err := s.tx(ctx, func(tx *sql.Tx) error {
 		now := s.now()
 		for _, it := range items {
+			// An import creates the tags it brings (addTags below); names
+			// that aren't valid tags are dropped rather than failing the item.
 			in := BookmarkInput{URL: it.URL, Title: it.Title, Description: it.Description, Notes: it.Notes,
-				Tags: it.Tags, IsFavourite: it.Favourite}
+				Tags: CleanTags(it.Tags), IsFavourite: it.Favourite}
 			normalized, domain, err := in.clean()
 			if err != nil {
 				r.Skipped++

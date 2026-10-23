@@ -115,6 +115,7 @@ func (s *Server) Handler() http.Handler {
 	static, _ := fs.Sub(assets, "static")
 	r.Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
 	r.Get("/healthz", s.healthz)
+	r.Get("/icon/{file}", s.appIcon)
 	r.Route("/api/v1", s.apiRoutes)
 
 	r.Group(func(r chi.Router) {
@@ -155,6 +156,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/bundles/{id}", s.updateBundle)
 			r.Post("/bundles/{id}/delete", s.deleteBundle)
 			r.Get("/tags", s.tags)
+			r.Post("/tags", s.createTag)
 			r.Post("/tags/{id}/rename", s.renameTag)
 			r.Post("/tags/{id}/delete", s.deleteTag)
 

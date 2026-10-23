@@ -38,3 +38,19 @@ func TestUnterminatedQuote(t *testing.T) {
 		t.Fatalf("phrases = %v", q.Phrases)
 	}
 }
+
+func TestQuotedTags(t *testing.T) {
+	q := Parse(`#"home lab" -#"old  stuff" "a phrase" #go #"unterminated`)
+	if !reflect.DeepEqual(q.Tags, []string{"home lab", "go", "unterminated"}) || !reflect.DeepEqual(q.NotTags, []string{"old  stuff"}) ||
+		!reflect.DeepEqual(q.Phrases, []string{"a phrase"}) {
+		t.Fatalf("got %+v", q)
+	}
+	for name, want := range map[string]string{"go": "#go", "home lab": `#"home lab"`} {
+		if got := TagQuery(name); got != want {
+			t.Errorf("TagQuery(%q) = %q, want %q", name, got, want)
+		}
+		if p := Parse(TagQuery(name)); !reflect.DeepEqual(p.Tags, []string{name}) {
+			t.Errorf("TagQuery(%q) doesn't round-trip: %+v", name, p)
+		}
+	}
+}

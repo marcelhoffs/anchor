@@ -441,6 +441,7 @@ func TestAPI(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	e.user("bob")
+	e.tags("alice", "go")
 	alice := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "write")}
 	reader := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "read")}
 	bob := apiClient{t, e.srv.URL, apiToken(t, e.login("bob"), "write")}

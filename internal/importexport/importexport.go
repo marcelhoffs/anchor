@@ -152,13 +152,14 @@ func itemFromAttrs(attrs map[string]string, folders []string) Item {
 	return it
 }
 
-// folderTag turns a folder name into a single tag: whitespace becomes '-'.
+// folderTag turns a folder name into a tag name. Tags may contain spaces but
+// not commas or double quotes, so those become spaces.
 func folderTag(name string) string {
 	name = strings.TrimSpace(name)
 	if rootFolders[strings.ToLower(name)] {
 		return ""
 	}
-	return strings.Join(strings.FieldsFunc(name, func(r rune) bool { return unicode.IsSpace(r) || r == ',' }), "-")
+	return strings.Join(strings.FieldsFunc(name, func(r rune) bool { return unicode.IsSpace(r) || r == ',' || r == '"' }), " ")
 }
 
 // unixAttr parses the first usable Unix timestamp; Firefox writes seconds,
