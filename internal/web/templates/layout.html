@@ -15,11 +15,13 @@
   <a class="brand" href="/">{{brandMark}}Anchor</a>
   {{if .User}}
   <nav aria-label="Main">
-    <a class="nav-link" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>
-    {{if .CanWrite}}<a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>{{end}}
+    {{/* Every control is a .top-ctl: one height, shape and hover; on phones
+       an icon-only square, its label kept for screen readers. */}}
+    <a class="top-ctl" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>{{icon "hash" "sm"}}<span class="label-sm">Tags</span></a>
+    {{if .CanWrite}}<a class="top-ctl top-add" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>{{end}}
     {{with .Nav}}{{if .Spaces}}
-    <details class="user-menu space-menu">
-      <summary aria-label="Space: {{.Name}}">{{if .Scope.IsPersonal}}{{icon "user" "sm"}}{{else}}{{icon "space" "sm"}}{{end}}<span class="label-sm space-name">{{.Name}}</span>{{icon "chevron-down" "sm"}}</summary>
+    <details class="top-menu space-menu">
+      <summary class="top-ctl" aria-label="Space: {{.Name}}">{{icon "space" "sm"}}<span class="label-sm space-name">{{.Name}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
         <p class="menu-title">Spaces</p>
         <form method="post" action="/space">
@@ -36,9 +38,10 @@
       </div>
     </details>
     {{end}}{{end}}
-    <details class="user-menu">
-      <summary><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span><span class="label-sm">{{.User.Username}}</span>{{icon "chevron-down" "sm"}}</summary>
+    <details class="top-menu">
+      <summary class="top-ctl" aria-label="Account: {{.User.Username}}"><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
+        <p class="menu-title">{{.User.Username}}</p>
         <a href="/settings">{{icon "settings" "sm"}}Settings</a>
         <a href="/settings/security">{{icon "shield" "sm"}}Security</a>
         <a href="/spaces">{{icon "space" "sm"}}Spaces</a>
