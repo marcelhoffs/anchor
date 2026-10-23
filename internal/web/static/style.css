@@ -172,7 +172,7 @@ form.inline { display: inline; }
   position: sticky; top: 0; z-index: 10;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
   padding: 10px 24px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
@@ -257,6 +257,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .tooltip-foot { margin-top: 12px; color: var(--muted); }
 .search input { flex-grow: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: none; background: transparent; box-shadow: none; color: var(--text); font: inherit; font-size: 16px; }
 .search .btn { min-height: 36px; }
+.search-btn .icon { display: none; } /* phones show it instead of the label */
 .list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
 
@@ -269,7 +270,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
   border-radius: var(--radius); background: var(--soft); color: var(--soft-text); font-size: 15px; font-weight: 600;
 }
 /* A site icon sits in the same box as the letter avatar it replaces. */
-.avatar.favicon { padding: 8px; border: 1px solid var(--border); background: var(--surface); object-fit: contain; }
+.avatar.favicon { padding: 8px; object-fit: contain; }
 .bm-body { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .bm-title { color: var(--text); font-size: 15.5px; font-weight: 600; letter-spacing: -0.005em; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-title:hover { color: var(--accent-text); }
@@ -286,6 +287,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
 .bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+/* The favourite star leads the row, tucked against the edge and the icon. */
+.bm-fav { flex-shrink: 0; display: flex; margin: 2px -4px 0 -6px; }
+.bm-fav .icon-btn { width: 32px; }
+.bm-fav .icon-btn:not(.on) { opacity: 0.4; } /* full on hover, below */
 .bm-more { display: none; flex-shrink: 0; }
 @media (hover: hover) {
   /* On mouse devices, row actions appear on hover or keyboard focus. */
@@ -466,6 +471,8 @@ td.actions { text-align: right; white-space: nowrap; }
   .bookmark { padding: 10px 4px 10px 12px; gap: 10px; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
   .avatar.favicon { padding: 6px; }
+  .bm-fav { margin: 0 -2px 0 -4px; }
+  .bm-fav .icon-btn { width: 28px; height: 32px; }
   .bm-body { gap: 2px; }
   .bm-meta { margin-top: 1px; }
   /* The actions fold into a menu beside the title, so rows stay short. */
@@ -474,6 +481,11 @@ td.actions { text-align: right; white-space: nowrap; }
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .top .btn-primary { width: 40px; padding: 0; }
+  .hide-sm { display: none; }
+  /* The search button becomes the field's only magnifier. */
+  .search > .icon { display: none; }
+  .search-btn { width: 36px; padding: 0; }
+  .search-btn .icon { display: inline; }
   .user-menu summary { padding-right: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -495,7 +507,6 @@ td.actions { text-align: right; white-space: nowrap; }
 .tabs a { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; }
 .tabs a:hover { background: var(--raised); color: var(--text); }
 .tabs a[aria-current="page"] { background: var(--soft); color: var(--soft-text); font-weight: 600; }
-.card .tabs + section { margin-top: 0; padding-top: 0; border-top: 0; }
 .badge.on { border-color: transparent; background: var(--soft); color: var(--soft-text); }
 .badge.danger { border-color: var(--danger); color: var(--danger); }
 code, .secret { font-family: var(--mono); font-size: 0.92em; padding: 1px 6px; border-radius: 6px; background: var(--raised); overflow-wrap: anywhere; }
@@ -566,5 +577,8 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 }
 .menu-title { padding: 6px 10px 4px; color: var(--muted); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .menu .danger { color: var(--danger); }
-.new-tag { margin-bottom: 24px; }
+/* The button stays beside the field, even on phones. */
+.new-tag { margin-bottom: 24px; flex-wrap: nowrap; }
+.new-tag input { min-width: 0; }
+.new-tag .btn { flex-shrink: 0; }
 .new-tag + .intro { margin-bottom: 12px; font-size: 14px; }

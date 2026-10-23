@@ -103,6 +103,7 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 	tag, _ := e.store.CreateTag(ctx, uid, "go")
 	bundle, _ := e.store.CreateBundle(ctx, uid, "Go", "#go")
 	tok, _ := e.store.CreateAPIToken(ctx, uid, "script", []byte("hash"), []string{"read"}, time.Time{})
+	root.post("/admin/settings", url.Values{"signup": {"invite"}})
 	root.post("/admin/invites", url.Values{"note": {"friend"}})
 	totpUser := e.userID("alice")
 	e.store.StartTOTP(ctx, totpUser, []byte("sealed"))

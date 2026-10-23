@@ -147,17 +147,20 @@ func (s *Server) renderAdminInvites(w http.ResponseWriter, r *http.Request, stat
 }
 
 func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
+	if s.signupMode(r.Context()) == "closed" {
+		// The form is hidden then; the page says why.
+		http.Redirect(w, r, "/admin/invites", http.StatusSeeOther)
+		return
+	}
 	token, hash := auth.NewToken(24)
 	note := truncate(strings.TrimSpace(r.PostFormValue("note")), 100)
 	if err := s.store.CreateInvite(r.Context(), currentUser(r).ID, note, hash, time.Now().Add(inviteTTL)); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	msg := "Send this link to the person you're inviting. It works once and expires in 7 days. It is shown only once."
-	if mode := s.signupMode(r.Context()); mode == "closed" {
-		msg += " Note: signup is closed, so the link won't work until you allow invites under Instance."
-	}
-	s.showSecret(w, r, "invites", "Invite link created", msg, s.cfg.BaseURL.String()+"/signup?invite="+token)
+	s.showSecret(w, r, "invites", "Invite link created",
+		"Send this link to the person you're inviting. It works once and expires in 7 days. It is shown only once.",
+		s.cfg.BaseURL.String()+"/signup?invite="+token)
 }
 
 func (s *Server) adminDeleteInvite(w http.ResponseWriter, r *http.Request) {

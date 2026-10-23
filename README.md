@@ -99,3 +99,9 @@ go test ./...
 ANCHOR_DATA_DIR=./data ANCHOR_BASE_URL=http://localhost:8080 \
 ANCHOR_SECRET_KEY=$(openssl rand -base64 32) go run ./cmd/anchor serve
 ```
+
+## License
+
+Anchor is free software under the [GNU Affero General Public License v3.0](LICENSE). You may use, change and share it; if you run a changed version as a network service, you must offer its users the source of your version.
+
+It builds on permissively licensed Go modules (MIT, BSD, Apache-2.0), the [Lucide](https://lucide.dev) icons (ISC) and the [Inter](https://rsms.me/inter/) font (SIL Open Font License, `internal/web/static/fonts/Inter-OFL.txt`). The Docker image carries Anchor's license and those of the modules compiled into it in `/licenses`.

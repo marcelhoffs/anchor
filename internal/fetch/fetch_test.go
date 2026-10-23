@@ -1,8 +1,13 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -129,6 +134,74 @@ func TestSameHost(t *testing.T) {
 	} {
 		if got := RegistrableDomain(host); got != want {
 			t.Errorf("RegistrableDomain(%q) = %q, want %q", host, got, want)
+		}
+	}
+	for _, c := range []struct {
+		from, to string
+		want     bool
+	}{
+		{"https://online.beobank.be/nl/login", "https://www.beobank.be/fr/index.html", true},
+		{"https://shop.example.com/", "https://example.com/", true},
+		{"https://keep.google.com/", "https://accounts.google.com/signin", false},
+		{"https://www.ad.nl/", "https://myprivacy.dpgmedia.nl/consent", false},
+	} {
+		if got := ToSiteHome(c.from, c.to); got != c.want {
+			t.Errorf("ToSiteHome(%q, %q) = %v, want %v", c.from, c.to, got, c.want)
+		}
+	}
+}
+
+func TestBlank(t *testing.T) {
+	pngOf := func(side int, c color.Color) []byte {
+		img := image.NewNRGBA(image.Rect(0, 0, side, side))
+		img.Set(1, 1, c)
+		var b bytes.Buffer
+		png.Encode(&b, img)
+		return b.Bytes()
+	}
+	// bitmap is an ICO entry's 32-bit 1×1 bitmap with pixel bgra.
+	bitmap := func(bgra ...byte) []byte {
+		h := make([]byte, 40)
+		binary.LittleEndian.PutUint32(h, 40)
+		binary.LittleEndian.PutUint32(h[4:], 1)
+		binary.LittleEndian.PutUint32(h[8:], 2) // the mask doubles the height
+		binary.LittleEndian.PutUint16(h[12:], 1)
+		binary.LittleEndian.PutUint16(h[14:], 32)
+		return append(append(h, bgra...), 0, 0, 0, 0) // the mask row
+	}
+	ico := func(entries ...[]byte) []byte {
+		out := []byte{0, 0, 1, 0, byte(len(entries)), 0}
+		off := 6 + 16*len(entries)
+		for _, e := range entries {
+			d := make([]byte, 16)
+			binary.LittleEndian.PutUint32(d[8:], uint32(len(e)))
+			binary.LittleEndian.PutUint32(d[12:], uint32(off))
+			out = append(out, d...)
+			off += len(e)
+		}
+		for _, e := range entries {
+			out = append(out, e...)
+		}
+		return out
+	}
+	none, red := color.NRGBA{}, color.NRGBA{R: 255, A: 255}
+	for name, c := range map[string]struct {
+		blank func([]byte) bool
+		data  []byte
+		want  bool
+	}{
+		"clear png":          {blankPNG, pngOf(2, none), true},
+		"red png":            {blankPNG, pngOf(2, red), false},
+		"huge clear png":     {blankPNG, pngOf(2000, none), false}, // not decoded
+		"not a png":          {blankPNG, []byte("\x89PNG\r\n\x1a\n" + strings.Repeat("\x00", 32)), false},
+		"clear bitmap ico":   {blankICO, ico(bitmap(0, 0, 0, 0), bitmap(0, 0, 0, 0)), true},
+		"one red bitmap ico": {blankICO, ico(bitmap(0, 0, 0, 0), bitmap(0, 0, 255, 255)), false},
+		"png ico":            {blankICO, ico(pngOf(2, none), bitmap(0, 0, 0, 0)), true},
+		"red png ico":        {blankICO, ico(pngOf(2, red)), false},
+		"truncated ico":      {blankICO, ico(bitmap(0, 0, 0, 0))[:30], false},
+	} {
+		if got := c.blank(c.data); got != c.want {
+			t.Errorf("%s: blank = %v, want %v", name, got, c.want)
 		}
 	}
 }

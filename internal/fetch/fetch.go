@@ -7,13 +7,16 @@ package fetch
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"net"
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -220,13 +223,83 @@ func (c *Client) Icon(ctx context.Context, rawURL string) (mime string, data []b
 	}
 	switch mime = http.DetectContentType(data); mime {
 	case "image/png", "image/gif", "image/jpeg", "image/webp", "image/x-icon", "image/vnd.microsoft.icon":
-		return mime, data, nil
+	default:
+		// DetectContentType doesn't know every ICO variant.
+		if !bytes.HasPrefix(data, []byte{0, 0, 1, 0}) {
+			return "", nil, fmt.Errorf("not an image (%s)", mime)
+		}
+		mime = "image/x-icon"
 	}
-	// DetectContentType doesn't know every ICO variant.
-	if bytes.HasPrefix(data, []byte{0, 0, 1, 0}) {
-		return "image/x-icon", data, nil
+	if mime == "image/png" && blankPNG(data) || mime == "image/x-icon" && blankICO(data) {
+		return "", nil, errors.New("blank icon")
 	}
-	return "", nil, fmt.Errorf("not an image (%s)", mime)
+	return mime, data, nil
+}
+
+// The blank checks below look for an icon with no visible pixel, like the
+// all-transparent favicon.ico of online.beobank.be. Only PNGs and ICOs of
+// PNGs or 32-bit bitmaps are checked; anything else, or anything that doesn't
+// parse, counts as visible.
+
+// maxBlankSide is the largest image the blank checks decode. A small PNG can
+// declare a huge image (48 KB for 20000×20000 px, 381 MB to decode); real
+// icons are at most 256 px.
+const maxBlankSide = 1024
+
+// blankICO reports whether every image in an ICO file is blank.
+func blankICO(data []byte) bool {
+	if len(data) < 6 {
+		return false
+	}
+	n := int(binary.LittleEndian.Uint16(data[4:]))
+	if n == 0 || len(data) < 6+16*n {
+		return false
+	}
+	for i := range n {
+		e := data[6+16*i:]
+		size, off := uint64(binary.LittleEndian.Uint32(e[8:])), uint64(binary.LittleEndian.Uint32(e[12:]))
+		if off+size > uint64(len(data)) {
+			return false
+		}
+		if img := data[off : off+size]; !(blankPNG(img) || blankBitmap(img)) {
+			return false
+		}
+	}
+	return true
+}
+
+// blankPNG reports whether data is a PNG whose pixels are all transparent.
+func blankPNG(data []byte) bool {
+	cfg, err := png.DecodeConfig(bytes.NewReader(data))
+	if err != nil || cfg.Width > maxBlankSide || cfg.Height > maxBlankSide {
+		return false
+	}
+	img, err := png.Decode(bytes.NewReader(data))
+	if err != nil {
+		return false
+	}
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if _, _, _, a := img.At(x, y).RGBA(); a != 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// blankBitmap reports whether data is an ICO entry's 32-bit bitmap whose
+// pixels are all zero: transparent black.
+func blankBitmap(data []byte) bool {
+	if len(data) < 40 || binary.LittleEndian.Uint32(data) != 40 || binary.LittleEndian.Uint16(data[14:]) != 32 {
+		return false
+	}
+	w, h := int(int32(binary.LittleEndian.Uint32(data[4:]))), int(int32(binary.LittleEndian.Uint32(data[8:])))/2 // h counts the mask too
+	if w <= 0 || h <= 0 || w > maxBlankSide || h > maxBlankSide || 40+w*h*4 > len(data) {
+		return false
+	}
+	return !slices.ContainsFunc(data[40:40+w*h*4], func(c byte) bool { return c != 0 })
 }
 
 func (c *Client) get(ctx context.Context, rawURL, accept string) (*http.Response, error) {
@@ -280,6 +353,15 @@ func cmpOr(a, b string) string {
 func SameHost(a, b string) bool {
 	ha, hb := host(a), host(b)
 	return ha != "" && ha == hb
+}
+
+// ToSiteHome reports whether to is the main host of from's site, as when
+// online.beobank.be sends you to www.beobank.be. That page isn't the one
+// asked for, but the site's icon fits it. A sign-in host is not the main one
+// (keep.google.com to accounts.google.com).
+func ToSiteHome(from, to string) bool {
+	h := host(to)
+	return h != "" && h == RegistrableDomain(host(from))
 }
 
 func host(raw string) string {

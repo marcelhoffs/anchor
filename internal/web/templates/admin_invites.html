@@ -5,9 +5,8 @@
   {{template "admin-nav" .}}
 
   {{if eq .SignupMode "closed"}}
-  <p class="error">Signup is closed, so invite links won't work. Allow invites under <a href="/admin/settings">Instance</a>.</p>
-  {{end}}
-
+  <p class="error">Signup is closed, so you can't invite anyone and invite links won't work. Allow invites under <a href="/admin/settings">Instance</a>.</p>
+  {{else}}
   <section aria-labelledby="new-invite">
     <h2 id="new-invite">Invite someone</h2>
     <p class="muted">Creates a single-use signup link that expires in 7 days.</p>
@@ -18,6 +17,7 @@
       <button class="btn btn-primary">{{icon "plus" "sm"}}Create invite link</button>
     </form>
   </section>
+  {{end}}
 
   <section aria-labelledby="invites">
     <h2 id="invites">Invites</h2>

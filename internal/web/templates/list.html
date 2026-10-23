@@ -47,7 +47,7 @@
           <p class="tooltip-foot">Combine them, for example <code>#go site:github.com</code>.</p>
         </div>
       </div>
-      <button class="btn">Search</button>
+      <button class="btn search-btn">{{icon "search" "sm"}}<span class="label-sm">Search</span></button>
     </form>
     <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "hash" "sm"}}Tags</button>
   </div>
@@ -87,6 +87,15 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
+      <form method="post" action="/bookmarks/{{.ID}}/flag" class="bm-fav">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+        <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
+        {{if .IsFavourite}}
+        <button class="icon-btn on" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
+        {{else}}
+        <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
+        {{end}}
+      </form>
       {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar" aria-hidden="true">{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
@@ -100,15 +109,6 @@
         </div>
       </div>
       <div class="bm-actions">
-        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-          {{if .IsFavourite}}
-          <button class="icon-btn on" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
-          {{else}}
-          <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
-          {{end}}
-        </form>
         {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
@@ -124,11 +124,6 @@
       {{/* On phones the actions fold into this menu, beside the title. */}}
       <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="Actions for {{display .}}">{{icon "more"}}</button>
       <div id="actions-{{.ID}}" class="menu row-menu" popover>
-        <form method="post" action="/bookmarks/{{.ID}}/flag">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}Remove from favourites{{else}}{{icon "star" "sm"}}Add to favourites{{end}}</button>
-        </form>
         {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">

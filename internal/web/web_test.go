@@ -752,7 +752,7 @@ func TestTagsMustBeCreatedFirst(t *testing.T) {
 		t.Fatal("tag link isn't a quoted search")
 	}
 	_, body, _ = c.get(link)
-	if !strings.Contains(body, "<h1>#home lab</h1>") || !strings.Contains(body, ">A</a>") {
+	if !strings.Contains(body, "<h1># home lab</h1>") || !strings.Contains(body, ">A</a>") {
 		t.Fatal("spaced tag view")
 	}
 	if _, body, _ := c.get("/bookmarks/1/edit"); !strings.Contains(body, `value="go, home lab"`) {

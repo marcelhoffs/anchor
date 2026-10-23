@@ -13,12 +13,12 @@
   <p class="muted intro">Renaming a tag to one you already have merges the two.</p>
   <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">Tag</th><th scope="col">Bookmarks</th><th scope="col">Rename or merge</th><th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
+    <thead><tr><th scope="col">Tag</th><th scope="col" class="hide-sm">Bookmarks</th><th scope="col">Rename or merge</th><th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
     <tbody>
     {{range .Tags}}
       <tr>
         <td><a class="tag" href="{{tagURL .Name}}">#{{.Name}}</a></td>
-        <td class="num">{{.Count}}</td>
+        <td class="num hide-sm">{{.Count}}</td>
         <td>
           <form method="post" action="/tags/{{.ID}}/rename" class="row">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">

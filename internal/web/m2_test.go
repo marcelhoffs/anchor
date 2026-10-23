@@ -617,12 +617,23 @@ func TestInvitesAndSignupModes(t *testing.T) {
 		t.Fatalf("closed signup page: %d", code)
 	}
 
+	// While signup is closed there is nothing to invite anyone to.
+	if _, body, _ := root.get("/admin/invites"); strings.Contains(body, "Create invite link") || !strings.Contains(body, "Signup is closed") {
+		t.Fatal("invite form shown while signup is closed")
+	}
+	if code, _, loc := root.post("/admin/invites", url.Values{"note": {"stale tab"}}); code != http.StatusSeeOther || loc != "/admin/invites" {
+		t.Fatalf("invite created while closed: %d %q", code, loc)
+	}
+	if invites, _ := e.store.ListInvites(context.Background()); len(invites) != 0 {
+		t.Fatalf("invites while closed: %+v", invites)
+	}
+
+	root.post("/admin/settings", url.Values{"signup": {"invite"}})
 	_, body, _ := root.post("/admin/invites", url.Values{"note": {"for dana"}})
 	link := find(t, body, `value="(http[^"]+/signup\?invite=[^"]+)"`)
 	invite := link[strings.Index(link, "invite=")+7:]
-	if !strings.Contains(body, "signup is closed") {
-		t.Fatal("no warning that the invite won't work while signup is closed")
-	}
+	// Closing signup again stops the link working.
+	root.post("/admin/settings", url.Values{"signup": {"closed"}})
 	if code, _, _ := anon.get("/signup?invite=" + invite); code != http.StatusNotFound {
 		t.Fatalf("invite worked while closed: %d", code)
 	}
