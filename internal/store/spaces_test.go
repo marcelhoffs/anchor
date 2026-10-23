@@ -241,7 +241,13 @@ func TestSharedSpaces(t *testing.T) {
 		t.Fatalf("after hand-over: alice %s, bob %s", aliceScope.Role(), bobScope.Role())
 	}
 
-	// Members leave; removed members lose access at once.
+	// Members leave; removed members lose access at once, and their saved
+	// searches in the space go with them.
+	for _, sc := range []Scope{aliceScope, carolScope} {
+		if _, err := s.CreateBundle(ctx, sc, "Go", "#go"); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := s.LeaveSpace(ctx, aliceScope); err != nil {
 		t.Fatal(err)
 	}
@@ -252,6 +258,11 @@ func TestSharedSpaces(t *testing.T) {
 		if _, err := s.Access(ctx, u.ID, owner.SpaceID()); !errors.Is(err, ErrNotFound) {
 			t.Fatalf("%s still has access: %v", u.Username, err)
 		}
+	}
+	var stale int
+	s.r.QueryRowContext(ctx, "SELECT count(*) FROM bundles WHERE space_id = ?", owner.SpaceID()).Scan(&stale)
+	if stale != 0 {
+		t.Fatalf("%d saved searches left behind", stale)
 	}
 
 	// Deleting takes everything in it along.

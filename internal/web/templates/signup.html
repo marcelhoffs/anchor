@@ -1,6 +1,7 @@
 {{define "title"}}Create account{{end}}
 {{define "content"}}
 <div class="auth">
+  {{template "auth-brand" .}}
   <div class="card">
     <h1>Create your account</h1>
     <p class="lead">{{if .Invite}}You've been invited to Anchor.{{else}}Start saving your bookmarks.{{end}}</p>

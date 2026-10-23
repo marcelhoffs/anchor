@@ -150,6 +150,10 @@ func (s *Server) Handler() http.Handler {
 		// A shared bookmark's public page.
 		r.Get("/s/{token}", s.sharedBookmark)
 
+		// Site icons, one request per bookmark row: signed in is all they
+		// need, not the spaces and 2FA checks pages do.
+		r.With(s.requireUser).Get("/favicons/{id}", s.favicon)
+
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireUser, s.enforce2FA, s.loadScope)
 			r.Get("/", s.list)
@@ -161,7 +165,6 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/bookmarks/{id}/flag", s.flagBookmark)
 			r.Post("/bookmarks/{id}/share", s.shareBookmark)
 			r.Post("/bookmarks/{id}/refetch", s.refetchBookmark)
-			r.Get("/favicons/{id}", s.favicon)
 			r.Get("/bundles", s.bundles)
 			r.Post("/bundles", s.createBundle)
 			r.Post("/bundles/{id}", s.updateBundle)

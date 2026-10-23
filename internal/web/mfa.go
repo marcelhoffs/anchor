@@ -85,11 +85,12 @@ func (s *Server) beginPasskeyLogin(w http.ResponseWriter, r *http.Request, u sto
 	writeJSON(w, http.StatusOK, opts)
 }
 
-// mfaBlocked answers a rate-limited second-factor attempt; it reports
-// whether it did.
+// mfaBlocked counts a second-factor attempt before it is checked, and
+// answers it if it is over the limit; it reports whether it did. Passing
+// resets the count.
 func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User, asJSON bool, render func(int, string)) bool {
-	blocked, retry := s.mfaUser.Blocked(fmt.Sprint(u.ID))
-	if !blocked {
+	ok, retry := s.mfaUser.Allow(fmt.Sprint(u.ID))
+	if ok {
 		return false
 	}
 	msg := "Too many failed attempts. Try again in " + retryText(retry) + "."
@@ -143,7 +144,6 @@ func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string,
 		return
 	}
 	if !passed {
-		s.mfaUser.Hit(fmt.Sprint(u.ID))
 		render(http.StatusUnauthorized, "That code didn't work. Check it and try again.")
 		return
 	}
@@ -183,7 +183,6 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !passed {
-		s.mfaUser.Hit(fmt.Sprint(u.ID))
 		jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
 		return
 	}
@@ -233,7 +232,6 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store
 		return
 	}
 	if !passed {
-		s.mfaUser.Hit(fmt.Sprint(u.ID))
 		if asJSON {
 			jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
 		} else {

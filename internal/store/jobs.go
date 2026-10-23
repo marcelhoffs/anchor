@@ -76,10 +76,22 @@ func (s *Store) ClaimJob(ctx context.Context) (Job, string, error) {
 	return j, payload, err
 }
 
-// RequeueRunning puts jobs a crash or restart interrupted back in the queue.
+// maxJobAttempts is how often a job may be interrupted before it is given
+// up: one that crashes the process would otherwise crash it on every start.
+const maxJobAttempts = 3
+
+// RequeueRunning puts jobs a crash or restart interrupted back in the queue,
+// or fails them once they have been tried maxJobAttempts times.
 func (s *Store) RequeueRunning(ctx context.Context) error {
-	_, err := s.w.ExecContext(ctx, "UPDATE jobs SET status = 'queued' WHERE status = 'running'")
-	return err
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE jobs SET status = 'failed', last_error = 'Stopped before finishing, too many times.', payload = '', finished_at = ?
+			 WHERE status = 'running' AND attempts >= ?`, unix(s.now()), maxJobAttempts); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, "UPDATE jobs SET status = 'queued' WHERE status = 'running'")
+		return err
+	})
 }
 
 func (s *Store) JobProgress(ctx context.Context, id int64, progress, total int) error {

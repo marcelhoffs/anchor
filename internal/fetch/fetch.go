@@ -94,8 +94,30 @@ func NewWithTimeout(allowPrivate bool, timeout time.Duration) *Client {
 // cgnat is 100.64.0.0/10, used by carrier NAT and by Tailscale.
 var cgnat = netip.MustParsePrefix("100.64.0.0/10")
 
+// IPv6 addresses that carry an IPv4 one, and reach it: NAT64 (RFC 6052),
+// IPv4-compatible and 6to4. Local-use NAT64 and Teredo can't be read back
+// reliably, so they aren't public.
+var (
+	nat64      = netip.MustParsePrefix("64:ff9b::/96")
+	ipv4Compat = netip.MustParsePrefix("::/96")
+	sixToFour  = netip.MustParsePrefix("2002::/16")
+	nat64Local = netip.MustParsePrefix("64:ff9b:1::/48")
+	teredo     = netip.MustParsePrefix("2001::/32")
+)
+
 func public(ip netip.Addr) bool {
 	ip = ip.Unmap()
+	if ip.Is6() {
+		b := ip.As16()
+		switch {
+		case nat64Local.Contains(ip), teredo.Contains(ip):
+			return false
+		case nat64.Contains(ip), ipv4Compat.Contains(ip):
+			return public(netip.AddrFrom4([4]byte(b[12:])))
+		case sixToFour.Contains(ip):
+			return public(netip.AddrFrom4([4]byte(b[2:6])))
+		}
+	}
 	return ip.IsGlobalUnicast() && !ip.IsPrivate() && !cgnat.Contains(ip) &&
 		!(ip.Is4() && ip.As4()[0] == 0)
 }

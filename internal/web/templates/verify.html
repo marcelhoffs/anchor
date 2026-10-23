@@ -1,6 +1,7 @@
 {{define "title"}}{{if eq .Mode "login"}}Two-factor authentication{{else}}Confirm it's you{{end}}{{end}}
 {{define "content"}}
 <div class="auth">
+  {{template "auth-brand" .}}
   <div class="card">
     {{if eq .Mode "login"}}
     <h1>Two-factor authentication</h1>

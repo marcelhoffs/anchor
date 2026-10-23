@@ -52,26 +52,7 @@ func (l *Limiter) Allow(key string) (ok bool, retry time.Duration) {
 	return true, 0
 }
 
-// Blocked reports whether key has used up its window, without recording an
-// event; use it with Hit to count only failures.
-func (l *Limiter) Blocked(key string) (blocked bool, retry time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	w := l.current(key)
-	if w.count >= l.limit {
-		return true, w.start.Add(l.every).Sub(l.now())
-	}
-	return false, 0
-}
-
-// Hit records an event for key.
-func (l *Limiter) Hit(key string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.current(key).count++
-}
-
-// Reset forgets key, e.g. after a successful login.
+// Reset forgets key, e.g. after a successful login, so only failures add up.
 func (l *Limiter) Reset(key string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

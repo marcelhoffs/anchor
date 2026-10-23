@@ -328,8 +328,7 @@ func (s *Store) RemoveMember(ctx context.Context, sc Scope, userID int64) error 
 	if err := sc.mustOwnShared(); err != nil {
 		return err
 	}
-	return affected(s.w.ExecContext(ctx, "DELETE FROM space_members WHERE space_id = ? AND user_id = ? AND role != 'owner'",
-		sc.spaceID, userID))
+	return s.dropMember(ctx, sc.spaceID, userID)
 }
 
 // LeaveSpace takes the scope's user out of a shared space. The owner can't
@@ -341,7 +340,21 @@ func (s *Store) LeaveSpace(ctx context.Context, sc Scope) error {
 	case sc.role == RoleOwner:
 		return invalid("Make another member the owner before you leave, or delete the space.")
 	}
-	return affected(s.w.ExecContext(ctx, "DELETE FROM space_members WHERE space_id = ? AND user_id = ?", sc.spaceID, sc.userID))
+	return s.dropMember(ctx, sc.spaceID, sc.userID)
+}
+
+// dropMember takes a non-owner out of a space, with their saved searches
+// in it: they would otherwise come back if the user were added again.
+func (s *Store) dropMember(ctx context.Context, spaceID, userID int64) error {
+	return s.tx(ctx, func(tx *sql.Tx) error {
+		err := affected(tx.ExecContext(ctx, "DELETE FROM space_members WHERE space_id = ? AND user_id = ? AND role != 'owner'",
+			spaceID, userID))
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, "DELETE FROM bundles WHERE space_id = ? AND user_id = ?", spaceID, userID)
+		return err
+	})
 }
 
 // TransferSpace makes another member the owner; the old owner stays on as

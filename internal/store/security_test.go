@@ -168,6 +168,18 @@ func TestJobsAndImport(t *testing.T) {
 	if _, _, err := s.ClaimJob(ctx); err != ErrNotFound {
 		t.Fatal("running job claimed twice")
 	}
+	// A job that keeps being interrupted (say, it crashes the process) is
+	// given up instead of run on every start.
+	for range maxJobAttempts - 1 {
+		s.RequeueRunning(ctx)
+		s.ClaimJob(ctx)
+	}
+	s.RequeueRunning(ctx)
+	if j, _ := s.GetJob(ctx, u.ID, id); j.Status != "failed" || j.LastError == "" {
+		t.Fatalf("job interrupted %d times: %+v", maxJobAttempts, j)
+	}
+	id, _ = s.CreateJob(ctx, personal(s, u.ID), JobImport, "payload")
+	s.ClaimJob(ctx)
 
 	r, err := s.ImportBookmarks(ctx, personal(s, u.ID), []importexport.Item{
 		{URL: "https://go.dev/", Title: "Go", Tags: []string{"new", `bad"name`}, Favourite: true}, // an import creates its tags

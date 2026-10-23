@@ -67,13 +67,7 @@ func (w *Worker) RunOnce(ctx context.Context) bool {
 		}
 		return false
 	}
-	var result any
-	switch j.Kind {
-	case store.JobImport:
-		result, err = w.runImport(ctx, j, payload)
-	default:
-		err = fmt.Errorf("unknown job kind %q", j.Kind)
-	}
+	result, err := w.run(ctx, j, payload)
 	b, _ := json.Marshal(result)
 	if ferr := w.store.FinishJob(ctx, j.ID, string(b), err); ferr != nil {
 		w.log.Error("finish job", "job", j.ID, "err", ferr)
@@ -84,6 +78,21 @@ func (w *Worker) RunOnce(ctx context.Context) bool {
 		w.log.Info("job done", "job", j.ID, "kind", j.Kind, "result", string(b))
 	}
 	return true
+}
+
+// run runs one job; a panic fails the job instead of the process.
+func (w *Worker) run(ctx context.Context, j store.Job, payload string) (result any, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			err = fmt.Errorf("internal error: %v", p)
+		}
+	}()
+	switch j.Kind {
+	case store.JobImport:
+		return w.runImport(ctx, j, payload)
+	default:
+		return nil, fmt.Errorf("unknown job kind %q", j.Kind)
+	}
 }
 
 func (w *Worker) runImport(ctx context.Context, j store.Job, payload string) (store.ImportResult, error) {

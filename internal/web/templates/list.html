@@ -101,9 +101,9 @@
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
         <div class="bm-meta">
           <span class="domain">{{.Domain}}</span>
-          {{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}
           {{if .IsArchived}}<span class="badge">Archived</span>{{end}}
           {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}Shared</a>{{end}}
+          {{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}
         </div>
       </div>
       {{if $.CanWrite}}

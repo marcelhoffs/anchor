@@ -26,18 +26,12 @@ func TestLimiter(t *testing.T) {
 		t.Fatal("new window refused")
 	}
 
-	l.Hit("c")
-	l.Hit("c")
-	if b, _ := l.Blocked("c"); b {
-		t.Fatal("blocked below the limit")
-	}
-	l.Hit("c")
-	if b, _ := l.Blocked("c"); !b {
-		t.Fatal("not blocked at the limit")
+	for range 3 {
+		l.Allow("c")
 	}
 	l.Reset("c")
-	if b, _ := l.Blocked("c"); b {
-		t.Fatal("still blocked after Reset")
+	if ok, _ := l.Allow("c"); !ok {
+		t.Fatal("still limited after Reset")
 	}
 
 	now = now.Add(2 * time.Minute)

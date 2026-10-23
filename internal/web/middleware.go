@@ -142,23 +142,27 @@ func (s *Server) limitBody(next http.Handler) http.Handler {
 }
 
 // csrf implements signed double-submit tokens: the cookie holds
-// random.HMAC(random), and every state-changing request must echo the same
-// value in its "csrf" form field, or (for JSON calls from our own scripts) in
-// an X-CSRF-Token header.
+// random.HMAC(random, session cookie), and every state-changing request must
+// echo the same value in its "csrf" form field, or (for JSON calls from our
+// own scripts) in an X-CSRF-Token header. Binding it to the session means a
+// token another host under the same domain plants (possible without the
+// __Host- prefix, over http) isn't valid for the victim's session; signing
+// in or out makes the next page load issue a new one.
 func (s *Server) csrf(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		session := ""
+		if c, err := r.Cookie(s.sessionCookie); err == nil {
+			session = c.Value
+		}
 		token := ""
-		if c, err := r.Cookie(s.csrfCookie); err == nil && s.validCSRF(c.Value) {
+		if c, err := r.Cookie(s.csrfCookie); err == nil && s.validCSRF(c.Value, session) {
 			token = c.Value
 		}
 		switch r.Method {
 		case http.MethodGet, http.MethodHead, http.MethodOptions:
 			if token == "" {
-				token = s.newCSRF()
-				http.SetCookie(w, &http.Cookie{
-					Name: s.csrfCookie, Value: token, Path: "/", HttpOnly: true,
-					Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
-				})
+				token = s.newCSRF(session)
+				s.setCSRFCookie(w, token)
 			}
 		default:
 			sent := r.Header.Get("X-CSRF-Token")
@@ -174,21 +178,28 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) newCSRF() string {
+func (s *Server) setCSRFCookie(w http.ResponseWriter, token string) {
+	http.SetCookie(w, &http.Cookie{
+		Name: s.csrfCookie, Value: token, Path: "/", HttpOnly: true,
+		Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (s *Server) newCSRF(session string) string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	raw := base64.RawURLEncoding.EncodeToString(b)
-	return raw + "." + s.csrfSig(raw)
+	return raw + "." + s.csrfSig(raw, session)
 }
 
-func (s *Server) validCSRF(v string) bool {
+func (s *Server) validCSRF(v, session string) bool {
 	raw, sig, ok := strings.Cut(v, ".")
-	return ok && hmac.Equal([]byte(sig), []byte(s.csrfSig(raw)))
+	return ok && hmac.Equal([]byte(sig), []byte(s.csrfSig(raw, session)))
 }
 
-func (s *Server) csrfSig(raw string) string {
+func (s *Server) csrfSig(raw, session string) string {
 	m := hmac.New(sha256.New, s.csrfKey)
-	m.Write([]byte(raw))
+	m.Write([]byte(raw + "\x00" + session))
 	return base64.RawURLEncoding.EncodeToString(m.Sum(nil))
 }
 
@@ -233,11 +244,13 @@ func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 	})
 }
 
+// clearSessionCookie signs the browser out, with a CSRF token to match.
 func (s *Server) clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name: s.sessionCookie, Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 	})
+	s.setCSRFCookie(w, s.newCSRF(""))
 }
 
 // setupGate sends every request to /setup until the first account exists.

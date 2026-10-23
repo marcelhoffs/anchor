@@ -865,3 +865,15 @@ func TestClearFiltersInSearchBox(t *testing.T) {
 		t.Fatal("no clear filters in the search box")
 	}
 }
+
+func TestLoginPageHasNoTopBar(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	_, body, _ := e.client().get("/login")
+	if strings.Contains(body, `<header class="top">`) || !strings.Contains(body, `<div class="auth-brand"><svg class="brand-mark"`) {
+		t.Fatal("login page: want the app's mark and no top bar")
+	}
+	if _, body, _ := e.login("alice").get("/"); !strings.Contains(body, `<header class="top">`) || strings.Contains(body, "auth-brand") {
+		t.Fatal("signed-in page lost its top bar")
+	}
+}
