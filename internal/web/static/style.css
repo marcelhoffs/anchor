@@ -473,16 +473,21 @@ td.num { font-variant-numeric: tabular-nums; }
 td.actions { text-align: right; white-space: nowrap; }
 .bookmarklet { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px dashed var(--accent); border-radius: var(--radius); font-weight: 600; text-decoration: none; }
 
-@media (max-width: 720px) {
-  .top { padding: 10px 16px; }
-  main { padding: 20px 16px 48px; }
-  .sidebar { max-width: none; order: 2; }
-  /* Tags open from the button next to the search box instead. */
+/* The list and the sidebar need about 840px side by side (560 + 200 + gaps
+   and margins). Below that, as on tablets in portrait and phones in
+   landscape, the views move under the list and the tags into the drawer
+   that the Tags button next to the search box opens. */
+@media (max-width: 899px) {
+  .sidebar { flex-basis: 100%; max-width: none; order: 2; }
   .side-tags { display: none; }
   .tags-btn { display: inline-flex; }
   /* The search box is narrower here, so the help spans the whole row. */
   .search { position: static; }
   .tooltip { left: 0; width: auto; }
+}
+@media (max-width: 720px) {
+  .top { padding: 10px 16px; }
+  main { padding: 20px 16px 48px; }
   .search { gap: 8px; padding-left: 12px; }
   .card { padding: 20px; }
   .bookmark { padding: 10px 4px 10px 12px; gap: 10px; }
