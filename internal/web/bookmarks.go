@@ -116,8 +116,9 @@ func listView(q string, bundles []store.Bundle) (view, heading string) {
 		return "fav", "Favourites"
 	case q == "!archived":
 		return "archive", "Archive"
-	case strings.HasPrefix(q, "#") && len(q) > 1 && len(strings.Fields(q)) == 1:
-		return q, q
+	}
+	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
+		return "#" + p.Tags[0], "#" + p.Tags[0]
 	}
 	for _, b := range bundles {
 		if b.Query == q {
@@ -141,7 +142,7 @@ func bookmarkForm(r *http.Request) store.BookmarkInput {
 func formData(in store.BookmarkInput) data {
 	return data{
 		"URL": in.URL, "BTitle": in.Title, "Description": in.Description, "Notes": in.Notes,
-		"TagText": strings.Join(store.CleanTags(in.Tags), " "), "Favourite": in.IsFavourite,
+		"TagText": strings.Join(store.CleanTags(in.Tags), ", "), "Favourite": in.IsFavourite,
 	}
 }
 
@@ -158,7 +159,7 @@ func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, status int, 
 	for i, t := range tags {
 		names[i] = t.Name
 	}
-	d["TagNames"] = strings.Join(names, " ")
+	d["TagNames"] = strings.Join(names, ",") // tag names never contain commas
 	s.render(w, r, status, "edit", d)
 }
 
@@ -385,6 +386,19 @@ func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, 
 		return
 	}
 	s.render(w, r, status, "tags", data{"Tags": tags, "Error": errMsg})
+}
+
+func (s *Server) createTag(w http.ResponseWriter, r *http.Request) {
+	_, err := s.store.CreateTag(r.Context(), currentUser(r).ID, r.PostFormValue("name"))
+	if isValidation(err) {
+		s.renderTags(w, r, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/tags", http.StatusSeeOther)
 }
 
 func (s *Server) renameTag(w http.ResponseWriter, r *http.Request) {

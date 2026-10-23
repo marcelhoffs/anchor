@@ -2,6 +2,13 @@
 {{define "content"}}
 <div class="card">
   <h1>Tags</h1>
+  <p class="muted intro">Create a tag here before you add it to bookmarks. Names can have spaces, but not commas.</p>
+  <form method="post" action="/tags" class="row-wrap new-tag">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <label class="visually-hidden" for="new-tag">New tag name</label>
+    <input id="new-tag" name="name" required maxlength="64" placeholder="New tag, e.g. home lab" autocapitalize="none" spellcheck="false">
+    <button class="btn btn-primary">{{icon "plus" "sm"}}Create tag</button>
+  </form>
   {{if .Tags}}
   <p class="muted intro">Renaming a tag to one you already have merges the two.</p>
   <div class="table-wrap">
@@ -34,7 +41,7 @@
   <div class="empty-state">
     <span class="badge-icon">{{icon "hash"}}</span>
     <p class="title">No tags yet</p>
-    <p>Add tags when you save a bookmark, then manage them here.</p>
+    <p>Create your first tag above, then add it to bookmarks when you save or edit them.</p>
   </div>
   {{end}}
 </div>

@@ -1,6 +1,7 @@
-// Type-ahead for tag fields. Suggests the user's existing tags for the word
-// being typed. Markup contract:
-//   <input role="combobox" aria-controls="<list id>" data-tags="tag1 tag2 …">
+// Type-ahead for tag fields. Tags are separated by commas and may contain
+// spaces; this suggests the user's existing tags for the one being typed.
+// Markup contract:
+//   <input role="combobox" aria-controls="<list id>" data-tags="tag1,tag two,…">
 //   <ul id="<list id>" role="listbox" hidden></ul>
 // data-tags lists the tags most used first. Without this script the field
 // is a plain text box.
@@ -8,21 +9,26 @@
   "use strict";
 
   var MAX = 8;
-  var SEP = /[\s,]/;
+
+  function norm(t) {
+    return t.trim().replace(/^#/, "").replace(/\s+/g, " ").toLowerCase();
+  }
 
   function setup(input) {
-    var all = input.dataset.tags.split(" ").filter(Boolean);
+    var all = input.dataset.tags.split(",").filter(Boolean);
     var list = document.getElementById(input.getAttribute("aria-controls"));
     if (!all.length || !list) return;
     var shown = [], active = -1;
 
-    // The word around the caret: [start, end) of input.value.
+    // The tag around the caret, between commas: [start, end) of input.value,
+    // with start past any leading spaces.
     function word() {
       var v = input.value, caret = input.selectionStart == null ? v.length : input.selectionStart;
       var start = caret, end = caret;
-      while (start > 0 && !SEP.test(v[start - 1])) start--;
-      while (end < v.length && !SEP.test(v[end])) end++;
-      return { start: start, end: end, text: v.slice(start, end).replace(/^#/, "").toLowerCase() };
+      while (start > 0 && v[start - 1] !== ",") start--;
+      while (start < caret && /\s/.test(v[start])) start++;
+      while (end < v.length && v[end] !== ",") end++;
+      return { start: start, end: end, text: norm(v.slice(start, end)) };
     }
 
     function close() {
@@ -51,7 +57,7 @@
       var w = word();
       if (!w.text) return close();
       var used = {};
-      input.value.toLowerCase().split(SEP).forEach(function (t) { used[t.replace(/^#/, "")] = true; });
+      input.value.split(",").forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
       all.forEach(function (t) {
         var lt = t.toLowerCase();
@@ -86,8 +92,8 @@
 
     function accept(i) {
       var w = word(), v = input.value, tag = shown[i];
-      var after = v.slice(w.end).replace(/^[\s,]+/, "");
-      var before = v.slice(0, w.start) + tag + " ";
+      var after = v.slice(w.end).replace(/^\s*,\s*/, "");
+      var before = v.slice(0, w.start) + tag + ", ";
       input.value = before + after;
       input.setSelectionRange(before.length, before.length);
       close();

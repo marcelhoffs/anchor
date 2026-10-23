@@ -5,6 +5,7 @@ import (
 	"context"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/marcelhoffs/burrow/internal/db"
@@ -31,6 +32,16 @@ func newUser(t *testing.T, s *Store, name string) User {
 		t.Fatal(err)
 	}
 	return u
+}
+
+// mustTags creates tags, as a user does on the Tags page before using them.
+func mustTags(t *testing.T, s *Store, userID int64, names ...string) {
+	t.Helper()
+	for _, n := range names {
+		if _, err := s.CreateTag(context.Background(), userID, n); err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func titles(t *testing.T, s *Store, userID int64, q string) []string {
@@ -70,6 +81,7 @@ func TestCreateDeduplicatesPerUser(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	a, b := newUser(t, s, "alice"), newUser(t, s, "bob")
+	mustTags(t, s, a.ID, "x")
 
 	first, created, err := s.CreateBookmark(ctx, a.ID, BookmarkInput{URL: "https://Example.com", Title: "One", Tags: []string{"x"}})
 	if err != nil || !created {
@@ -99,6 +111,7 @@ func TestSearch(t *testing.T) {
 		}
 		return b
 	}
+	mustTags(t, s, u.ID, "homelab", "k8s", "archive", "home lab")
 	add(BookmarkInput{URL: "https://kubernetes.io/docs/ingress", Title: "Kubernetes Ingress", Tags: []string{"homelab", "k8s"}})
 	add(BookmarkInput{URL: "https://github.com/foo/bar", Title: "Bar repo", Description: "exact phrase here", IsFavourite: true})
 	add(BookmarkInput{URL: "https://gist.github.com/x", Title: "Gist", Notes: "café notes", Tags: []string{"archive"}})
@@ -134,8 +147,9 @@ func TestTagsRenameMergeAndFTS(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
+	mustTags(t, s, u.ID, "golang", "go")
 	b1, _, _ := s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://a.com", Title: "A", Tags: []string{"golang"}})
-	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://b.com", Title: "B", Tags: []string{"go", "golang"}})
+	b2, _, _ := s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://b.com", Title: "B", Tags: []string{"go", "golang"}})
 
 	tags, _ := s.ListTags(ctx, u.ID)
 	id := map[string]int64{}
@@ -159,9 +173,15 @@ func TestTagsRenameMergeAndFTS(t *testing.T) {
 		t.Fatalf("after merge: %+v", tags)
 	}
 
-	// Removing the last use of a tag deletes it.
+	// A tag outlives its last bookmark; only deleting it removes it.
 	if _, err := s.UpdateBookmark(ctx, u.ID, b1.ID, BookmarkInput{URL: "https://a.com", Title: "A"}); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := s.UpdateBookmark(ctx, u.ID, b2.ID, BookmarkInput{URL: "https://b.com", Title: "B"}); err != nil {
+		t.Fatal(err)
+	}
+	if tags, _ := s.ListTags(ctx, u.ID); len(tags) != 1 || tags[0].Count != 0 {
+		t.Fatalf("unused tag removed: %+v", tags)
 	}
 	if err := s.DeleteTag(ctx, u.ID, tags[0].ID); err != nil {
 		t.Fatal(err)
@@ -186,6 +206,7 @@ func TestTenantIsolation(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	a, b := newUser(t, s, "alice"), newUser(t, s, "bob")
+	mustTags(t, s, a.ID, "private")
 	bm, _, _ := s.CreateBookmark(ctx, a.ID, BookmarkInput{URL: "https://secret.example", Title: "secret", Tags: []string{"private"}})
 	tags, _ := s.ListTags(ctx, a.ID)
 	tagID := tags[0].ID
@@ -322,4 +343,56 @@ func TestCountBookmarks(t *testing.T) {
 func isValidationErr(err error) bool {
 	_, ok := err.(ValidationError)
 	return ok
+}
+
+func TestTagsMustExist(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u, other := newUser(t, s, "alice"), newUser(t, s, "bob")
+	mustTags(t, s, other.ID, "home lab") // another user's tag doesn't count
+
+	_, _, err := s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://a.com", Tags: []string{"home lab, go"}})
+	if !isValidationErr(err) || !strings.Contains(err.Error(), `"home lab", "go"`) {
+		t.Fatalf("unknown tags: %v", err)
+	}
+	if _, err := s.FindBookmarkByURL(ctx, u.ID, "https://a.com"); err != ErrNotFound {
+		t.Fatal("bookmark saved despite unknown tags")
+	}
+
+	tag, err := s.CreateTag(ctx, u.ID, "  #Home   Lab ")
+	if err != nil || tag.Name != "Home Lab" {
+		t.Fatalf("create = %+v, %v", tag, err)
+	}
+	for _, bad := range []string{"", "#", "a,b", `say "hi"`, strings.Repeat("x", 65)} {
+		if _, err := s.CreateTag(ctx, u.ID, bad); !isValidationErr(err) {
+			t.Errorf("CreateTag(%q) = %v", bad, err)
+		}
+	}
+	if _, err := s.CreateTag(ctx, u.ID, "home lab"); !isValidationErr(err) {
+		t.Fatalf("duplicate tag: %v", err)
+	}
+	mustTags(t, s, u.ID, "go")
+	// Matching is case-insensitive; the tag keeps its own spelling.
+	b, _, err := s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://a.com", Tags: []string{"home lab, GO", "#go"}})
+	if err != nil || !slices.Equal(b.Tags, []string{"go", "Home Lab"}) {
+		t.Fatalf("tagged = %v, %v", b.Tags, err)
+	}
+	if got := titles(t, s, u.ID, `#"home lab"`); len(got) != 1 {
+		t.Fatalf(`#"home lab" = %v`, got)
+	}
+	if got := titles(t, s, u.ID, `-#"Home Lab"`); got != nil {
+		t.Fatalf(`-#"Home Lab" = %v`, got)
+	}
+
+	// Deleting the bookmark keeps its tags.
+	s.DeleteBookmark(ctx, u.ID, b.ID)
+	if tags, _ := s.ListTags(ctx, u.ID); len(tags) != 2 {
+		t.Fatalf("tags after delete = %+v", tags)
+	}
+	if err := s.RenameTag(ctx, u.ID, tag.ID, "self hosted"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RenameTag(ctx, u.ID, tag.ID, "a,b"); !isValidationErr(err) {
+		t.Fatalf("rename to a,b: %v", err)
+	}
 }

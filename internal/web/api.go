@@ -59,6 +59,7 @@ func (s *Server) apiRoutes(r chi.Router) {
 		r.Delete("/bookmarks/{id}", s.apiDeleteBookmark)
 		r.Post("/bookmarks/{id}/archive", s.apiArchiveBookmark)
 		r.Post("/bookmarks/{id}/share", s.apiShareBookmark)
+		r.Post("/tags", s.apiCreateTag)
 		r.Patch("/tags/{id}", s.apiUpdateTag)
 		r.Delete("/tags/{id}", s.apiDeleteTag)
 		r.Post("/import", s.apiImport)
@@ -443,6 +444,21 @@ func (s *Server) apiArchiveBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, s.toAPI(b))
+}
+
+// apiCreateTag creates a tag; bookmarks can only use tags that exist.
+func (s *Server) apiCreateTag(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name string `json:"name"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	t, err := s.store.CreateTag(r.Context(), apiCaller(r).user.ID, body.Name)
+	if !s.apiStoreError(w, err) {
+		return
+	}
+	writeJSON(w, http.StatusCreated, map[string]any{"id": t.ID, "name": t.Name, "count": 0})
 }
 
 func (s *Server) apiListTags(w http.ResponseWriter, r *http.Request) {

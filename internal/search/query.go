@@ -3,6 +3,7 @@
 //	kubernetes ingress     full-text, all terms (prefix match)
 //	"exact phrase"         phrase match
 //	#homelab -#archive     has tag / lacks tag
+//	#"home lab"            a tag with spaces (also -#"home lab")
 //	site:github.com        domain (and subdomains)
 //	!fav !shared           flags; !archived searches the archive instead
 //	after:2026-01-01       saved on or after; before: saved before
@@ -80,6 +81,14 @@ func (q Query) FTS() string {
 	return strings.Join(parts, " ")
 }
 
+// TagQuery is the search for one tag, quoted when its name has spaces.
+func TagQuery(name string) string {
+	if strings.ContainsFunc(name, unicode.IsSpace) {
+		return `#"` + name + `"`
+	}
+	return "#" + name
+}
+
 func quote(s string) string {
 	return `"` + strings.ReplaceAll(s, `"`, `""`) + `"`
 }
@@ -89,10 +98,12 @@ type token struct {
 	quoted bool
 }
 
+// tokenize splits on whitespace outside quotes. A quote right after # or -#
+// quotes a tag name, which stays one unquoted token: #"home lab".
 func tokenize(s string) []token {
 	var toks []token
 	var b strings.Builder
-	inQuote := false
+	inQuote, tagQuote := false, false
 	flush := func(quoted bool) {
 		if b.Len() > 0 {
 			toks = append(toks, token{b.String(), quoted})
@@ -101,16 +112,18 @@ func tokenize(s string) []token {
 	}
 	for _, r := range s {
 		switch {
+		case r == '"' && !inQuote && (b.String() == "#" || b.String() == "-#"):
+			inQuote, tagQuote = true, true
 		case r == '"':
-			flush(inQuote)
-			inQuote = !inQuote
+			flush(inQuote && !tagQuote)
+			inQuote, tagQuote = !inQuote, false
 		case unicode.IsSpace(r) && !inQuote:
 			flush(false)
 		default:
 			b.WriteRune(r)
 		}
 	}
-	flush(inQuote)
+	flush(inQuote && !tagQuote)
 	return toks
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"strings"
-	"unicode"
 	"unicode/utf8"
 )
 
@@ -16,53 +15,110 @@ type Tag struct {
 
 const maxTagLen = 64
 
-// CleanTags splits raw tag input on commas and whitespace, strips a leading
-// '#', drops empties and over-long names, and removes case-insensitive
-// duplicates while keeping first-seen order and spelling.
-func CleanTags(raw []string) []string {
+// CleanTagName tidies one tag name: it trims it, drops a leading '#' and
+// collapses runs of whitespace to one space. Names may contain spaces but
+// not commas (which separate tags) or double quotes (which delimit a tag
+// with spaces in a search, as in #"home lab").
+func CleanTagName(s string) (string, error) {
+	s = strings.Join(strings.Fields(strings.TrimLeft(strings.TrimSpace(s), "#")), " ")
+	switch {
+	case s == "":
+		return "", invalid("Enter a tag name.")
+	case strings.ContainsAny(s, `,"`):
+		return "", invalid("Tag names can't contain commas or double quotes.")
+	case utf8.RuneCountInString(s) > maxTagLen:
+		return "", invalid("Tag names are at most %d characters.", maxTagLen)
+	}
+	return s, nil
+}
+
+// ParseTags splits raw tag input on commas, tidies each name and removes
+// case-insensitive duplicates, keeping first-seen order and spelling. An
+// invalid name is an error; empty entries are skipped.
+func ParseTags(raw []string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	for _, r := range raw {
-		for _, t := range strings.FieldsFunc(r, func(c rune) bool { return c == ',' || unicode.IsSpace(c) }) {
-			t = strings.TrimLeft(t, "#")
-			key := strings.ToLower(t)
-			if t == "" || utf8.RuneCountInString(t) > maxTagLen || seen[key] {
+		for _, part := range strings.Split(r, ",") {
+			if strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(part), "#")) == "" {
 				continue
 			}
-			seen[key] = true
-			out = append(out, t)
+			name, err := CleanTagName(part)
+			if err != nil {
+				return nil, err
+			}
+			if key := strings.ToLower(name); !seen[key] {
+				seen[key] = true
+				out = append(out, name)
+			}
 		}
 	}
-	return out
+	return out, nil
 }
 
-// setTags replaces a bookmark's tags. The caller has already confirmed the
-// bookmark belongs to userID.
+// CleanTags is ParseTags for input that can't be corrected, such as an
+// import: invalid names are dropped instead of failing.
+func CleanTags(raw []string) []string {
+	var valid []string
+	for _, r := range raw {
+		for _, part := range strings.Split(r, ",") {
+			if name, err := CleanTagName(part); err == nil {
+				valid = append(valid, name)
+			}
+		}
+	}
+	tags, _ := ParseTags(valid) // can't fail now; removes duplicates
+	return tags
+}
+
+// setTags replaces a bookmark's tags. Tags must already exist: they are
+// created on the Tags page (or by an import), never by tagging a bookmark.
+// The caller has already confirmed the bookmark belongs to userID.
 func setTags(ctx context.Context, tx *sql.Tx, userID, bookmarkID int64, tags []string) error {
+	ids := make([]int64, 0, len(tags))
+	var missing []string
+	for _, name := range tags {
+		var id int64
+		err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE user_id = ? AND name = ?", userID, name).Scan(&id)
+		switch {
+		case err == sql.ErrNoRows:
+			missing = append(missing, `"`+name+`"`)
+		case err != nil:
+			return err
+		default:
+			ids = append(ids, id)
+		}
+	}
+	switch len(missing) {
+	case 0:
+	case 1:
+		return invalid("There's no tag %s yet. Create it under Tags first.", missing[0])
+	default:
+		return invalid("There are no tags %s yet. Create them under Tags first.", strings.Join(missing, ", "))
+	}
 	if _, err := tx.ExecContext(ctx, "DELETE FROM bookmark_tags WHERE bookmark_id = ?", bookmarkID); err != nil {
 		return err
 	}
-	for _, name := range tags {
-		// Not an upsert: a no-op UPDATE of name would fire tags_fts_rename and
-		// re-index every bookmark carrying the tag.
-		if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO tags (user_id, name) VALUES (?, ?)", userID, name); err != nil {
-			return err
-		}
-		var tagID int64
-		if err := tx.QueryRowContext(ctx, "SELECT id FROM tags WHERE user_id = ? AND name = ?", userID, name).Scan(&tagID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)", bookmarkID, tagID); err != nil {
+	for _, id := range ids {
+		if _, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)", bookmarkID, id); err != nil {
 			return err
 		}
 	}
-	return deleteOrphanTags(ctx, tx, userID)
+	return nil
 }
 
-func deleteOrphanTags(ctx context.Context, tx *sql.Tx, userID int64) error {
-	_, err := tx.ExecContext(ctx,
-		"DELETE FROM tags WHERE user_id = ? AND NOT EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.tag_id = tags.id)", userID)
-	return err
+// CreateTag adds a tag, ready to be put on bookmarks.
+func (s *Store) CreateTag(ctx context.Context, userID int64, name string) (Tag, error) {
+	name, err := CleanTagName(name)
+	if err != nil {
+		return Tag{}, err
+	}
+	t := Tag{Name: name}
+	err = s.w.QueryRowContext(ctx, "INSERT INTO tags (user_id, name) VALUES (?, ?) RETURNING id", userID, name).Scan(&t.ID)
+	if isUniqueViolation(err) {
+		return Tag{}, invalid("You already have a tag called %q.", name)
+	}
+	return t, err
 }
 
 // ListTags returns the user's tags with bookmark counts, by name.
@@ -89,11 +145,10 @@ func (s *Store) ListTags(ctx context.Context, userID int64) ([]Tag, error) {
 // RenameTag renames a tag. If the user already has a tag with the new name,
 // the two are merged into that one.
 func (s *Store) RenameTag(ctx context.Context, userID, id int64, newName string) error {
-	clean := CleanTags([]string{newName})
-	if len(clean) != 1 {
-		return invalid("Enter a single tag name without spaces or commas.")
+	newName, err := CleanTagName(newName)
+	if err != nil {
+		return err
 	}
-	newName = clean[0]
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		var exists bool
 		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE user_id = ? AND id = ?", userID, id).Scan(&exists); err != nil {
@@ -118,7 +173,8 @@ func (s *Store) RenameTag(ctx context.Context, userID, id int64, newName string)
 	})
 }
 
-// DeleteTag removes a tag from all of the user's bookmarks.
+// DeleteTag removes a tag from all of the user's bookmarks. Tags are only
+// ever removed this way: a tag no bookmark uses yet is kept.
 func (s *Store) DeleteTag(ctx context.Context, userID, id int64) error {
 	res, err := s.w.ExecContext(ctx, "DELETE FROM tags WHERE user_id = ? AND id = ?", userID, id)
 	if err != nil {

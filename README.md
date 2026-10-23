@@ -4,7 +4,7 @@ Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded
 
 **Status: milestones 1 to 3.**
 
-- Bookmarks with tags, full-text search, favourites and an archive; light/dark themes and a choice of accent colours.
+- Bookmarks with tags (created on the Tags page first; names may have spaces), full-text search, favourites and an archive; light/dark themes and a choice of accent colours.
 - Page details: an empty title or description, and the site's icon, are fetched from the page for new and imported bookmarks.
 - Bundles (saved searches) in the sidebar, and public read-only links for single bookmarks.
 - Accounts: two-factor authentication (authenticator app, passkeys, recovery codes), API tokens and a REST API.
@@ -31,6 +31,7 @@ Passkeys need `BURROW_BASE_URL` to use a domain name over HTTPS (browsers refuse
 | `kubernetes ingress` | Full-text, all terms (prefix match; title weighted ×3) |
 | `"exact phrase"` | Phrase match |
 | `#homelab -#archive` | Has tag / lacks tag |
+| `#"home lab"` | A tag with spaces (also `-#"home lab"`) |
 | `site:github.com` | Domain, including subdomains |
 | `!fav` `!shared` | Flags |
 | `!archived` | Search the archive instead of the main list |
@@ -50,6 +51,7 @@ JSON under `/api/v1`, authenticated with a personal token (Settings → API toke
 | POST | `/api/v1/bookmarks/{id}/share` | Make a public link (`share_url`); `{"shared": false}` removes it |
 | GET | `/api/v1/bundles` | Saved searches; list one with `?q=` its `query` |
 | GET | `/api/v1/tags` | Tags with counts |
+| POST | `/api/v1/tags` | Create a tag (`{"name"}`); bookmarks can only use tags that exist |
 | PATCH / DELETE | `/api/v1/tags/{id}` | Rename (`{"name"}`), merge (`{"merge_into": id}`), delete |
 | POST | `/api/v1/import` | Upload a bookmark file (body or multipart `file`); returns a job |
 | GET | `/api/v1/jobs/{id}` | Import progress and result |

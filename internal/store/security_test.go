@@ -154,6 +154,7 @@ func TestJobsAndImport(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
+	mustTags(t, s, u.ID, "old")
 	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://go.dev", Tags: []string{"old"}})
 
 	if _, _, err := s.ClaimJob(ctx); err != ErrNotFound {
@@ -169,7 +170,7 @@ func TestJobsAndImport(t *testing.T) {
 	}
 
 	r, err := s.ImportBookmarks(ctx, u.ID, []importexport.Item{
-		{URL: "https://go.dev/", Title: "Go", Tags: []string{"new"}, Favourite: true},
+		{URL: "https://go.dev/", Title: "Go", Tags: []string{"new", `bad"name`}, Favourite: true}, // an import creates its tags
 		{URL: "https://sqlite.org", Title: "SQLite", CreatedAt: time.Unix(1_600_000_000, 0)},
 		{URL: "place:sort=8", Title: "Firefox smart folder"},
 	})
