@@ -9,9 +9,9 @@ import (
 	"github.com/marcelhoffs/anchor/internal/search"
 )
 
-// newOrg makes an organization space with the given members. Organizations
-// get their own store methods later; the access rules don't depend on them.
-func newOrg(t *testing.T, s *Store, members map[int64]Role) int64 {
+// newShared makes a shared space with the given members straight in the
+// database, so the access rules are tested apart from the space methods.
+func newShared(t *testing.T, s *Store, members map[int64]Role) int64 {
 	t.Helper()
 	ctx := context.Background()
 	var id int64
@@ -31,24 +31,24 @@ func TestSpaceAccess(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	owner, writer, reader, outsider := newUser(t, s, "owner"), newUser(t, s, "writer"), newUser(t, s, "reader"), newUser(t, s, "outsider")
-	org := newOrg(t, s, map[int64]Role{owner.ID: RoleOwner, writer.ID: RoleWrite, reader.ID: RoleRead})
+	space := newShared(t, s, map[int64]Role{owner.ID: RoleOwner, writer.ID: RoleWrite, reader.ID: RoleRead})
 
 	scope := func(u User) Scope {
 		t.Helper()
-		sc, err := s.Access(ctx, u.ID, org)
+		sc, err := s.Access(ctx, u.ID, space)
 		if err != nil {
 			t.Fatalf("%s: %v", u.Username, err)
 		}
 		return sc
 	}
-	if _, err := s.Access(ctx, outsider.ID, org); !errors.Is(err, ErrNotFound) {
+	if _, err := s.Access(ctx, outsider.ID, space); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("outsider got access: %v", err)
 	}
 	if _, err := s.Access(ctx, owner.ID, personal(s, writer.ID).SpaceID()); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("access to someone's personal space: %v", err)
 	}
 
-	// Writers add to the organization; everyone in it sees the same bookmarks and tags.
+	// Writers add to the shared space; everyone in it sees the same bookmarks and tags.
 	w := scope(writer)
 	if _, err := s.CreateTag(ctx, w, "team"); err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestSpaceAccess(t *testing.T) {
 		if err != nil || total != 1 || list[0].ID != b.ID {
 			t.Fatalf("%s sees %v (%d), %v", u.Username, list, total, err)
 		}
-		if sc, err := s.BookmarkScope(ctx, u.ID, b.ID); err != nil || sc.SpaceID() != org || sc.Role() != scope(u).Role() {
+		if sc, err := s.BookmarkScope(ctx, u.ID, b.ID); err != nil || sc.SpaceID() != space || sc.Role() != scope(u).Role() {
 			t.Fatalf("%s: bookmark scope %+v, %v", u.Username, sc, err)
 		}
 	}
@@ -134,13 +134,147 @@ func TestSpaceAccess(t *testing.T) {
 		t.Fatalf("outsider loaded the icon: %v", err)
 	}
 
-	// An organization's share link doesn't depend on any one account.
+	// A shared space's share link doesn't depend on any one account.
 	if err := s.SetShared(ctx, w, b.ID, true); err != nil {
 		t.Fatal(err)
 	}
 	shared, _ := s.GetBookmark(ctx, w, b.ID)
 	s.SetActive(ctx, writer.ID, false)
 	if _, err := s.SharedBookmark(ctx, shared.ShareToken); err != nil {
-		t.Fatalf("org share link stopped with its creator's account: %v", err)
+		t.Fatalf("shared space's link stopped with its creator's account: %v", err)
+	}
+}
+
+func TestSharedSpaces(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	alice, bob, carol := newUser(t, s, "alice"), newUser(t, s, "bob"), newUser(t, s, "carol")
+
+	if _, err := s.CreateSpace(ctx, alice.ID, "   "); !isValidationErr(err) {
+		t.Fatalf("empty name: %v", err)
+	}
+	owner, err := s.CreateSpace(ctx, alice.ID, "  Family   home ")
+	if err != nil || owner.Role() != RoleOwner || owner.IsPersonal() {
+		t.Fatalf("create: %+v, %v", owner, err)
+	}
+	if list, _ := s.ListSpaces(ctx, alice.ID); len(list) != 1 || list[0].Name != "Family home" || list[0].Owner != "alice" || list[0].Members != 1 {
+		t.Fatalf("list: %+v", list)
+	}
+	if list, _ := s.ListSpaces(ctx, bob.ID); len(list) != 0 {
+		t.Fatalf("bob sees spaces he isn't in: %+v", list)
+	}
+
+	// Adding members: existing users only, once, as editor or reader.
+	for name, err := range map[string]error{
+		"unknown user": s.AddMember(ctx, owner, "nobody", RoleRead),
+		"owner role":   s.AddMember(ctx, owner, "bob", RoleOwner),
+	} {
+		if !isValidationErr(err) {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if err := s.AddMember(ctx, owner, "BOB", RoleRead); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddMember(ctx, owner, "bob", RoleWrite); !isValidationErr(err) {
+		t.Fatalf("added twice: %v", err)
+	}
+	s.AddMember(ctx, owner, "carol", RoleWrite)
+	members, _ := s.Members(ctx, owner)
+	if len(members) != 3 || members[0].Username != "alice" || members[0].Role != RoleOwner {
+		t.Fatalf("members: %+v", members)
+	}
+
+	// Only the owner manages the space.
+	bobScope, _ := s.Access(ctx, bob.ID, owner.SpaceID())
+	carolScope, _ := s.Access(ctx, carol.ID, owner.SpaceID())
+	for name, err := range map[string]error{
+		"add":      s.AddMember(ctx, carolScope, "alice", RoleRead),
+		"role":     s.SetRole(ctx, carolScope, bob.ID, RoleWrite),
+		"remove":   s.RemoveMember(ctx, carolScope, bob.ID),
+		"rename":   s.RenameSpace(ctx, carolScope, "Mine"),
+		"transfer": s.TransferSpace(ctx, carolScope, carol.ID),
+		"delete":   s.DeleteSpace(ctx, carolScope),
+	} {
+		if !errors.Is(err, ErrForbidden) {
+			t.Errorf("editor can %s: %v", name, err)
+		}
+	}
+	// A personal space has nothing to manage.
+	if err := s.AddMember(ctx, personal(s, alice.ID), "bob", RoleRead); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("member added to a personal space: %v", err)
+	}
+	if _, err := s.GetSpace(ctx, personal(s, alice.ID)); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("personal space listed as shared: %v", err)
+	}
+
+	// Roles change; the owner's only by handing the space over.
+	if err := s.SetRole(ctx, owner, bob.ID, RoleWrite); err != nil {
+		t.Fatal(err)
+	}
+	if bobScope, _ = s.Access(ctx, bob.ID, owner.SpaceID()); !bobScope.CanWrite() {
+		t.Fatal("bob can't edit after being made an editor")
+	}
+	if err := s.SetRole(ctx, owner, alice.ID, RoleRead); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("owner demoted: %v", err)
+	}
+	if err := s.RemoveMember(ctx, owner, alice.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("owner removed: %v", err)
+	}
+	if err := s.LeaveSpace(ctx, owner); !isValidationErr(err) {
+		t.Fatalf("owner left: %v", err)
+	}
+
+	// Handing over: bob owns it, alice stays as an editor.
+	if err := s.TransferSpace(ctx, owner, 999); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("handed to a non-member: %v", err)
+	}
+	if sc, _ := s.Access(ctx, alice.ID, owner.SpaceID()); sc.Role() != RoleOwner {
+		t.Fatal("failed hand-over changed the owner")
+	}
+	if err := s.TransferSpace(ctx, owner, bob.ID); err != nil {
+		t.Fatal(err)
+	}
+	aliceScope, _ := s.Access(ctx, alice.ID, owner.SpaceID())
+	bobScope, _ = s.Access(ctx, bob.ID, owner.SpaceID())
+	if aliceScope.Role() != RoleWrite || bobScope.Role() != RoleOwner {
+		t.Fatalf("after hand-over: alice %s, bob %s", aliceScope.Role(), bobScope.Role())
+	}
+
+	// Members leave; removed members lose access at once.
+	if err := s.LeaveSpace(ctx, aliceScope); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RemoveMember(ctx, bobScope, carol.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, u := range []User{alice, carol} {
+		if _, err := s.Access(ctx, u.ID, owner.SpaceID()); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("%s still has access: %v", u.Username, err)
+		}
+	}
+
+	// Deleting takes everything in it along.
+	s.CreateTag(ctx, bobScope, "family")
+	b, _, err := s.CreateBookmark(ctx, bobScope, BookmarkInput{URL: "https://go.dev", Tags: []string{"family"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.CreateBundle(ctx, bobScope, "Fam", "#family")
+	if err := s.RenameSpace(ctx, bobScope, "Gone soon"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.DeleteSpace(ctx, bobScope); err != nil {
+		t.Fatal(err)
+	}
+	var left int
+	s.r.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM bookmarks) + (SELECT count(*) FROM tags) + (SELECT count(*) FROM bundles)
+		+ (SELECT count(*) FROM space_members WHERE space_id = ?) + (SELECT count(*) FROM bookmarks_fts WHERE rowid = ?)`,
+		bobScope.SpaceID(), b.ID).Scan(&left)
+	if left != 0 {
+		t.Fatalf("%d rows left behind by the deleted space", left)
+	}
+	if _, err := s.Access(ctx, bob.ID, bobScope.SpaceID()); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("access to a deleted space: %v", err)
 	}
 }

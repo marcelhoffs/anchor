@@ -109,6 +109,9 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 	e.store.StartTOTP(ctx, totpUser, []byte("sealed"))
 	e.store.EnableTOTP(ctx, totpUser, 1)
 	alice := itoa(totpUser)
+	space, _ := e.store.CreateSpace(ctx, uid, "Team")
+	e.store.AddMember(ctx, space, "alice", "read")
+	sp := spaceURL(space.SpaceID())
 
 	// confirmed reports whether action is only posted from inside the dialog
 	// with this id, which a button on the page opens.
@@ -130,6 +133,9 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 		{"/admin/", "disable-" + alice, "/admin/users/" + alice + "/disable"},
 		{"/admin/", "reset-password-" + alice, "/admin/users/" + alice + "/reset-password"},
 		{"/admin/", "reset-2fa-" + alice, "/admin/users/" + alice + "/reset-2fa"},
+		{sp, "remove-" + alice, sp + "/members/" + alice + "/remove"},
+		{sp, "owner-" + alice, sp + "/members/" + alice + "/owner"},
+		{sp, "delete-space", sp + "/delete"},
 	} {
 		_, body, _ := root.get(c.page)
 		if !confirmed(body, c.id, c.action) {

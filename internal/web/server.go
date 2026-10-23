@@ -201,7 +201,18 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/settings/passkeys/{id}/delete", s.passkeyDelete)
 				r.Post("/settings/recovery", s.recoveryRegenerate)
 				r.Post("/settings/tokens", s.createToken)
+				// Handing a space over, or deleting it with everything in it.
+				r.Post("/spaces/{id}/members/{uid}/owner", s.transferSpace)
+				r.Post("/spaces/{id}/delete", s.deleteSpace)
 			})
+
+			r.Get("/spaces", s.spaces)
+			r.Post("/spaces", s.createSpace)
+			r.Get("/spaces/{id}", s.space)
+			r.Post("/spaces/{id}/rename", s.renameSpace)
+			r.Post("/spaces/{id}/members", s.addMember)
+			r.Post("/spaces/{id}/members/{uid}/{action}", s.memberAction)
+			r.Post("/spaces/{id}/leave", s.leaveSpace)
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(s.requireAdmin)

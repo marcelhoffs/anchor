@@ -185,6 +185,7 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	d["Require2FA"] = s.require2FA(r.Context())
 	d["SignupFromEnv"] = s.cfg.Signup != ""
 	d["Require2FAFromEnv"] = s.cfg.Require2FA != nil
+	d["SpaceCreation"], _ = s.store.InstanceSetting(r.Context(), store.SettingSpaceCreation, "everyone")
 	s.render(w, r, status, "admin_settings", d)
 }
 
@@ -211,6 +212,14 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
+	}
+	who := r.PostFormValue("space_creation")
+	if who != "admins" {
+		who = "everyone"
+	}
+	if err := s.store.SetInstanceSetting(ctx, store.SettingSpaceCreation, who); err != nil {
+		s.serverError(w, r, err)
+		return
 	}
 	http.Redirect(w, r, "/admin/settings?done=settings", http.StatusSeeOther)
 }
