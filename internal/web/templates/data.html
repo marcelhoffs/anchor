@@ -3,7 +3,9 @@
 <div class="card">
   <h1>Settings</h1>
   {{template "settings-nav" .}}
+  {{if .Nav.Spaces}}<p class="muted intro">Imports and exports use the space you're in: <strong>{{.Nav.Name}}</strong>. Switch spaces in the top bar for another one.</p>{{end}}
 
+  {{if .CanWrite}}
   <section aria-labelledby="import">
     <h2 id="import">Import</h2>
     <p class="muted">A bookmark file from Chrome, Firefox, Safari, Edge, linkding, Pocket or Pinboard (HTML), or an Anchor JSON export. Folders become tags. Bookmarks you already have are merged, not duplicated.</p>
@@ -14,6 +16,7 @@
       <button class="btn btn-primary">{{icon "upload" "sm"}}Import</button>
     </form>
   </section>
+  {{end}}
 
   {{if .Jobs}}
   <section aria-labelledby="imports">
@@ -43,7 +46,7 @@
 
   <section aria-labelledby="export">
     <h2 id="export">Export</h2>
-    <p class="muted">Download all your bookmarks. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive.</p>
+    <p class="muted">Download all the bookmarks{{if not .Nav.Spaces}} you have{{end}}. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive.</p>
     <div class="row-wrap">
       <a class="btn" href="/settings/export?format=html">{{icon "download" "sm"}}HTML</a>
       <a class="btn" href="/settings/export?format=json">{{icon "download" "sm"}}JSON</a>

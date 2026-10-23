@@ -87,6 +87,7 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
+      {{if $.CanWrite}}
       <form method="post" action="/bookmarks/{{.ID}}/flag" class="bm-fav">
         <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
         <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
@@ -96,6 +97,9 @@
         <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
         {{end}}
       </form>
+      {{else}}
+      <span class="bm-fav">{{if .IsFavourite}}<span class="icon-btn on" role="img" aria-label="Favourite">{{icon "star" "filled"}}</span>{{else}}<span class="icon-btn"></span>{{end}}</span>
+      {{end}}
       {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar" aria-hidden="true">{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
@@ -108,6 +112,7 @@
           <time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z"}}">{{ago .CreatedAt}}</time>
         </div>
       </div>
+      {{if $.CanWrite}}
       <div class="bm-actions">
         {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
@@ -158,6 +163,7 @@
           <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
         </form>
       </div>
+      {{end}}
     </li>
   {{end}}
   </ul>
@@ -172,8 +178,12 @@
   <div class="empty-state">
     <span class="badge-icon">{{icon "bookmark"}}</span>
     <p class="title">No bookmarks yet</p>
+    {{if .CanWrite}}
     <p>Save your first link, or add the bookmarklet from Settings to save pages with one click.</p>
     <a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}Add bookmark</a>
+    {{else}}
+    <p>Nobody has added anything to {{.Nav.Name}} yet.</p>
+    {{end}}
   </div>
   {{end}}
 

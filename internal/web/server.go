@@ -206,6 +206,7 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/spaces/{id}/delete", s.deleteSpace)
 			})
 
+			r.Post("/space", s.selectSpace)
 			r.Get("/spaces", s.spaces)
 			r.Post("/spaces", s.createSpace)
 			r.Get("/spaces/{id}", s.space)

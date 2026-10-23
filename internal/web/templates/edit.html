@@ -2,8 +2,10 @@
 {{define "content"}}
 <div class="card">
   <h1>{{if .Bookmark}}Edit bookmark{{else}}Add bookmark{{end}}</h1>
+  {{if and (not .Bookmark) .Nav.Spaces}}<p class="muted intro">Saving to <strong>{{.TargetName}}</strong>. Switch spaces in the top bar to save somewhere else.</p>{{end}}
   <form method="post" action="{{if .Bookmark}}/bookmarks/{{.Bookmark.ID}}{{else}}/bookmarks{{end}}">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
+    {{if not .Bookmark}}<input type="hidden" name="space" value="{{.Target}}">{{end}}
     <input type="hidden" name="next" value="{{.Next}}">
     <label>URL <input type="url" name="url" value="{{.URL}}" required{{if not .Bookmark}} autofocus{{end}} inputmode="url" placeholder="https://"></label>
     <label>Title <input name="title" value="{{.BTitle}}" maxlength="1000"></label>

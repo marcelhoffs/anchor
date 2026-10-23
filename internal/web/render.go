@@ -155,6 +155,10 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	}
 	d["Prefs"] = prefs
 	d["PasskeysAvailable"] = s.webauthn != nil
+	// Pages outside the signed-in area have no space, so nothing is read-only.
+	nav := currentNav(r)
+	d["Nav"] = nav
+	d["CanWrite"] = nav == nil || nav.Scope.CanWrite()
 	var buf bytes.Buffer
 	if err := t.ExecuteTemplate(&buf, "layout", d); err != nil {
 		s.serverError(w, r, err)

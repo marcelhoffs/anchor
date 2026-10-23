@@ -2,23 +2,28 @@
 {{define "content"}}
 <div class="card">
   <h1>Tags</h1>
-  <p class="muted intro">Create a tag here before you add it to bookmarks. Names can have spaces, but not commas.</p>
+  {{if .CanWrite}}
+  <p class="muted intro">Create a tag here before you add it to bookmarks{{if .Nav.Spaces}} in <strong>{{.Nav.Name}}</strong>{{end}}. Names can have spaces, but not commas.</p>
   <form method="post" action="/tags" class="row-wrap new-tag">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <label class="visually-hidden" for="new-tag">New tag name</label>
     <input id="new-tag" name="name" required maxlength="64" placeholder="New tag, e.g. home lab" autocapitalize="none" spellcheck="false">
     <button class="btn btn-primary">{{icon "plus" "sm"}}Create tag</button>
   </form>
+  {{else}}
+  <p class="muted intro">The tags in <strong>{{.Nav.Name}}</strong>. You can read this space, so only its editors change them.</p>
+  {{end}}
   {{if .Tags}}
-  <p class="muted intro">Renaming a tag to one you already have merges the two.</p>
+  {{if .CanWrite}}<p class="muted intro">Renaming a tag to one you already have merges the two.</p>{{end}}
   <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">Tag</th><th scope="col" class="hide-sm">Bookmarks</th><th scope="col">Rename or merge</th><th scope="col"><span class="visually-hidden">Delete</span></th></tr></thead>
+    <thead><tr><th scope="col">Tag</th><th scope="col" class="hide-sm">Bookmarks</th>{{if .CanWrite}}<th scope="col">Rename or merge</th><th scope="col"><span class="visually-hidden">Delete</span></th>{{end}}</tr></thead>
     <tbody>
     {{range .Tags}}
       <tr>
         <td><a class="tag" href="{{tagURL .Name}}">#{{.Name}}</a></td>
         <td class="num hide-sm">{{.Count}}</td>
+        {{if $.CanWrite}}
         <td>
           <form method="post" action="/tags/{{.ID}}/rename" class="row">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">
@@ -31,6 +36,7 @@
           {{template "confirm" dict "ID" (print "delete-tag-" .ID) "Title" "Delete this tag?" "Name" (print "#" .Name)
             "Text" (print "is removed from " (count .Count "bookmark") ". The bookmarks themselves stay.") "Action" (print "/tags/" .ID "/delete") "Button" "Delete tag" "CSRF" $.CSRF}}
         </td>
+        {{end}}
       </tr>
     {{end}}
     </tbody>

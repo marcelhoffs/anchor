@@ -63,6 +63,23 @@ func (s *Server) createSpace(w http.ResponseWriter, r *http.Request) {
 
 func spaceURL(id int64) string { return "/spaces/" + strconv.FormatInt(id, 10) }
 
+// selectSpace switches the space this session looks at: "space" is a shared
+// space's id, or empty for the personal space. Then the list shows it.
+func (s *Server) selectSpace(w http.ResponseWriter, r *http.Request) {
+	ctx, u := r.Context(), currentUser(r)
+	var sc store.Scope
+	var err error
+	if id, perr := strconv.ParseInt(r.PostFormValue("space"), 10, 64); perr == nil && id > 0 {
+		sc, err = s.store.Access(ctx, u.ID, id)
+	} else {
+		sc, err = s.store.PersonalScope(ctx, u.ID)
+	}
+	if !s.storeError(w, r, err) || !s.storeError(w, r, s.store.SelectSpace(ctx, currentSession(r).TokenHash, sc)) {
+		return
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 // sharedScope is the user's scope in the shared space in the URL; false
 // after answering 404 when they aren't a member (or it's a personal space).
 func (s *Server) sharedScope(w http.ResponseWriter, r *http.Request) (store.Scope, bool) {
