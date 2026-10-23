@@ -1,6 +1,13 @@
-# Anchor
+<p align="center">
+  <img src="docs/anchor-icon.svg" width="96" height="96" alt="">
+</p>
 
-Anchor is a self-hosted bookmark manager for you, your family or your team. Save links, tag them, find them again in seconds, and keep the whole collection on your own server.
+<h1 align="center">Anchor</h1>
+
+<p align="center">
+  A self-hosted bookmark manager for you, your family or your team.<br>
+  Save links, tag them, find them again in seconds, and keep the whole collection on your own server.
+</p>
 
 ## Features
 
