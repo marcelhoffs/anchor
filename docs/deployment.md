@@ -18,12 +18,12 @@ You need Docker with the Compose plugin. Every release publishes a ready-made im
 
 ### With the ready-made image
 
-The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.1.1`), its minor series (`0.1`, which follows that series' fixes) and `latest`.
+The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.1.2`), its minor series (`0.1`, which follows that series' fixes) and `latest`.
 
 ```sh
 mkdir anchor && cd anchor
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.1/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.1/.env.example
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.2/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.1.2/.env.example
 cp .env.example .env
 sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
 # Set ANCHOR_BASE_URL in .env to the address people will use.
@@ -37,7 +37,7 @@ docker compose up -d
 sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.1|' docker-compose.yml
 ```
 
-While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.1.1 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
+While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.1.2 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
 
 ### Building the image yourself
 
@@ -50,13 +50,15 @@ sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .
 docker compose up -d --build
 ```
 
+The footer then shows the version as `dev`. To have it name what you built, build with `docker build --build-arg VERSION=$(git describe --tags) -t ghcr.io/marcelhoffs/anchor:latest .` before `docker compose up -d`.
+
 ### What you get
 
 Anchor listens on port 8080. The compose file keeps the database in the named volume `anchor-data`, runs the container read-only, and restarts it unless you stop it. Docker creates the volume on the first start, owned by the container's unprivileged user (65532), so there's nothing to prepare; `docker volume inspect anchor-data` shows where it lives on the host. The volume outlives the container: `docker compose down` keeps your data, and only `docker compose down -v` or `docker volume rm anchor-data` deletes it.
 
 `.env.example` starts from the secure choices: two-factor authentication required for everyone, page details fetched from public addresses only, no public icon services, and signup closed (the built-in default). Loosen them in `.env` only when you need to; [Configuration](#configuration) explains each.
 
-The image has a health check (`anchor healthcheck`, which asks the local server's `/healthz`), so `docker ps` shows whether Anchor is up.
+The image has a health check (`anchor healthcheck`, which asks the local server's `/healthz`), so `docker ps` shows whether Anchor is up. `docker compose exec anchor /anchor version` prints the version it runs, which the page footer shows too.
 
 ## The first account
 
