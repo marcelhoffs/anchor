@@ -27,6 +27,8 @@ Anchor listens on port 8080. The compose file keeps the database in the named vo
 
 `.env.example` starts from the secure choices: two-factor authentication required for everyone, page details fetched from public addresses only, no public icon services, and signup closed (the built-in default). Loosen them in `.env` only when you need to; [Configuration](#configuration) explains each.
 
+`--build` builds the image from the source. Each release also publishes a ready-made image for amd64 and arm64, `ghcr.io/marcelhoffs/anchor`, tagged with its version (`0.1.0`), its minor series (`0.1`) and `latest`. To use it instead, leave out `--build`: `docker compose pull && docker compose up -d`. Pin a version by changing the `image:` line in `docker-compose.yml`, for example to `ghcr.io/marcelhoffs/anchor:0.1`. While the repository is private, so is the image: sign in first with `docker login ghcr.io`, using a GitHub token that can read packages.
+
 The image has a health check (`anchor healthcheck`, which asks the local server's `/healthz`), so `docker ps` shows whether Anchor is up.
 
 ## The first account
@@ -127,6 +129,8 @@ Keep the same `ANCHOR_SECRET_KEY`: the backup's authenticator-app secrets are en
 git pull
 docker compose up -d --build
 ```
+
+Or, with the ready-made image: `docker compose pull && docker compose up -d`.
 
 Anchor applies database migrations itself when it starts, before it serves anything. Take a backup first: migrations only go forward, and some (such as fetching every site icon again) can't be undone.
 
