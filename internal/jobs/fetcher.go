@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -29,10 +30,10 @@ type Fetcher struct {
 	log    *slog.Logger
 	wake   chan struct{}
 
-	// IconService, when set ("duckduckgo"), is asked for the icon of a site
-	// that gives none itself. Set it before Run.
-	IconService string
-	serviceURL  func(service, domain string) string // fetch.ServiceIcon; tests swap it
+	// IconServices ("duckduckgo", "google") are asked in order for the icon
+	// of a site that gives none itself. Set before Run.
+	IconServices []string
+	serviceURL   func(service, domain string) string // fetch.ServiceIcon; tests swap it
 }
 
 func NewFetcher(st *store.Store, client *fetch.Client, log *slog.Logger) *Fetcher {
@@ -117,15 +118,15 @@ func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchR
 
 // iconBackfillVersion goes up when the icon service lookup improves, so
 // bookmarks still without an icon get one more try.
-const iconBackfillVersion = "2"
+const iconBackfillVersion = "3"
 
 // backfillIcons queues bookmarks without an icon to be fetched again once,
 // when an icon service is switched on (or its lookup improved).
 func (f *Fetcher) backfillIcons(ctx context.Context) {
-	if f.IconService == "" {
+	if len(f.IconServices) == 0 {
 		return
 	}
-	marker := f.IconService + "/" + iconBackfillVersion
+	marker := strings.Join(f.IconServices, ",") + "/" + iconBackfillVersion
 	done, err := f.store.InstanceSetting(ctx, store.SettingIconBackfill, "")
 	if err != nil || done == marker {
 		return
@@ -138,7 +139,7 @@ func (f *Fetcher) backfillIcons(ctx context.Context) {
 		f.log.Error("icon backfill", "err", err)
 		return
 	}
-	f.log.Info("fetching icons again for bookmarks without one", "service", f.IconService, "bookmarks", n)
+	f.log.Info("fetching icons again for bookmarks without one", "services", f.IconServices, "bookmarks", n)
 }
 
 // icon returns the domain's stored icon, fetching it when it is missing or
@@ -172,17 +173,33 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 	return f.serviceIcon(ctx, it.Domain)
 }
 
-// serviceIcon asks the icon service for domain's icon and stores it. When the
-// service doesn't know the host, the main domain's icon stands in (a tenant
-// like cronos.sharepoint.com gets SharePoint's). When the service answers for
-// the host with exactly the main domain's icon, that's a generic stand-in for
-// a separate product (Keep gets Google's "G"), and the letter is better.
+// serviceIcon asks the icon services, in order, for domain's icon and
+// stores the first one found.
 func (f *Fetcher) serviceIcon(ctx context.Context, domain string) int64 {
-	if f.IconService == "" {
-		return 0
+	for _, service := range f.IconServices {
+		mime, data, ok := f.serviceLookup(ctx, service, domain)
+		if !ok {
+			continue
+		}
+		id, err := f.store.SaveFavicon(ctx, domain, mime, data)
+		if err != nil {
+			f.log.Error("save icon", "domain", domain, "err", err)
+			return 0
+		}
+		return id
 	}
+	return 0
+}
+
+// serviceLookup asks one service. When it doesn't know the host, the main
+// domain's icon stands in (a tenant like cronos.sharepoint.com gets
+// SharePoint's). When it answers for a separate product host with exactly
+// the main domain's icon, that's a generic stand-in (Keep gets Google's
+// "G"), and the letter is better. www.nu.nl and nu.nl are one site, so the
+// same icon for both is just right.
+func (f *Fetcher) serviceLookup(ctx context.Context, service, domain string) (string, []byte, bool) {
 	get := func(d string) (string, []byte, error) {
-		u := f.serviceURL(f.IconService, d)
+		u := f.serviceURL(service, d)
 		if u == "" {
 			return "", nil, errors.New("unknown icon service")
 		}
@@ -192,20 +209,16 @@ func (f *Fetcher) serviceIcon(ctx context.Context, domain string) int64 {
 	if main := fetch.RegistrableDomain(domain); main != domain {
 		pmime, pdata, perr := get(main)
 		switch {
-		case err == nil && perr == nil && bytes.Equal(data, pdata):
-			return 0
 		case err != nil:
 			mime, data, err = pmime, pdata, perr
+		case perr == nil && bytes.Equal(data, pdata) && strings.TrimPrefix(domain, "www.") != main:
+			f.log.Debug("icon service: generic icon", "service", service, "domain", domain)
+			return "", nil, false
 		}
 	}
 	if err != nil {
-		f.log.Debug("icon service", "domain", domain, "err", err)
-		return 0
+		f.log.Debug("icon service", "service", service, "domain", domain, "err", err)
+		return "", nil, false
 	}
-	id, err := f.store.SaveFavicon(ctx, domain, mime, data)
-	if err != nil {
-		f.log.Error("save icon", "domain", domain, "err", err)
-		return 0
-	}
-	return id
+	return mime, data, true
 }

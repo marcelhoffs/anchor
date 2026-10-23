@@ -44,7 +44,11 @@ type Client struct {
 
 // New returns a client. allowPrivate also lets it reach loopback, private
 // and link-local addresses (for bookmarks of services on your own network).
-func New(allowPrivate bool) *Client {
+func New(allowPrivate bool) *Client { return NewWithTimeout(allowPrivate, timeout) }
+
+// NewWithTimeout is New with another limit on each request (tests use a
+// short one).
+func NewWithTimeout(allowPrivate bool, timeout time.Duration) *Client {
 	dialer := &net.Dialer{
 		Timeout: timeout,
 		Control: func(_, address string, _ syscall.RawConn) error {
@@ -305,6 +309,8 @@ func ServiceIcon(service, domain string) string {
 	switch service {
 	case "duckduckgo":
 		return "https://icons.duckduckgo.com/ip3/" + url.PathEscape(domain) + ".ico"
+	case "google":
+		return "https://www.google.com/s2/favicons?sz=64&domain=" + url.QueryEscape(domain)
 	}
 	return ""
 }
