@@ -74,20 +74,9 @@ type pager struct {
 	From, To, Total int
 	PrevURL         string // "" on the first page
 	NextURL         string // "" on the last page
-	Links           []pageLink
 }
 
-// pageLink is one numbered page; Num 0 marks a gap ("…").
-type pageLink struct {
-	Num     int
-	URL     string
-	Current bool
-	Far     bool // two from the current page, hidden on phones
-}
-
-// newPager links the first and last page and those within two of the
-// current one, with gaps for the rest. Phones drop the links two away
-// unless that would leave a page out beside the first or last one.
+// newPager links the pages either side of the current one.
 func newPager(page, pages, total int, pageURL func(int) string) pager {
 	p := pager{From: (page-1)*pageSize + 1, To: min(page*pageSize, total), Total: total}
 	if page > 1 {
@@ -95,15 +84,6 @@ func newPager(page, pages, total int, pageURL func(int) string) pager {
 	}
 	if page < pages {
 		p.NextURL = pageURL(page + 1)
-	}
-	for n := 1; n <= pages; n++ {
-		switch {
-		case n == 1 || n == pages || (n >= page-2 && n <= page+2):
-			far := (n == page-2 || n == page+2) && n > 2 && n < pages-1
-			p.Links = append(p.Links, pageLink{Num: n, URL: pageURL(n), Current: n == page, Far: far})
-		case p.Links[len(p.Links)-1].Num != 0:
-			p.Links = append(p.Links, pageLink{})
-		}
 	}
 	return p
 }
