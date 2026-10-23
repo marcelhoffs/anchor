@@ -210,13 +210,8 @@
 <nav class="pager" aria-label="Pages">
   <span class="pager-range">{{.From}}–{{.To}} of {{.Total}}</span>
   <div class="pager-links">
-    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="Previous page">←</a>{{else}}<span class="btn" aria-disabled="true">←</span>{{end}}
-    {{range .Links}}
-    {{if not .Num}}<span class="pager-gap" aria-hidden="true">…</span>
-    {{else if .Current}}<a class="btn page-num" href="{{.URL}}" aria-current="page" aria-label="Page {{.Num}}">{{.Num}}</a>
-    {{else}}<a class="btn page-num{{if .Far}} hide-sm{{end}}" href="{{.URL}}" aria-label="Page {{.Num}}">{{.Num}}</a>{{end}}
-    {{end}}
-    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="Next page">→</a>{{else}}<span class="btn" aria-disabled="true">→</span>{{end}}
+    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="Previous page">{{icon "chevron-left"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-left"}}</span>{{end}}
+    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="Next page">{{icon "chevron-right"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-right"}}</span>{{end}}
   </div>
 </nav>
 {{end}}

@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -612,7 +611,7 @@ func TestPagination(t *testing.T) {
 	if n := strings.Count(body, `class="pager"`); n != 2 {
 		t.Fatalf("%d pagers, want one above and one below the list", n)
 	}
-	if !strings.Contains(body, "1–50 of 120") || !strings.Contains(body, `href="/?page=3"`) || !strings.Contains(body, `rel="next"`) {
+	if !strings.Contains(body, "1–50 of 120") || !strings.Contains(body, `href="/?page=2" rel="next"`) || strings.Contains(body, `rel="prev"`) {
 		t.Fatal("first page controls")
 	}
 	_, body, _ = c.get("/?page=3")
@@ -631,28 +630,17 @@ func TestPagination(t *testing.T) {
 
 func TestPagerLinks(t *testing.T) {
 	pageURL := func(n int) string { return strconv.Itoa(n) }
-	var got, far []int
-	for _, l := range newPager(6, 20, 1000, pageURL).Links {
-		got = append(got, l.Num)
-		if l.Far {
-			far = append(far, l.Num)
+	for _, c := range []struct {
+		page       int
+		prev, next string
+	}{{1, "", "2"}, {6, "5", "7"}, {20, "19", ""}} {
+		p := newPager(c.page, 20, 1000, pageURL)
+		if p.PrevURL != c.prev || p.NextURL != c.next {
+			t.Errorf("page %d: prev %q next %q, want %q %q", c.page, p.PrevURL, p.NextURL, c.prev, c.next)
 		}
 	}
-	if want := []int{1, 0, 4, 5, 6, 7, 8, 0, 20}; !slices.Equal(got, want) {
-		t.Fatalf("links = %v, want %v", got, want)
-	}
-	if want := []int{4, 8}; !slices.Equal(far, want) {
-		t.Fatalf("far links = %v, want %v", far, want)
-	}
-	// Page 2 sits beside page 1, so hiding it would leave a hole.
-	far = nil
-	for _, l := range newPager(4, 20, 1000, pageURL).Links {
-		if l.Far {
-			far = append(far, l.Num)
-		}
-	}
-	if want := []int{6}; !slices.Equal(far, want) {
-		t.Fatalf("far links on page 4 = %v, want %v", far, want)
+	if p := newPager(20, 20, 1000, pageURL); p.From != 951 || p.To != 1000 {
+		t.Errorf("last page shows %d–%d", p.From, p.To)
 	}
 }
 

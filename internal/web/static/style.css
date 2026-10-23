@@ -315,14 +315,12 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
   .bm-actions .icon-btn:not(.on) { opacity: 0; }
   .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; }
 }
-.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .pager-range { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
-.pager-links { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.pager-links .btn { min-width: 40px; padding: 0 10px; font-variant-numeric: tabular-nums; }
-.pager-links .btn[aria-current="page"] { border-color: var(--accent); background: var(--soft); color: var(--soft-text); }
+.pager-links { display: flex; align-items: center; gap: 6px; }
+.pager-links .btn { width: 40px; padding: 0; }
 .pager-links .btn[aria-disabled="true"] { color: var(--muted); opacity: 0.5; cursor: default; }
 .pager-links .btn[aria-disabled="true"]:hover { background: var(--surface); }
-.pager-gap { min-width: 24px; color: var(--muted); text-align: center; }
 
 .empty-state {
   display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 56px 24px; text-align: center;
@@ -505,12 +503,6 @@ td.actions { text-align: right; white-space: nowrap; }
   .top-ctl { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
   .hide-sm { display: none; }
-  /* The range gets its own row and the page buttons stay on one line, so
-     moving between pages doesn't reflow the pager. */
-  .pager-range { flex-basis: 100%; }
-  .pager-links { flex-wrap: nowrap; gap: 2px; }
-  .pager-links .btn { min-width: 34px; padding: 0 6px; }
-  .pager-gap { min-width: 16px; }
   /* The search button becomes the field's only magnifier. */
   .search > .icon { display: none; }
   .search-btn { width: 36px; padding: 0; }
