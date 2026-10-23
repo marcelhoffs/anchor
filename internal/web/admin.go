@@ -23,7 +23,49 @@ var adminNotices = map[string]string{
 	"reset-2fa":    "Two-factor authentication reset. The user was signed out everywhere.",
 	"invite-off":   "Invite revoked.",
 	"settings":     "Settings saved.",
+	"space-owner":  "The space has a new owner.",
+	"space-delete": "Space deleted.",
 	"confirmed":    "Thanks, you're confirmed for the next 10 minutes. Go ahead.",
+}
+
+// adminSpaces lists every shared space: names, members and sizes, never
+// the bookmarks inside.
+func (s *Server) adminSpaces(w http.ResponseWriter, r *http.Request) {
+	list, err := s.store.AdminListSpaces(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.render(w, r, http.StatusOK, "admin_spaces", data{
+		"AdminTab": "spaces", "SpaceList": list, "Notice": adminNotices[r.URL.Query().Get("done")],
+	})
+}
+
+// adminSpaceOwner hands a shared space to one of its members, for instance
+// when its owner's account was disabled.
+func (s *Server) adminSpaceOwner(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	uid, err := strconv.ParseInt(r.PostFormValue("user_id"), 10, 64)
+	if !ok || err != nil {
+		s.notFound(w, r)
+		return
+	}
+	if !s.storeError(w, r, s.store.AdminTransferSpace(r.Context(), id, uid)) {
+		return
+	}
+	http.Redirect(w, r, "/admin/spaces?done=space-owner", http.StatusSeeOther)
+}
+
+func (s *Server) adminDeleteSpace(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	if !s.storeError(w, r, s.store.AdminDeleteSpace(r.Context(), id)) {
+		return
+	}
+	http.Redirect(w, r, "/admin/spaces?done=space-delete", http.StatusSeeOther)
 }
 
 func (s *Server) adminUsers(w http.ResponseWriter, r *http.Request) {

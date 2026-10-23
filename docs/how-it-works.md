@@ -33,7 +33,7 @@ Each member of a shared space has a role:
 | Can edit | Add, change, archive, share and delete bookmarks; create, rename and delete tags; import |
 | Read only | See the bookmarks and tags, search them and export them |
 
-Every space has exactly one owner. The owner adds people by username (the field suggests matching users as you type) and can't leave without first making someone else the owner; they then stay on as an editor. Deleting a space deletes its bookmarks, tags and saved searches for every member. Making someone the owner and deleting a space ask you to confirm your identity again. Admins choose under Admin → Instance whether everyone or only admins may create shared spaces.
+Every space has exactly one owner. The owner adds people by username (the field suggests matching users as you type) and can't leave without first making someone else the owner; they then stay on as an editor. Deleting a space deletes its bookmarks, tags and saved searches for every member. Making someone the owner and deleting a space ask you to confirm your identity again. Admins choose under Admin → Instance whether everyone or only admins may create shared spaces. Under Admin → Spaces they see every shared space with its members and size (never its bookmarks), and can make another member the owner, for instance when the owner's account is disabled, or delete a space.
 
 **Switching.** Once you're in a shared space, the top bar shows a space switcher. The space you pick is remembered per browser session, and the list, sidebar, tags, saved searches, import and export all show that space. Pages about one bookmark follow the bookmark's own space, so a link to it works whichever space you're in. Membership is checked again on every request: someone removed from a space is back in their personal space at once.
 
@@ -132,7 +132,7 @@ Admins can require two-factor authentication for everyone. Users without it are 
 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 
-**Admins** can create, disable and re-enable users, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
+**Admins** can create, disable and re-enable users, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. They can also change the owner of a shared space or delete it. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
 
 ## Security measures
 

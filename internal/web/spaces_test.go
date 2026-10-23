@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/marcelhoffs/anchor/internal/search"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 func TestSpacePages(t *testing.T) {
@@ -284,5 +285,59 @@ func TestAPISpaces(t *testing.T) {
 	}
 	if code, _ := alice.do("GET", "/bookmarks?space=abc", nil); code != 400 {
 		t.Fatalf("bad space id: %d", code)
+	}
+}
+
+func TestAdminSpaces(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	root := e.admin()
+	e.user("alice")
+	e.user("bob")
+	alice := e.login("alice")
+	team, _ := e.store.CreateSpace(ctx, e.userID("alice"), "Team")
+	e.store.AddMember(ctx, team, "bob", "read")
+	e.store.CreateBookmark(ctx, team, store.BookmarkInput{URL: "https://secret.example/plans", Title: "Secret plans"})
+	page := "/admin/spaces"
+	sp := itoa(team.SpaceID())
+
+	// Admins see who's in a space and its size, never the bookmarks.
+	if code, _, _ := alice.get(page); code != http.StatusNotFound {
+		t.Fatalf("non-admin opened the admin spaces page: %d", code)
+	}
+	_, body, _ := root.get(page)
+	if !strings.Contains(body, "<strong>Team</strong>") || !strings.Contains(body, "alice") {
+		t.Fatal("space not listed for the admin")
+	}
+	if strings.Contains(body, "Secret plans") || strings.Contains(body, "secret.example") {
+		t.Fatal("the admin page shows a space's bookmarks")
+	}
+
+	// The owner is disabled: an admin hands the space to bob.
+	e.store.SetActive(ctx, e.userID("alice"), false)
+	if _, body, _ := root.get(page); !strings.Contains(body, "Disabled") {
+		t.Fatal("disabled owner not flagged")
+	}
+	if code, _, _ := root.post(page+"/"+sp+"/owner", url.Values{"user_id": {itoa(e.userID("root"))}}); code != http.StatusNotFound {
+		t.Fatalf("space handed to a non-member: %d", code)
+	}
+	if code, _, loc := root.post(page+"/"+sp+"/owner", url.Values{"user_id": {itoa(e.userID("bob"))}}); code != http.StatusSeeOther || !strings.Contains(loc, "done=space-owner") {
+		t.Fatalf("hand-over: %d %q", code, loc)
+	}
+	if sc, _ := e.store.Access(ctx, e.userID("bob"), team.SpaceID()); sc.Role() != store.RoleOwner {
+		t.Fatalf("bob's role: %s", sc.Role())
+	}
+	if sc, _ := e.store.Access(ctx, e.userID("alice"), team.SpaceID()); sc.Role() != store.RoleWrite {
+		t.Fatalf("old owner's role: %s", sc.Role())
+	}
+	// Personal spaces aren't the admin's to delete.
+	if code, _, _ := root.post(page+"/"+itoa(personal(e.store, e.userID("bob")).SpaceID())+"/delete", nil); code != http.StatusNotFound {
+		t.Fatalf("admin deleted a personal space: %d", code)
+	}
+	if code, _, _ := root.post(page+"/"+sp+"/delete", nil); code != http.StatusSeeOther {
+		t.Fatalf("delete: %d", code)
+	}
+	if list, _ := e.store.AdminListSpaces(ctx); len(list) != 0 {
+		t.Fatalf("space still there: %+v", list)
 	}
 }
