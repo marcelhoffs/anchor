@@ -99,9 +99,14 @@ func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchR
 	if m.FinalURL != "" && !fetch.SameHost(it.URL, m.FinalURL) {
 		// Redirected to another host, typically a sign-in page or a
 		// cookie-consent wall: its title and icon aren't this page's. The
-		// icon comes from it.URL's host.
+		// icon comes from it.URL's host, unless the redirect went to the
+		// site's home page, whose icon is the site's.
 		f.log.Debug("fetch page: redirected to another host", "bookmark", it.ID, "to", m.FinalURL)
-		m = fetch.Meta{}
+		if fetch.ToSiteHome(it.URL, m.FinalURL) {
+			m = fetch.Meta{Icons: m.Icons, FinalURL: m.FinalURL}
+		} else {
+			m = fetch.Meta{}
+		}
 	}
 	if err != nil {
 		r.Status = store.FetchFailed

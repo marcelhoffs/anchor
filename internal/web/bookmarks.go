@@ -118,7 +118,7 @@ func listView(q string, bundles []store.Bundle) (view, heading string) {
 		return "archive", "Archive"
 	}
 	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
-		return "#" + p.Tags[0], "#" + p.Tags[0]
+		return "#" + p.Tags[0], "# " + p.Tags[0] // as the sidebar shows it
 	}
 	for _, b := range bundles {
 		if b.Query == q {
