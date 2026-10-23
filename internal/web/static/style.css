@@ -181,21 +181,26 @@ form.inline { display: inline; }
 /* The app icon in the current accent: <svg class="brand-mark"> from render.go. */
 .brand-mark { flex-shrink: 0; width: 32px; height: 32px; color: var(--on-accent); }
 .brand-mark rect { fill: var(--accent); }
-.top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
-.nav-link { color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; }
-.nav-link:hover, .nav-link[aria-current="page"] { color: var(--text); }
-
-.user-menu { position: relative; }
-.user-menu summary {
-  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px 0 4px;
-  border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
-  font-size: 14px; cursor: pointer; list-style: none;
+.top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* Top bar controls (Tags, Add bookmark, the space switcher, the user menu):
+   one height, shape, border and hover, as icon plus label. */
+.top-ctl {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; cursor: pointer; list-style: none;
+  transition: background-color 120ms, border-color 120ms, color 120ms;
 }
-.user-menu summary::-webkit-details-marker { display: none; }
-.user-menu[open] summary, .user-menu summary:hover { background: var(--raised); }
+.top-ctl::-webkit-details-marker { display: none; }
+.top-ctl:hover, .top-menu[open] > .top-ctl { background: var(--raised); color: var(--text); }
+.top-ctl[aria-current="page"], .top-ctl[aria-current="page"]:hover { border-color: transparent; background: var(--soft); color: var(--soft-text); }
+/* Add bookmark is the one filled accent control. */
+.top-add { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.top-add:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
+.top-ctl .chev { color: var(--muted); }
+.top-menu { position: relative; }
 .avatar-sm {
-  display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;
-  border-radius: 999px; background: var(--soft); color: var(--soft-text); font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;
+  border-radius: calc(var(--radius) - 4px); background: var(--soft); color: var(--soft-text); font-size: 12px; font-weight: 600;
 }
 .menu {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; padding: 6px;
@@ -206,8 +211,7 @@ form.inline { display: inline; }
   border: 0; border-radius: 8px; background: none; color: var(--text); font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
 }
 .menu a:hover, .menu button:hover { background: var(--raised); color: var(--text); }
-/* The space switcher: a user menu holding the spaces, the current one ticked. */
-.space-menu summary { padding: 0 10px 0 12px; }
+/* The space switcher's menu: the spaces, the current one ticked. */
 .space-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-menu .menu { min-width: 230px; }
 .space-option { flex-grow: 1; overflow-wrap: anywhere; }
@@ -491,13 +495,13 @@ td.actions { text-align: right; white-space: nowrap; }
   .bm-more { display: inline-flex; width: 36px; height: 36px; margin-top: -2px; }
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  .top .btn-primary { width: 40px; padding: 0; }
+  .top-ctl { width: 40px; padding: 0; }
+  .top-ctl .chev { display: none; }
   .hide-sm { display: none; }
   /* The search button becomes the field's only magnifier. */
   .search > .icon { display: none; }
   .search-btn { width: 36px; padding: 0; }
   .search-btn .icon { display: inline; }
-  .user-menu summary { padding-right: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }

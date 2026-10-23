@@ -10,9 +10,20 @@ Create a personal token under Settings → API tokens and send it in the `Author
 curl -H "Authorization: Bearer $TOKEN" https://anchor.example.com/api/v1/user
 ```
 
-A token is read-only or read & write, may have an expiry date, and acts as the user who created it: it sees only that user's bookmarks. Anchor shows a token once, when it is created, and stores only its hash; a lost token can't be shown again, only revoked and replaced. Disabling a user also stops their tokens.
+A token is read-only or read & write, may have an expiry date, and acts as the user who created it: it sees only the spaces that user is in. Anchor shows a token once, when it is created, and stores only its hash; a lost token can't be shown again, only revoked and replaced. Disabling a user also stops their tokens.
 
 Each token may make 600 requests a minute; beyond that Anchor answers `429 Too Many Requests` with a `Retry-After` header.
+
+## Spaces
+
+Every endpoint works on one [space](how-it-works.md#spaces): your personal space, or the shared space named by `?space=<id>`. `GET /api/v1/spaces` lists the ids. Ids of bookmarks and tags are looked up within that space, so a bookmark in a shared space needs its `?space=` too.
+
+A space you aren't in answers `404`. Changes need both a read & write token and a role that allows them: a read & write token of a read-only member gets `403`.
+
+```sh
+curl -H "Authorization: Bearer $TOKEN" https://anchor.example.com/api/v1/spaces
+curl -H "Authorization: Bearer $TOKEN" "https://anchor.example.com/api/v1/bookmarks?space=7"
+```
 
 ## Errors
 
@@ -41,8 +52,9 @@ Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, w
 | DELETE | `/api/v1/tags/{id}` | Delete a tag; its bookmarks stay |
 | POST | `/api/v1/import` | Upload a bookmark file (as the body, or as a multipart `file` field); returns a job |
 | GET | `/api/v1/jobs/{id}` | An import's progress and result |
-| GET | `/api/v1/export?format=html\|json` | Export all bookmarks |
+| GET | `/api/v1/export?format=html\|json` | Export all bookmarks in the space |
 | GET | `/api/v1/user` | The token's user |
+| GET | `/api/v1/spaces` | Your spaces: the personal one first, then the shared ones, with your `role` in each |
 
 The `q` parameter takes the same [search syntax](how-it-works.md#search) as the search box.
 

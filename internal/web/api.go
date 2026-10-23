@@ -46,6 +46,7 @@ func problem(w http.ResponseWriter, status int, detail string) {
 func (s *Server) apiRoutes(r chi.Router) {
 	r.Use(s.apiAuthenticate)
 	r.Get("/user", s.apiUser)
+	r.Get("/spaces", s.apiListSpaces)
 	r.Get("/bookmarks", s.apiListBookmarks)
 	r.Get("/bookmarks/check", s.apiCheckBookmark)
 	r.Get("/bookmarks/{id}", s.apiGetBookmark)
@@ -107,7 +108,23 @@ func (s *Server) apiAuthenticate(next http.Handler) http.Handler {
 			limit = maxImportBody
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, limit)
-		sc, err := s.store.PersonalScope(r.Context(), u.ID)
+		// ?space= picks the space the request works on; the personal one
+		// when absent. A space the user isn't in doesn't exist for them.
+		var sc store.Scope
+		if raw := r.URL.Query().Get("space"); raw != "" {
+			id, perr := strconv.ParseInt(raw, 10, 64)
+			if perr != nil || id <= 0 {
+				problem(w, http.StatusBadRequest, "space must be a space id from GET /api/v1/spaces.")
+				return
+			}
+			sc, err = s.store.Access(r.Context(), u.ID, id)
+		} else {
+			sc, err = s.store.PersonalScope(r.Context(), u.ID)
+		}
+		if errors.Is(err, store.ErrNotFound) {
+			problem(w, http.StatusNotFound, "No such space.")
+			return
+		}
 		if err != nil {
 			s.log.Error("api scope", "err", err)
 			problem(w, http.StatusInternalServerError, "Something went wrong.")
@@ -187,6 +204,32 @@ func (s *Server) toAPI(b store.Bookmark) apiBookmark {
 		share = &u
 	}
 	return apiBookmark{b.ID, b.URL, b.Title, b.Description, b.Notes, tags, b.IsFavourite, b.IsArchived, share, b.Domain, b.CreatedAt, b.UpdatedAt}
+}
+
+type apiSpace struct {
+	ID       int64      `json:"id"`
+	Name     string     `json:"name"`
+	Personal bool       `json:"personal"`
+	Role     store.Role `json:"role"`
+}
+
+// apiListSpaces lists the spaces the token's user can pass as ?space=:
+// their personal space first, then the shared ones.
+func (s *Server) apiListSpaces(w http.ResponseWriter, r *http.Request) {
+	u := apiCaller(r).user
+	own, err := s.store.PersonalScope(r.Context(), u.ID)
+	if !s.apiStoreError(w, err) {
+		return
+	}
+	shared, err := s.store.ListSpaces(r.Context(), u.ID)
+	if !s.apiStoreError(w, err) {
+		return
+	}
+	out := []apiSpace{{ID: own.SpaceID(), Name: "Personal", Personal: true, Role: own.Role()}}
+	for _, sp := range shared {
+		out = append(out, apiSpace{ID: sp.ID, Name: sp.Name, Role: sp.Role})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"results": out})
 }
 
 func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {

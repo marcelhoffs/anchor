@@ -21,6 +21,10 @@
 - Full-text search over titles, descriptions, notes, URLs and tags, with filters for tags, sites, dates, favourites and shared links.
 - Bundles: save a search and it stays in the sidebar, always up to date.
 
+**Spaces**
+- A personal space for your own bookmarks, and shared spaces for your family or team, each with its own bookmarks and tags.
+- Members can edit or only read; the owner manages who's in, and switching spaces is one click in the top bar.
+
 **Sharing**
 - Give a single bookmark a public read-only link, and take it back whenever you like.
 
@@ -29,7 +33,7 @@
 - Export everything as browser bookmarks or as JSON, at any time.
 
 **Accounts and security**
-- Multiple users, each with their own private collection.
+- Multiple users, each with a private personal space.
 - Two-factor authentication with an authenticator app, passkeys or recovery codes.
 - Personal API tokens, read-only or read & write.
 - For admins: user management, invite links, open/invite/closed signup and a policy that requires 2FA.
