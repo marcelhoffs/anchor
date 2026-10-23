@@ -58,3 +58,18 @@
   <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>Instance</a>
 </nav>
 {{end}}
+
+{{/* A confirmation for an action that can't be undone. The page opens it with
+   popovertarget="<ID>". Keys: ID, Title, Name (shown bold, optional), Text,
+   Action, Button, CSRF. */}}
+{{define "confirm"}}
+<div id="{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="{{.ID}}-title">
+  <p class="confirm-title" id="{{.ID}}-title">{{.Title}}</p>
+  <p class="confirm-text">{{with .Name}}<strong>{{.}}</strong> {{end}}{{.Text}}</p>
+  <form method="post" action="{{.Action}}" class="confirm-actions">
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <button type="button" class="btn" popovertarget="{{.ID}}" popovertargetaction="hide">Cancel</button>
+    <button class="btn btn-danger-solid">{{.Button}}</button>
+  </form>
+</div>
+{{end}}

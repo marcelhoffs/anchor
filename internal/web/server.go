@@ -25,6 +25,8 @@ import (
 var assets embed.FS
 
 const (
+	// Cookie names; over https they get the __Host- prefix, which makes the
+	// browser insist on Secure, Path=/ and no Domain.
 	sessionCookie = "burrow_session"
 	csrfCookie    = "burrow_csrf"
 	sessionTTL    = 30 * 24 * time.Hour
@@ -58,6 +60,8 @@ type Server struct {
 	cer      ceremonies
 	hasUsers atomic.Bool
 
+	sessionCookie, csrfCookie string // see the constants
+
 	// Failed logins per IP+username and per IP; failed second factors per
 	// user; requests per API token; signups per IP.
 	loginUser, loginIP, mfaUser, apiToken, signupIP *ratelimit.Limiter
@@ -85,6 +89,10 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher Jo
 		apiToken:  ratelimit.New(600, time.Minute),
 		signupIP:  ratelimit.New(10, time.Hour),
 	}
+	s.sessionCookie, s.csrfCookie = sessionCookie, csrfCookie
+	if cfg.SecureCookies() {
+		s.sessionCookie, s.csrfCookie = "__Host-"+sessionCookie, "__Host-"+csrfCookie
+	}
 	if s.pages, err = loadTemplates(); err != nil {
 		return nil, err
 	}
@@ -110,10 +118,13 @@ func (s *Server) Run(ctx context.Context) {
 
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
-	r.Use(middleware.Recoverer, s.logRequests, securityHeaders)
+	r.Use(middleware.Recoverer, s.logRequests, s.securityHeaders)
 
 	static, _ := fs.Sub(assets, "static")
-	r.Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
+	// Only static files are compressed: compressing pages that carry the CSRF
+	// token next to text the user typed would allow BREACH-style guessing.
+	r.With(middleware.Compress(5, "text/css", "text/javascript", "application/javascript", "image/svg+xml")).
+		Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
 	r.Get("/healthz", s.healthz)
 	r.Get("/icon/{file}", s.appIcon)
 	r.Route("/api/v1", s.apiRoutes)

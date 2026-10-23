@@ -28,8 +28,10 @@ type pageTemplate = *template.Template
 
 var funcs = template.FuncMap{
 	"ago":        ago,
+	"count":      count,
 	"tagURL":     func(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) },
 	"bundleURL":  bundleURL,
+	"dict":       dict,
 	"brandMark":  brandMark,
 	"appIconURL": appIconURL,
 	"join":       strings.Join,
@@ -173,16 +175,32 @@ func idParam(r *http.Request) (int64, bool) {
 	return id, err == nil && id > 0
 }
 
-// safeNext returns next if it is a local path, so redirects can't be used to
-// send users off-site.
+// safeNext returns next if it is a path on this site, else "/", so redirects
+// can't send users off-site. It refuses anything a browser could read as
+// another host: //host, a backslash, and control characters, which browsers
+// strip (a tab between two slashes would become //host).
 func safeNext(next string) string {
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") ||
+		strings.ContainsFunc(next, func(r rune) bool { return r == '\\' || unicode.IsControl(r) }) {
+		return "/"
+	}
+	if u, err := url.Parse(next); err != nil || u.Scheme != "" || u.Host != "" {
 		return "/"
 	}
 	return next
 }
 
 func urlQueryEscape(s string) string { return url.QueryEscape(s) }
+
+// dict builds a map from key, value pairs, for passing several values to a
+// shared template: {{template "confirm" dict "ID" "x" "Title" "…"}}.
+func dict(kv ...any) map[string]any {
+	m := make(map[string]any, len(kv)/2)
+	for i := 0; i+1 < len(kv); i += 2 {
+		m[kv[i].(string)] = kv[i+1]
+	}
+	return m
+}
 
 func ago(t time.Time) string {
 	d := time.Since(t)
@@ -202,9 +220,12 @@ func ago(t time.Time) string {
 	}
 }
 
-func plural(n int, unit string) string {
+func plural(n int, unit string) string { return count(n, unit) + " ago" }
+
+// count is "1 bookmark", "2 bookmarks".
+func count(n int, unit string) string {
 	if n == 1 {
-		return "1 " + unit + " ago"
+		return "1 " + unit
 	}
-	return strconv.Itoa(n) + " " + unit + "s ago"
+	return strconv.Itoa(n) + " " + unit + "s"
 }

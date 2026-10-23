@@ -20,10 +20,9 @@
           </form>
         </td>
         <td class="actions">
-          <form method="post" action="/bundles/{{.ID}}/delete">
-            <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <button class="icon-btn danger" aria-label="Delete bundle {{.Name}}">{{icon "trash"}}</button>
-          </form>
+          <button type="button" class="icon-btn danger" popovertarget="delete-bundle-{{.ID}}" aria-label="Delete bundle {{.Name}}">{{icon "trash"}}</button>
+          {{template "confirm" dict "ID" (print "delete-bundle-" .ID) "Title" "Delete this bundle?" "Name" .Name
+            "Text" "is removed from the sidebar. Your bookmarks aren't affected." "Action" (print "/bundles/" .ID "/delete") "Button" "Delete bundle" "CSRF" $.CSRF}}
         </td>
       </tr>
     {{end}}

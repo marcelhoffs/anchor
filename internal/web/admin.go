@@ -58,7 +58,7 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request, tab, title, 
 func (s *Server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	if err := auth.ValidateUsername(username); err != nil {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": sentence(err)})
 		return
 	}
 	password := auth.RandomPassword()

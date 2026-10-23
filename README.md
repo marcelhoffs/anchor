@@ -66,7 +66,7 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"url":"https://go.dev","tags":["go"]
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `BURROW_BASE_URL` | required | Public URL; `https` turns on Secure cookies, a domain name enables passkeys |
+| `BURROW_BASE_URL` | required | Public URL; `https` turns on Secure `__Host-` cookies and HSTS, a domain name enables passkeys |
 | `BURROW_SECRET_KEY` | required | 32+ random bytes, base64; encrypts TOTP secrets, signs CSRF tokens |
 | `BURROW_DATA_DIR` | `/data` | Database location |
 | `BURROW_LISTEN` | `:8080` | Bind address |
