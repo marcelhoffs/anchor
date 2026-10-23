@@ -194,8 +194,8 @@ form.inline { display: inline; }
 .top-ctl:hover, .top-menu[open] > .top-ctl { background: var(--raised); color: var(--text); }
 .top-ctl[aria-current="page"], .top-ctl[aria-current="page"]:hover { border-color: transparent; background: var(--soft); color: var(--soft-text); }
 /* Add bookmark is the one filled accent control. */
-.top-add { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
-.top-add:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
+.top-primary { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.top-primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
 .top-ctl .chev { color: var(--muted); }
 .top-menu { position: relative; }
 .avatar-sm {
