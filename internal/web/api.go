@@ -13,9 +13,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/search"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/search"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 // The REST API: JSON under /api/v1, authenticated only by bearer tokens
@@ -74,13 +74,13 @@ func (s *Server) apiAuthenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if !ok || raw == "" {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="burrow"`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="anchor"`)
 			problem(w, http.StatusUnauthorized, "Send an API token as 'Authorization: Bearer <token>'. Create one under Settings → API tokens.")
 			return
 		}
 		t, u, err := s.store.TokenByHash(r.Context(), auth.HashToken(strings.TrimSpace(raw)))
 		if errors.Is(err, store.ErrNotFound) {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="burrow", error="invalid_token"`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="anchor", error="invalid_token"`)
 			problem(w, http.StatusUnauthorized, "The token is invalid, expired or revoked.")
 			return
 		}

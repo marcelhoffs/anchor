@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/db"
-	"github.com/marcelhoffs/burrow/internal/fetch"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/db"
+	"github.com/marcelhoffs/anchor/internal/fetch"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 func TestIconServiceFallback(t *testing.T) {

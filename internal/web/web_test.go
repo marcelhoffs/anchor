@@ -17,12 +17,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/config"
-	"github.com/marcelhoffs/burrow/internal/db"
-	"github.com/marcelhoffs/burrow/internal/fetch"
-	"github.com/marcelhoffs/burrow/internal/jobs"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/config"
+	"github.com/marcelhoffs/anchor/internal/db"
+	"github.com/marcelhoffs/anchor/internal/fetch"
+	"github.com/marcelhoffs/anchor/internal/jobs"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 type env struct {

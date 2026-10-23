@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/marcelhoffs/burrow/internal/fetch"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/fetch"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 // site serves a page with a title, description and icon, like a real site.
@@ -18,7 +18,7 @@ func site(t *testing.T) *httptest.Server {
 		switch r.URL.Path {
 		case "/article":
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write([]byte(`<html><head><title>A Fine Article</title><meta name="description" content="All about burrows.">
+			w.Write([]byte(`<html><head><title>A Fine Article</title><meta name="description" content="All about anchors.">
 				<link rel="icon" href="/fav.png"></head><body>…</body></html>`))
 		case "/fav.png":
 			w.Write([]byte("\x89PNG\r\n\x1a\n" + strings.Repeat("\x01", 40)))
@@ -47,7 +47,7 @@ func TestFetchFillsInDetails(t *testing.T) {
 	}
 
 	_, body, _ := c.get("/")
-	if !strings.Contains(body, "A Fine Article") || !strings.Contains(body, "All about burrows.") || !strings.Contains(body, "Kept title") {
+	if !strings.Contains(body, "A Fine Article") || !strings.Contains(body, "All about anchors.") || !strings.Contains(body, "Kept title") {
 		t.Fatal("details not filled in")
 	}
 	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)

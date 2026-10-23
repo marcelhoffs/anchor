@@ -51,7 +51,7 @@
     <p class="muted">
       {{if eq .FetchStatus "pending"}}Fetching the page's title, description and icon. Empty fields are filled in when it's done.
       {{else if eq .FetchStatus "failed"}}The page couldn't be fetched, so empty fields stay empty.
-      {{else}}Burrow fills in an empty title or description, and the site's icon, from the page itself.{{end}}
+      {{else}}Anchor fills in an empty title or description, and the site's icon, from the page itself.{{end}}
     </p>
     {{if ne .FetchStatus "pending"}}
     <form method="post" action="/bookmarks/{{.ID}}/refetch">

@@ -1,4 +1,4 @@
-// Command burrow is a self-hosted, multi-user bookmark manager.
+// Command anchor is a self-hosted, multi-user bookmark manager.
 package main
 
 import (
@@ -17,16 +17,16 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/config"
-	"github.com/marcelhoffs/burrow/internal/db"
-	"github.com/marcelhoffs/burrow/internal/fetch"
-	"github.com/marcelhoffs/burrow/internal/jobs"
-	"github.com/marcelhoffs/burrow/internal/store"
-	"github.com/marcelhoffs/burrow/internal/web"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/config"
+	"github.com/marcelhoffs/anchor/internal/db"
+	"github.com/marcelhoffs/anchor/internal/fetch"
+	"github.com/marcelhoffs/anchor/internal/jobs"
+	"github.com/marcelhoffs/anchor/internal/store"
+	"github.com/marcelhoffs/anchor/internal/web"
 )
 
-const usage = `Usage: burrow <command> [arguments]
+const usage = `Usage: anchor <command> [arguments]
 
 Commands:
   serve                          run the web server (runs migrations first)
@@ -38,7 +38,7 @@ Commands:
   backup <file>                  write a consistent snapshot of the database
   healthcheck                    exit 0 if the local server answers /healthz
 
-Configuration is read from BURROW_* environment variables.
+Configuration is read from ANCHOR_* environment variables.
 `
 
 func main() {
@@ -64,11 +64,11 @@ func main() {
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 	default:
-		fmt.Fprintf(os.Stderr, "burrow: unknown command %q\n\n%s", cmd, usage)
+		fmt.Fprintf(os.Stderr, "anchor: unknown command %q\n\n%s", cmd, usage)
 		os.Exit(2)
 	}
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "burrow:", err)
+		fmt.Fprintln(os.Stderr, "anchor:", err)
 		os.Exit(1)
 	}
 }
@@ -91,7 +91,7 @@ func openDB(ctx context.Context, cfg *config.Config) (*db.DB, error) {
 	if err := os.MkdirAll(cfg.DataDir, 0o750); err != nil {
 		return nil, err
 	}
-	d, err := db.Open(filepath.Join(cfg.DataDir, "burrow.db"))
+	d, err := db.Open(filepath.Join(cfg.DataDir, "anchor.db"))
 	if err != nil {
 		return nil, err
 	}
@@ -156,17 +156,17 @@ func serve(ctx context.Context) error {
 	return hs.Shutdown(shutdownCtx)
 }
 
-// seedAdmin creates the first admin from BURROW_ADMIN_USER and
-// BURROW_ADMIN_PASSWORD when the database has no users yet.
+// seedAdmin creates the first admin from ANCHOR_ADMIN_USER and
+// ANCHOR_ADMIN_PASSWORD when the database has no users yet.
 func seedAdmin(ctx context.Context, cfg *config.Config, st *store.Store, log *slog.Logger) error {
 	if cfg.AdminUser == "" && cfg.AdminPassword == "" {
 		return nil
 	}
 	if err := auth.ValidateUsername(cfg.AdminUser); err != nil {
-		return fmt.Errorf("BURROW_ADMIN_USER: %w", err)
+		return fmt.Errorf("ANCHOR_ADMIN_USER: %w", err)
 	}
 	if err := auth.ValidatePassword(cfg.AdminPassword); err != nil {
-		return fmt.Errorf("BURROW_ADMIN_PASSWORD: %w", err)
+		return fmt.Errorf("ANCHOR_ADMIN_PASSWORD: %w", err)
 	}
 	u, err := st.CreateFirstAdmin(ctx, cfg.AdminUser, auth.HashPassword(cfg.AdminPassword))
 	if errors.Is(err, store.ErrConflict) {
@@ -198,7 +198,7 @@ func cleanSessions(ctx context.Context, st *store.Store, log *slog.Logger) {
 
 func userCmd(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: burrow user create|reset-password|reset-2fa <name>")
+		return errors.New("usage: anchor user create|reset-password|reset-2fa <name>")
 	}
 	fs := flag.NewFlagSet("user "+args[0], flag.ContinueOnError)
 	admin := fs.Bool("admin", false, "make the user an administrator")
@@ -281,7 +281,7 @@ func userCmd(ctx context.Context, args []string) error {
 
 func backup(ctx context.Context, args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: burrow backup <file>")
+		return errors.New("usage: anchor backup <file>")
 	}
 	if _, err := os.Stat(args[0]); err == nil {
 		return fmt.Errorf("%s already exists", args[0])

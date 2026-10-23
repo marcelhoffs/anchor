@@ -16,8 +16,8 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 type ctxKey int

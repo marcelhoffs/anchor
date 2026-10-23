@@ -3,7 +3,7 @@
 <div class="auth">
   <div class="card">
     <h1>Create your account</h1>
-    <p class="lead">{{if .Invite}}You've been invited to Burrow.{{else}}Start saving your bookmarks.{{end}}</p>
+    <p class="lead">{{if .Invite}}You've been invited to Anchor.{{else}}Start saving your bookmarks.{{end}}</p>
     <form method="post" action="/signup">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="invite" value="{{.Invite}}">

@@ -1,4 +1,4 @@
-// Package web serves Burrow's server-rendered HTML interface and its REST API.
+// Package web serves Anchor's server-rendered HTML interface and its REST API.
 package web
 
 import (
@@ -15,10 +15,10 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-webauthn/webauthn/webauthn"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/config"
-	"github.com/marcelhoffs/burrow/internal/ratelimit"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/config"
+	"github.com/marcelhoffs/anchor/internal/ratelimit"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 //go:embed templates static
@@ -27,8 +27,8 @@ var assets embed.FS
 const (
 	// Cookie names; over https they get the __Host- prefix, which makes the
 	// browser insist on Secure, Path=/ and no Domain.
-	sessionCookie = "burrow_session"
-	csrfCookie    = "burrow_csrf"
+	sessionCookie = "anchor_session"
+	csrfCookie    = "anchor_csrf"
 	sessionTTL    = 30 * 24 * time.Hour
 	// A password-checked session waiting for its second factor lives this long.
 	pendingTTL = 5 * time.Minute
@@ -69,15 +69,15 @@ type Server struct {
 
 func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher JobNotifier) (*Server, error) {
 	keys := auth.NewKeys(cfg.SecretKey)
-	// Passkeys are bound to a domain name. Reached by IP address, Burrow runs
+	// Passkeys are bound to a domain name. Reached by IP address, Anchor runs
 	// without them (TOTP and recovery codes still work).
 	wa, err := webauthn.New(&webauthn.Config{
 		RPID:          cfg.BaseURL.Hostname(),
-		RPDisplayName: "Burrow",
+		RPDisplayName: "Anchor",
 		RPOrigins:     []string{cfg.BaseURL.Scheme + "://" + cfg.BaseURL.Host},
 	})
 	if err != nil {
-		log.Warn("passkeys disabled: BURROW_BASE_URL must use a domain name", "base_url", cfg.BaseURL.String(), "err", err)
+		log.Warn("passkeys disabled: ANCHOR_BASE_URL must use a domain name", "base_url", cfg.BaseURL.String(), "err", err)
 		wa = nil
 	}
 	s := &Server{

@@ -42,7 +42,7 @@ func idKey(password string, salt []byte, time, memory uint32, threads uint8, key
 
 // dummyHash is verified against when a username does not exist, so a failed
 // login takes the same time either way.
-var dummyHash = HashPassword("burrow-dummy-password")
+var dummyHash = HashPassword("anchor-dummy-password")
 
 func ValidatePassword(p string) error {
 	switch n := utf8.RuneCountInString(p); {

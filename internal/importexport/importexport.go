@@ -1,6 +1,6 @@
 // Package importexport reads and writes bookmark files: the Netscape
 // bookmark HTML that browsers, linkding, Pocket and Pinboard export, and
-// Burrow's own JSON.
+// Anchor's own JSON.
 package importexport
 
 import (
@@ -31,7 +31,7 @@ type Item struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// Parse reads a Netscape HTML or Burrow JSON file, whichever data is.
+// Parse reads a Netscape HTML or Anchor JSON file, whichever data is.
 func Parse(data []byte) ([]Item, error) {
 	trimmed := bytes.TrimLeftFunc(bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF}), unicode.IsSpace) // UTF-8 BOM, whitespace
 	if len(trimmed) > 0 && trimmed[0] == '{' {
@@ -41,7 +41,7 @@ func Parse(data []byte) ([]Item, error) {
 		bytes.Contains(bytes.ToLower(data), []byte("<a ")) {
 		return ParseNetscape(bytes.NewReader(data))
 	}
-	return nil, errors.New("not a bookmark file: expected Netscape bookmark HTML or Burrow JSON")
+	return nil, errors.New("not a bookmark file: expected Netscape bookmark HTML or Anchor JSON")
 }
 
 // Browsers' built-in root folders; turning them into tags would tag almost
@@ -178,7 +178,7 @@ func unixAttr(vals ...string) time.Time {
 	return time.Time{}
 }
 
-// jsonFile is Burrow's JSON export format.
+// jsonFile is Anchor's JSON export format.
 type jsonFile struct {
 	Format     string    `json:"format"`
 	Version    int       `json:"version"`
@@ -186,7 +186,7 @@ type jsonFile struct {
 	Bookmarks  []Item    `json:"bookmarks"`
 }
 
-const jsonFormat = "burrow-bookmarks"
+const jsonFormat = "anchor-bookmarks"
 
 func ParseJSON(data []byte) ([]Item, error) {
 	var f jsonFile
@@ -194,10 +194,10 @@ func ParseJSON(data []byte) ([]Item, error) {
 		return nil, fmt.Errorf("invalid JSON: %w", err)
 	}
 	if f.Format != jsonFormat {
-		return nil, errors.New("not a Burrow JSON export")
+		return nil, errors.New("not an Anchor JSON export")
 	}
 	if f.Version != 1 {
-		return nil, fmt.Errorf("unsupported Burrow JSON version %d", f.Version)
+		return nil, fmt.Errorf("unsupported Anchor JSON version %d", f.Version)
 	}
 	return f.Bookmarks, nil
 }
@@ -254,7 +254,7 @@ type jsonWriter struct {
 	first bool
 }
 
-// NewJSONWriter writes Burrow JSON, which keeps notes and flags too.
+// NewJSONWriter writes Anchor JSON, which keeps notes and flags too.
 func NewJSONWriter(w io.Writer, exportedAt time.Time) (Writer, error) {
 	head, _ := json.Marshal(struct {
 		Format     string    `json:"format"`

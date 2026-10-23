@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/marcelhoffs/burrow/internal/db"
-	"github.com/marcelhoffs/burrow/internal/search"
+	"github.com/marcelhoffs/anchor/internal/db"
+	"github.com/marcelhoffs/anchor/internal/search"
 )
 
 func newTestStore(t *testing.T) *Store {

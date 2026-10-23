@@ -84,7 +84,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestParseRejects(t *testing.T) {
-	for _, bad := range []string{"", "hello", `{"format":"other"}`, `{"format":"burrow-bookmarks","version":9}`} {
+	for _, bad := range []string{"", "hello", `{"format":"other"}`, `{"format":"anchor-bookmarks","version":9}`} {
 		if _, err := Parse([]byte(bad)); err == nil {
 			t.Errorf("Parse(%q) accepted", bad)
 		}

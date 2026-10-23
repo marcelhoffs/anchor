@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/importexport"
+	"github.com/marcelhoffs/anchor/internal/importexport"
 )
 
 func TestTOTPAndRecoveryCodes(t *testing.T) {

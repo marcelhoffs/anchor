@@ -9,7 +9,7 @@ import (
 	"errors"
 )
 
-// Keys derives purpose-specific keys from BURROW_SECRET_KEY, so one leaked
+// Keys derives purpose-specific keys from ANCHOR_SECRET_KEY, so one leaked
 // derived key (or its use in one place) says nothing about the others.
 type Keys struct{ master []byte }
 
@@ -18,7 +18,7 @@ func NewKeys(master []byte) Keys { return Keys{master: master} }
 // Derive returns a 32-byte key for purpose.
 func (k Keys) Derive(purpose string) []byte {
 	m := hmac.New(sha256.New, k.master)
-	m.Write([]byte("burrow/" + purpose))
+	m.Write([]byte("anchor/" + purpose))
 	return m.Sum(nil)
 }
 

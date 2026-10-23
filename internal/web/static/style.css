@@ -180,7 +180,7 @@ form.inline { display: inline; }
 .brand:hover { color: var(--text); }
 /* The app icon in the current accent: <svg class="brand-mark"> from render.go. */
 .brand-mark { flex-shrink: 0; width: 32px; height: 32px; color: var(--on-accent); }
-.brand-mark rect, .brand-mark .eye { fill: var(--accent); }
+.brand-mark rect { fill: var(--accent); }
 .top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
 .nav-link { color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; }
 .nav-link:hover, .nav-link[aria-current="page"] { color: var(--text); }
@@ -286,6 +286,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
 .bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+.bm-more { display: none; flex-shrink: 0; }
 @media (hover: hover) {
   /* On mouse devices, row actions appear on hover or keyboard focus. */
   .bm-actions .icon-btn:not(.on) { opacity: 0; }
@@ -409,6 +410,15 @@ legend { margin-bottom: 8px; padding: 0; font-size: 14px; font-weight: 500; }
 }
 .choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .swatch { width: 20px; height: 20px; border-radius: 999px; }
+/* A dropdown whose options are radios (settings.html). */
+.picker { min-width: 200px; justify-content: space-between; }
+.picker-current { display: flex; align-items: center; gap: 10px; }
+.picker-menu { min-width: 200px; }
+.picker-option { display: flex; align-items: center; gap: 10px; min-height: 38px; margin: 0; padding: 0 10px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; }
+.picker-option:hover { background: var(--raised); }
+.picker-option:has(input:checked) { background: var(--soft); color: var(--soft-text); }
+.picker-option input { position: absolute; opacity: 0; pointer-events: none; }
+.picker-option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* A tiny page sketch: the narrow bar is the sidebar. */
 .layout-icon { width: 26px; height: 20px; border: 1.5px solid var(--muted); border-radius: 4px; position: relative; }
 .layout-icon::after { content: ""; position: absolute; top: 2px; bottom: 2px; width: 6px; border-radius: 1px; background: var(--accent); }
@@ -453,12 +463,14 @@ td.actions { text-align: right; white-space: nowrap; }
   .tooltip { left: 0; width: auto; }
   .search { gap: 8px; padding-left: 12px; }
   .card { padding: 20px; }
-  .bookmark { flex-wrap: wrap; padding: 14px 8px 6px 14px; gap: 4px 12px; }
-  .bm-body { flex-basis: calc(100% - 52px); }
-  .avatar { width: 34px; height: 34px; }
-  /* Actions get their own row under the text, so titles keep the width. */
-  .bm-actions { flex-basis: 100%; justify-content: flex-end; }
-  .bm-actions .icon-btn:not(.on) { opacity: 1; }
+  .bookmark { padding: 10px 4px 10px 12px; gap: 10px; }
+  .avatar { width: 32px; height: 32px; margin-top: 0; }
+  .avatar.favicon { padding: 6px; }
+  .bm-body { gap: 2px; }
+  .bm-meta { margin-top: 1px; }
+  /* The actions fold into a menu beside the title, so rows stay short. */
+  .bm-actions { display: none; }
+  .bm-more { display: inline-flex; width: 36px; height: 36px; margin-top: -2px; }
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .top .btn-primary { width: 40px; padding: 0; }

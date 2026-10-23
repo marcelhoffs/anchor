@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/fetch"
-	"github.com/marcelhoffs/burrow/internal/store"
+	"github.com/marcelhoffs/anchor/internal/fetch"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 const (

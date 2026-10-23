@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/search"
+	"github.com/marcelhoffs/anchor/internal/search"
 )
 
 func TestSaveFetchFillsOnlyEmptyFields(t *testing.T) {

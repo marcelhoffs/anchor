@@ -1,4 +1,4 @@
-// Package db opens Burrow's SQLite database and applies migrations.
+// Package db opens Anchor's SQLite database and applies migrations.
 package db
 
 import (

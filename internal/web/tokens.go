@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/auth"
 )
 
-// apiTokenPrefix marks Burrow tokens, so secret scanners can recognise them.
+// apiTokenPrefix marks Anchor tokens, so secret scanners can recognise them.
 const apiTokenPrefix = "brw_"
 
 func (s *Server) tokens(w http.ResponseWriter, r *http.Request) {

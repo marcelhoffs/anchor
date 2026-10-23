@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/marcelhoffs/burrow/internal/importexport"
+	"github.com/marcelhoffs/anchor/internal/importexport"
 )
 
 // Job kinds.

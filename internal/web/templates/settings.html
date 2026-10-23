@@ -11,9 +11,15 @@
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
         <legend>Accent colour</legend>
-        <div class="choices">
+        {{/* A dropdown of radios, so each option can show its swatch.
+           picker.js shows the new choice on the button. */}}
+        <button type="button" class="btn picker" popovertarget="accent-menu">
+          {{range .Accents}}{{if eq $.Prefs.Accent .Value}}<span class="picker-current"><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</span>{{end}}{{end}}
+          {{icon "chevron-down" "sm"}}
+        </button>
+        <div id="accent-menu" class="menu row-menu picker-menu" popover>
           {{range .Accents}}
-          <label class="choice"><input type="radio" name="accent" value="{{.Value}}"{{if eq $.Prefs.Accent .Value}} checked{{end}}><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</label>
+          <label class="picker-option"><input type="radio" name="accent" value="{{.Value}}"{{if eq $.Prefs.Accent .Value}} checked{{end}}><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</label>
           {{end}}
         </div>
       </fieldset>
@@ -66,7 +72,9 @@
   <section aria-labelledby="bookmarklet">
     <h2 id="bookmarklet">Bookmarklet</h2>
     <p class="muted">Drag it to your bookmarks bar, then click it on any page to save that page.</p>
-    <a class="bookmarklet" href="{{.Bookmarklet}}">{{icon "plus" "sm"}}Save to Burrow</a>
+    <a class="bookmarklet" href="{{.Bookmarklet}}">{{icon "plus" "sm"}}Save to Anchor</a>
   </section>
 </div>
 {{end}}
+
+{{define "scripts"}}<script src="{{asset "picker.js"}}"></script>{{end}}

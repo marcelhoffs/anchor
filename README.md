@@ -1,6 +1,6 @@
-# burrow
+# anchor
 
-Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded SQLite database, one Docker volume.
+Anchor is a self-hosted, multi-user bookmark manager: one Go binary, an embedded SQLite database, one Docker volume.
 
 **Status: milestones 1 to 3.**
 
@@ -9,20 +9,20 @@ Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded
 - Bundles (saved searches) in the sidebar, and public read-only links for single bookmarks.
 - Accounts: two-factor authentication (authenticator app, passkeys, recovery codes), API tokens and a REST API.
 - Admin: user management, invites and signup modes, a 2FA policy, rate limits.
-- Import from and export to browsers, linkding, Pocket and Pinboard (Netscape HTML) and Burrow JSON.
+- Import from and export to browsers, linkding, Pocket and Pinboard (Netscape HTML) and Anchor JSON.
 
 ## Run it
 
 ```sh
 cp .env.example .env
-sed -i "s|^BURROW_SECRET_KEY=.*|BURROW_SECRET_KEY=$(openssl rand -base64 32)|" .env
-# edit BURROW_BASE_URL in .env
+sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
+# edit ANCHOR_BASE_URL in .env
 docker compose up -d
 ```
 
-Open `BURROW_BASE_URL` and create the first (admin) account on the setup page, or seed it with `BURROW_ADMIN_USER` / `BURROW_ADMIN_PASSWORD`.
+Open `ANCHOR_BASE_URL` and create the first (admin) account on the setup page, or seed it with `ANCHOR_ADMIN_USER` / `ANCHOR_ADMIN_PASSWORD`.
 
-Passkeys need `BURROW_BASE_URL` to use a domain name over HTTPS (browsers refuse them on IP addresses and plain HTTP). Reached any other way, Burrow runs without passkeys; authenticator apps and recovery codes still work.
+Passkeys need `ANCHOR_BASE_URL` to use a domain name over HTTPS (browsers refuse them on IP addresses and plain HTTP). Reached any other way, Anchor runs without passkeys; authenticator apps and recovery codes still work.
 
 ## Search syntax
 
@@ -59,43 +59,43 @@ JSON under `/api/v1`, authenticated with a personal token (Settings → API toke
 | GET | `/api/v1/user` | The token's user |
 
 ```sh
-curl -H "Authorization: Bearer $TOKEN" -d '{"url":"https://go.dev","tags":["go"]}' https://burrow.example.com/api/v1/bookmarks
+curl -H "Authorization: Bearer $TOKEN" -d '{"url":"https://go.dev","tags":["go"]}' https://anchor.example.com/api/v1/bookmarks
 ```
 
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `BURROW_BASE_URL` | required | Public URL; `https` turns on Secure `__Host-` cookies and HSTS, a domain name enables passkeys |
-| `BURROW_SECRET_KEY` | required | 32+ random bytes, base64; encrypts TOTP secrets, signs CSRF tokens |
-| `BURROW_DATA_DIR` | `/data` | Database location |
-| `BURROW_LISTEN` | `:8080` | Bind address |
-| `BURROW_SIGNUP` | admin's choice (`closed`) | `closed` / `invite` / `open`; when set, overrides the admin page |
-| `BURROW_REQUIRE_2FA` | admin's choice (`false`) | Require 2FA for everyone; when set, overrides the admin page |
-| `BURROW_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is honoured |
-| `BURROW_FETCH` | `public` | Fetch page details from public addresses only; `all` also allows your own network (loopback, private, Tailscale ranges); `off` disables fetching |
-| `BURROW_FAVICON_FALLBACK` | `off` | `duckduckgo`, `google` or both (`duckduckgo,google`, asked in that order): when a site serves no icon (or blocks Burrow), ask a public icon service, for the host and then its main domain. The service learns the domain, never the full link. Switching it on fetches icons again for bookmarks that have none |
-| `BURROW_LOG_LEVEL` | `info` | `debug` / `info` / `warn` |
-| `BURROW_ADMIN_USER`, `BURROW_ADMIN_PASSWORD` | empty | Create the first admin on an empty database |
+| `ANCHOR_BASE_URL` | required | Public URL; `https` turns on Secure `__Host-` cookies and HSTS, a domain name enables passkeys |
+| `ANCHOR_SECRET_KEY` | required | 32+ random bytes, base64; encrypts TOTP secrets, signs CSRF tokens |
+| `ANCHOR_DATA_DIR` | `/data` | Database location |
+| `ANCHOR_LISTEN` | `:8080` | Bind address |
+| `ANCHOR_SIGNUP` | admin's choice (`closed`) | `closed` / `invite` / `open`; when set, overrides the admin page |
+| `ANCHOR_REQUIRE_2FA` | admin's choice (`false`) | Require 2FA for everyone; when set, overrides the admin page |
+| `ANCHOR_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is honoured |
+| `ANCHOR_FETCH` | `public` | Fetch page details from public addresses only; `all` also allows your own network (loopback, private, Tailscale ranges); `off` disables fetching |
+| `ANCHOR_FAVICON_FALLBACK` | `off` | `duckduckgo`, `google` or both (`duckduckgo,google`, asked in that order): when a site serves no icon (or blocks Anchor), ask a public icon service, for the host and then its main domain. The service learns the domain, never the full link. Switching it on fetches icons again for bookmarks that have none |
+| `ANCHOR_LOG_LEVEL` | `info` | `debug` / `info` / `warn` |
+| `ANCHOR_ADMIN_USER`, `ANCHOR_ADMIN_PASSWORD` | empty | Create the first admin on an empty database |
 
-Keep `BURROW_SECRET_KEY` safe and stable: changing it makes existing authenticator-app setups unreadable (users then need a recovery code, or an admin's 2FA reset).
+Keep `ANCHOR_SECRET_KEY` safe and stable: changing it makes existing authenticator-app setups unreadable (users then need a recovery code, or an admin's 2FA reset).
 
 ## Operations
 
 ```sh
-docker exec burrow /burrow user create alice           # prints a generated password
-echo 'pw' | docker exec -i burrow /burrow user create bob --password-stdin
-docker exec burrow /burrow user reset-password alice   # also signs out all sessions
-docker exec burrow /burrow user reset-2fa alice        # lost device: removes all second factors
-docker exec burrow /burrow backup /data/backups/now.db # consistent while running
+docker exec anchor /anchor user create alice           # prints a generated password
+echo 'pw' | docker exec -i anchor /anchor user create bob --password-stdin
+docker exec anchor /anchor user reset-password alice   # also signs out all sessions
+docker exec anchor /anchor user reset-2fa alice        # lost device: removes all second factors
+docker exec anchor /anchor backup /data/backups/now.db # consistent while running
 ```
 
-Never copy `burrow.db` on its own while Burrow is running: the `-wal` file holds recent writes. Use `burrow backup`.
+Never copy `anchor.db` on its own while Anchor is running: the `-wal` file holds recent writes. Use `anchor backup`.
 
 ## Develop
 
 ```sh
 go test ./...
-BURROW_DATA_DIR=./data BURROW_BASE_URL=http://localhost:8080 \
-BURROW_SECRET_KEY=$(openssl rand -base64 32) go run ./cmd/burrow serve
+ANCHOR_DATA_DIR=./data ANCHOR_BASE_URL=http://localhost:8080 \
+ANCHOR_SECRET_KEY=$(openssl rand -base64 32) go run ./cmd/anchor serve
 ```
