@@ -235,7 +235,7 @@ func TestBookmarkFlow(t *testing.T) {
 		t.Fatalf("create: %d %q", code, loc)
 	}
 	_, body, _ := c.get("/")
-	if !strings.Contains(body, "Go docs &lt;script&gt;") || !strings.Contains(body, "#reading") {
+	if !strings.Contains(body, "Go docs &lt;script&gt;") || !strings.Contains(body, ">reading</a>") {
 		t.Fatalf("list missing bookmark or not escaped:\n%s", body)
 	}
 	_, body, _ = c.get("/?q=" + url.QueryEscape("#go docs"))
@@ -630,12 +630,28 @@ func TestPagination(t *testing.T) {
 
 func TestPagerLinks(t *testing.T) {
 	pageURL := func(n int) string { return strconv.Itoa(n) }
-	var got []int
+	var got, far []int
 	for _, l := range newPager(6, 20, 1000, pageURL).Links {
 		got = append(got, l.Num)
+		if l.Far {
+			far = append(far, l.Num)
+		}
 	}
 	if want := []int{1, 0, 4, 5, 6, 7, 8, 0, 20}; !slices.Equal(got, want) {
 		t.Fatalf("links = %v, want %v", got, want)
+	}
+	if want := []int{4, 8}; !slices.Equal(far, want) {
+		t.Fatalf("far links = %v, want %v", far, want)
+	}
+	// Page 2 sits beside page 1, so hiding it would leave a hole.
+	far = nil
+	for _, l := range newPager(4, 20, 1000, pageURL).Links {
+		if l.Far {
+			far = append(far, l.Num)
+		}
+	}
+	if want := []int{6}; !slices.Equal(far, want) {
+		t.Fatalf("far links on page 4 = %v, want %v", far, want)
 	}
 }
 
@@ -752,7 +768,7 @@ func TestTagsMustBeCreatedFirst(t *testing.T) {
 		t.Fatal("tag link isn't a quoted search")
 	}
 	_, body, _ = c.get(link)
-	if !strings.Contains(body, "<h1># home lab</h1>") || !strings.Contains(body, ">A</a>") {
+	if !strings.Contains(body, "<h1>home lab</h1>") || !strings.Contains(body, ">A</a>") {
 		t.Fatal("spaced tag view")
 	}
 	if _, body, _ := c.get("/bookmarks/1/edit"); !strings.Contains(body, `value="go, home lab"`) {

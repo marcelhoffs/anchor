@@ -73,10 +73,6 @@
         li.id = list.id + "-" + i;
         li.setAttribute("role", "option");
         li.setAttribute("aria-selected", "false");
-        var hash = document.createElement("span");
-        hash.className = "hash";
-        hash.textContent = "#";
-        li.appendChild(hash);
         li.appendChild(document.createTextNode(t));
         // mousedown, not click: keep focus in the input.
         li.addEventListener("mousedown", function (e) {

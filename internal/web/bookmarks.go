@@ -82,10 +82,12 @@ type pageLink struct {
 	Num     int
 	URL     string
 	Current bool
+	Far     bool // two from the current page, hidden on phones
 }
 
 // newPager links the first and last page and those within two of the
-// current one, with gaps for the rest.
+// current one, with gaps for the rest. Phones drop the links two away
+// unless that would leave a page out beside the first or last one.
 func newPager(page, pages, total int, pageURL func(int) string) pager {
 	p := pager{From: (page-1)*pageSize + 1, To: min(page*pageSize, total), Total: total}
 	if page > 1 {
@@ -97,7 +99,8 @@ func newPager(page, pages, total int, pageURL func(int) string) pager {
 	for n := 1; n <= pages; n++ {
 		switch {
 		case n == 1 || n == pages || (n >= page-2 && n <= page+2):
-			p.Links = append(p.Links, pageLink{Num: n, URL: pageURL(n), Current: n == page})
+			far := (n == page-2 || n == page+2) && n > 2 && n < pages-1
+			p.Links = append(p.Links, pageLink{Num: n, URL: pageURL(n), Current: n == page, Far: far})
 		case p.Links[len(p.Links)-1].Num != 0:
 			p.Links = append(p.Links, pageLink{})
 		}
@@ -118,7 +121,7 @@ func listView(q string, bundles []store.Bundle) (view, heading string) {
 		return "archive", "Archive"
 	}
 	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
-		return "#" + p.Tags[0], "# " + p.Tags[0] // as the sidebar shows it
+		return "#" + p.Tags[0], p.Tags[0]
 	}
 	for _, b := range bundles {
 		if b.Query == q {
