@@ -120,6 +120,14 @@ body {
   font-feature-settings: "cv11";
   -webkit-font-smoothing: antialiased;
 }
+/* The icon sprite in each page (see iconSprite in render.go). */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+/* Moving between pages keeps the old one up until the new one is ready,
+   then fades across, instead of blanking. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-group(root) { animation-duration: 150ms; }
+}
 a { color: var(--accent-text); text-underline-offset: 3px; }
 a:hover { color: var(--accent-text-hover); }
 h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.015em; }
