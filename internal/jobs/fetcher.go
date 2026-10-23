@@ -89,6 +89,12 @@ func (f *Fetcher) RunOnce(ctx context.Context) bool {
 func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchResult {
 	r := store.FetchResult{Status: store.FetchDone}
 	m, err := f.client.Page(ctx, it.URL)
+	if m.FinalURL != "" && !fetch.SameSite(it.URL, m.FinalURL) {
+		// Redirected to another site, typically a cookie-consent wall: its
+		// title and icon aren't this site's. The icon comes from it.URL.
+		f.log.Debug("fetch page: redirected to another site", "bookmark", it.ID, "to", m.FinalURL)
+		m = fetch.Meta{}
+	}
 	if err != nil {
 		r.Status = store.FetchFailed
 		f.log.Debug("fetch page", "bookmark", it.ID, "err", err)

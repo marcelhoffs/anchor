@@ -21,6 +21,7 @@ import (
 
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
+	"golang.org/x/net/publicsuffix"
 )
 
 const (
@@ -194,13 +195,18 @@ loop:
 }
 
 // Icon downloads an icon, accepting only common raster formats (sniffed, not
-// trusted from the header). SVG is refused: it can carry scripts.
+// trusted from the header). SVG is refused: it can carry scripts. An icon
+// URL that redirects to another site (a cookie-consent wall, say) is refused
+// too; icons a page links to on another site directly are fine.
 func (c *Client) Icon(ctx context.Context, rawURL string) (mime string, data []byte, err error) {
 	res, err := c.get(ctx, rawURL, "image/*")
 	if err != nil {
 		return "", nil, err
 	}
 	defer res.Body.Close()
+	if !SameSite(rawURL, res.Request.URL.String()) {
+		return "", nil, fmt.Errorf("redirected to another site (%s)", res.Request.URL.Host)
+	}
 	if res.StatusCode != http.StatusOK {
 		return "", nil, fmt.Errorf("status %d", res.StatusCode)
 	}
@@ -265,6 +271,29 @@ func cmpOr(a, b string) string {
 		return a
 	}
 	return b
+}
+
+// SameSite reports whether two URLs are on the same site: the same
+// registrable domain, so www.ad.nl and statics.ad.nl match but
+// myprivacy.dpgmedia.nl doesn't.
+func SameSite(a, b string) bool {
+	sa, sb := site(a), site(b)
+	return sa != "" && sa == sb
+}
+
+func site(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(u.Hostname())
+	if _, err := netip.ParseAddr(host); err == nil {
+		return host
+	}
+	if d, err := publicsuffix.EffectiveTLDPlusOne(host); err == nil {
+		return d
+	}
+	return host
 }
 
 // DefaultIcon is where a site's icon lives when the page doesn't say.

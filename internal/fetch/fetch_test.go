@@ -107,3 +107,23 @@ func TestPageAndIcon(t *testing.T) {
 		t.Fatal("non-http URL fetched")
 	}
 }
+
+func TestSameSite(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{
+		{"https://www.ad.nl/", "https://statics.ad.nl/img/favicon.ico", true},
+		{"http://ad.nl/x", "https://www.ad.nl/y", true},
+		{"https://www.ad.nl/", "https://myprivacy.dpgmedia.nl/consent", false},
+		{"https://www.bbc.co.uk/", "https://news.bbc.co.uk/", true},
+		{"https://a.co.uk/", "https://b.co.uk/", false},
+		{"http://127.0.0.1:1/", "http://127.0.0.1:2/", true},
+		{"http://127.0.0.1/", "http://localhost/", false},
+		{"not a url", "not a url", false},
+	} {
+		if got := SameSite(c.a, c.b); got != c.want {
+			t.Errorf("SameSite(%q, %q) = %v, want %v", c.a, c.b, got, c.want)
+		}
+	}
+}

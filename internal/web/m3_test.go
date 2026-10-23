@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/marcelhoffs/burrow/internal/fetch"
 	"github.com/marcelhoffs/burrow/internal/store"
 )
 
@@ -180,5 +181,55 @@ func TestBundlesFlow(t *testing.T) {
 	}
 	if _, body, _ := c.get("/"); strings.Contains(body, `aria-label="Bundles"`) {
 		t.Fatal("empty bundles section shown")
+	}
+}
+
+// A page that redirects to another site (a cookie-consent wall) must not
+// lend the bookmark that site's title or icon.
+func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	consentIcon := "\x89PNG\r\n\x1a\n" + strings.Repeat("\x02", 40)
+	siteIcon := "\x89PNG\r\n\x1a\n" + strings.Repeat("\x03", 40)
+	consent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/favicon.ico" {
+			w.Write([]byte(consentIcon))
+			return
+		}
+		w.Header().Set("Content-Type", "text/html")
+		w.Write([]byte("<title>Privacy Gate</title>"))
+	}))
+	t.Cleanup(consent.Close)
+	// The consent server is reached as "localhost", the site as 127.0.0.1:
+	// two different sites.
+	consentURL := strings.Replace(consent.URL, "127.0.0.1", "localhost", 1)
+	site := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/favicon.ico":
+			w.Write([]byte(siteIcon))
+		case "/old-icon.ico":
+			http.Redirect(w, r, consentURL+"/favicon.ico", http.StatusFound)
+		default:
+			http.Redirect(w, r, consentURL+"/", http.StatusFound)
+		}
+	}))
+	t.Cleanup(site.Close)
+
+	c.post("/bookmarks", url.Values{"url": {site.URL + "/news"}})
+	for e.fetcher.RunOnce(context.Background()) {
+	}
+	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
+	if b.Title != "" {
+		t.Fatalf("took the consent page's title: %q", b.Title)
+	}
+	_, img, err := e.store.Favicon(context.Background(), e.userID("alice"), b.FaviconID)
+	if err != nil || string(img) != siteIcon {
+		t.Fatalf("icon = %q, %v; want the site's own", img, err)
+	}
+
+	// An icon URL that redirects to another site is refused.
+	if _, _, err := fetch.New(true).Icon(context.Background(), site.URL+"/old-icon.ico"); err == nil {
+		t.Fatal("cross-site icon redirect accepted")
 	}
 }
