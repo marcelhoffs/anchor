@@ -1,6 +1,6 @@
 -- Spaces: bookmarks, tags and bundles now belong to a space instead of a
--- user. Every user has a personal space; organizations are spaces with
--- several members. space_members says who may do what in each.
+-- user. Every user has a personal space; shared spaces have several
+-- members. space_members says who may do what in each.
 --
 -- Bookmarks, tags, their links, bundles and the search index are recreated
 -- empty rather than converted: Anchor is still in development, and the
@@ -9,8 +9,8 @@
 -- +goose Up
 CREATE TABLE spaces (
   id          INTEGER PRIMARY KEY,
-  personal_of INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE, -- NULL = an organization
-  name        TEXT NOT NULL DEFAULT '',                              -- organizations only
+  personal_of INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE, -- NULL = a shared space
+  name        TEXT NOT NULL DEFAULT '',                              -- shared spaces only
   created_at  INTEGER NOT NULL
 );
 

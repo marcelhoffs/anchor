@@ -46,6 +46,18 @@ var funcs = template.FuncMap{
 	"icon":       icon,
 	"initial":    initial,
 	"bytes":      humanBytes,
+	"roleLabel":  roleLabel,
+}
+
+// roleLabel names a space role for people.
+func roleLabel(r store.Role) string {
+	switch r {
+	case store.RoleOwner:
+		return "Owner"
+	case store.RoleWrite:
+		return "Can edit"
+	}
+	return "Read only"
 }
 
 func humanBytes(n int64) string {

@@ -1,5 +1,5 @@
 // Package store is Anchor's data access layer. Bookmarks, tags and bundles
-// live in spaces (a user's personal space, or an organization's), and every
+// live in spaces (a user's personal space, or a shared one), and every
 // method that touches them takes a Scope, which only Access and its siblings
 // hand out after checking the user is a member; writes also check the
 // member's role. Account data (sessions, tokens, second factors) is filtered

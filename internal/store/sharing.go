@@ -31,8 +31,8 @@ func (s *Store) SetShared(ctx context.Context, sc Scope, id int64, on bool) erro
 }
 
 // SharedBookmark returns the bookmark behind a public link. A personal
-// bookmark's link works while its owner's account is active; an
-// organization's, while the organization exists.
+// bookmark's link works while its owner's account is active; a shared
+// space's, while the space exists.
 func (s *Store) SharedBookmark(ctx context.Context, token string) (Bookmark, error) {
 	if token == "" {
 		return Bookmark{}, ErrNotFound

@@ -22,6 +22,7 @@
       <div class="menu">
         <a href="/settings">{{icon "settings" "sm"}}Settings</a>
         <a href="/settings/security">{{icon "shield" "sm"}}Security</a>
+        <a href="/spaces">{{icon "space" "sm"}}Spaces</a>
         {{if .User.IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}Admin</a>{{end}}
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">

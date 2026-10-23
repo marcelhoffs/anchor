@@ -28,9 +28,18 @@
       <span class="hint">Users without it are sent to set it up the next time they use Anchor.</span>
     </section>
 
-    {{if not (and .SignupFromEnv .Require2FAFromEnv)}}
+    <section aria-labelledby="spaces">
+      <h2 id="spaces">Spaces</h2>
+      <fieldset>
+        <legend class="visually-hidden">Who can create shared spaces</legend>
+        <label class="option"><input type="radio" name="space_creation" value="everyone"{{if ne .SpaceCreation "admins"}} checked{{end}}>
+          <span><strong>Everyone</strong><span class="hint">Any user can create a shared space and add others to it.</span></span></label>
+        <label class="option"><input type="radio" name="space_creation" value="admins"{{if eq .SpaceCreation "admins"}} checked{{end}}>
+          <span><strong>Admins only</strong><span class="hint">Only admins create spaces; they can then make someone else the owner.</span></span></label>
+      </fieldset>
+    </section>
+
     <div class="form-actions"><button class="btn btn-primary">Save</button></div>
-    {{end}}
   </form>
 </div>
 {{end}}

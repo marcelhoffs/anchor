@@ -1,0 +1,85 @@
+{{define "title"}}{{.Space.Name}} · Spaces{{end}}
+{{define "content"}}
+<div class="card wide-card">
+  <p class="back-link"><a href="/spaces">Spaces</a></p>
+  <h1>{{.Space.Name}}</h1>
+  <p class="muted intro">{{count .Space.Members "member"}} · {{count .Space.Bookmarks "bookmark"}} · You {{if .IsOwner}}own it{{else if eq .Space.Role "write"}}can edit{{else}}can only read{{end}}</p>
+
+  {{if .IsOwner}}
+  <section aria-labelledby="space-name">
+    <h2 id="space-name">Name</h2>
+    <form method="post" action="/spaces/{{.Space.ID}}/rename" class="row-wrap new-tag">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label class="visually-hidden" for="name">Space name</label>
+      <input id="name" name="name" required maxlength="100" value="{{.Space.Name}}">
+      <button class="btn">Rename</button>
+    </form>
+  </section>
+  {{end}}
+
+  <section aria-labelledby="members">
+    <h2 id="members">Members</h2>
+    {{if .IsOwner}}
+    <p class="muted">Members who can edit add, change and delete the space's bookmarks and tags. Read-only members can only look.</p>
+    <form method="post" action="/spaces/{{.Space.ID}}/members" class="row-wrap add-member">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <label class="visually-hidden" for="username">Username</label>
+      <input id="username" name="username" required maxlength="64" placeholder="Username" autocapitalize="none" spellcheck="false">
+      <label class="visually-hidden" for="role">Role</label>
+      <select id="role" name="role">
+        <option value="write">Can edit</option>
+        <option value="read">Read only</option>
+      </select>
+      <button class="btn btn-primary">{{icon "plus" "sm"}}Add member</button>
+    </form>
+    {{end}}
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">Member</th><th scope="col">Role</th><th scope="col" class="hide-sm">Added</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <tbody>
+      {{range .Members}}
+        <tr>
+          <td><strong>{{.Username}}</strong>{{if eq .UserID $.User.ID}} <span class="badge">You</span>{{end}}{{if not .IsActive}} <span class="badge danger">Disabled</span>{{end}}</td>
+          <td>{{roleLabel .Role}}</td>
+          <td class="hide-sm">{{ago .AddedAt}}</td>
+          <td class="actions">
+            {{if and $.IsOwner (ne .Role "owner")}}
+            <button type="button" class="link-btn" popovertarget="member-menu-{{.UserID}}">Manage</button>
+            <div id="member-menu-{{.UserID}}" class="menu row-menu" popover>
+              <p class="menu-title">{{.Username}}</p>
+              {{if eq .Role "read"}}
+              <form method="post" action="/spaces/{{$.Space.ID}}/members/{{.UserID}}/write"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Let them edit</button></form>
+              {{else}}
+              <form method="post" action="/spaces/{{$.Space.ID}}/members/{{.UserID}}/read"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Make read only</button></form>
+              {{end}}
+              <button type="button" popovertarget="owner-{{.UserID}}">Make owner</button>
+              <button type="button" class="danger" popovertarget="remove-{{.UserID}}">Remove from space</button>
+            </div>
+            {{template "confirm" dict "ID" (print "owner-" .UserID) "Title" "Make them the owner?" "Name" .Username
+              "Text" "becomes the owner and manages the space and its members. You stay in it and can still edit." "Action" (print "/spaces/" $.Space.ID "/members/" .UserID "/owner") "Button" "Make owner" "CSRF" $.CSRF}}
+            {{template "confirm" dict "ID" (print "remove-" .UserID) "Title" "Remove this member?" "Name" .Username
+              "Text" "loses access to the space's bookmarks. You can add them again later." "Action" (print "/spaces/" $.Space.ID "/members/" .UserID "/remove") "Button" "Remove" "CSRF" $.CSRF}}
+            {{end}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <div class="danger-zone">
+    {{if .IsOwner}}
+    <p class="muted">To leave, make another member the owner first.</p>
+    <button type="button" class="btn btn-danger" popovertarget="delete-space">{{icon "trash" "sm"}}Delete space</button>
+    {{template "confirm" dict "ID" "delete-space" "Title" "Delete this space?" "Name" .Space.Name
+      "Text" (print "is deleted for every member, with its " (count .Space.Bookmarks "bookmark") ", tags and saved searches. This can't be undone.") "Action" (print "/spaces/" .Space.ID "/delete") "Button" "Delete space" "CSRF" .CSRF}}
+    {{else}}
+    <p class="muted">Owned by {{.Space.Owner}}.</p>
+    <button type="button" class="btn btn-danger" popovertarget="leave-space">{{icon "log-out" "sm"}}Leave space</button>
+    {{template "confirm" dict "ID" "leave-space" "Title" "Leave this space?" "Name" .Space.Name
+      "Text" "and its bookmarks disappear from your account. The owner can add you again." "Action" (print "/spaces/" .Space.ID "/leave") "Button" "Leave" "CSRF" .CSRF}}
+    {{end}}
+  </div>
+</div>
+{{end}}
