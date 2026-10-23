@@ -26,9 +26,9 @@
           <td>{{.CreatedAt.Format "2 Jan 2006"}}</td>
           <td class="actions">
             {{if ne .ID $.User.ID}}
-            <details class="row-menu">
-              <summary class="link-btn">Manage</summary>
-              <div class="menu">
+            <button type="button" class="link-btn" popovertarget="user-menu-{{.ID}}">Manage</button>
+            <div id="user-menu-{{.ID}}" class="menu row-menu" popover>
+                <p class="menu-title">{{.Username}}</p>
                 {{if .IsActive}}
                 <form method="post" action="/admin/users/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Disable account</button></form>
                 {{else}}
@@ -43,8 +43,7 @@
                 {{if or .TOTPEnabled .Passkeys}}
                 <form method="post" action="/admin/users/{{.ID}}/reset-2fa"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger">Reset two-factor</button></form>
                 {{end}}
-              </div>
-            </details>
+            </div>
             {{end}}
           </td>
         </tr>

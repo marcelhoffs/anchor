@@ -12,7 +12,7 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="/"><span class="brand-mark">{{icon "bookmark"}}</span>Burrow</a>
+  <a class="brand" href="/"><img class="brand-mark" src="{{asset "icon.svg"}}" alt="" width="32" height="32">Burrow</a>
   {{if .User}}
   <nav aria-label="Main">
     <a class="nav-link" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>Tags</a>

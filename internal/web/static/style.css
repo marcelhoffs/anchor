@@ -164,11 +164,7 @@ form.inline { display: inline; }
 }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
 .brand:hover { color: var(--text); }
-.brand-mark {
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 9px; background: var(--accent); color: var(--on-accent);
-}
-.brand-mark .icon { fill: currentColor; }
+.brand-mark { flex-shrink: 0; width: 32px; height: 32px; }
 .top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
 .nav-link { color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; }
 .nav-link:hover, .nav-link[aria-current="page"] { color: var(--text); }
@@ -219,22 +215,32 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .side-empty { padding: 0 12px; font-size: 14px; color: var(--muted); }
 
 /* Search */
-.search-row { display: flex; gap: 8px; }
+.search-row { position: relative; display: flex; gap: 8px; }
 .search-row .search { flex-grow: 1; min-width: 0; }
 .tags-btn { display: none; height: 52px; border-radius: 14px; box-shadow: var(--shadow); }
 .search {
   display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 8px 0 16px;
   border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); color: var(--muted);
 }
+.search { position: relative; }
 .search:focus-within { border-color: var(--accent); }
+/* Search syntax help: shown while the ? button is hovered or focused. */
+.search-help { display: flex; }
+.search-help .icon-btn { width: 36px; height: 36px; }
+.tooltip {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; width: min(380px, calc(100vw - 32px)); padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow), 0 16px 40px rgb(0 0 0 / 0.2); font-size: 13px; cursor: default;
+  visibility: hidden; opacity: 0; transition: opacity 120ms, visibility 120ms;
+}
+.search-help:hover .tooltip, .search-help:focus-within .tooltip { visibility: visible; opacity: 1; }
+.tooltip-title { margin-bottom: 10px; font-weight: 600; }
+.tooltip dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; margin: 0; }
+.tooltip dt { white-space: nowrap; }
+.tooltip dd { margin: 0; color: var(--muted); }
+.tooltip-foot { margin-top: 12px; color: var(--muted); }
 .search input { flex-grow: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: none; background: transparent; box-shadow: none; color: var(--text); font: inherit; font-size: 16px; }
 .search .btn { min-height: 36px; }
-.hints { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.chip {
-  display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--surface); color: var(--text); font-family: var(--mono); font-size: 12.5px; text-decoration: none;
-}
-.chip:hover { border-color: var(--accent); color: var(--text); }
 .list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
 
@@ -349,6 +355,18 @@ label { display: block; margin-bottom: 16px; font-size: 14px; font-weight: 500; 
 }
 textarea { resize: vertical; }
 .hint { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; font-weight: 400; }
+.field { margin-bottom: 16px; }
+.field > label { margin-bottom: 0; }
+/* Tag type-ahead (tags.js) */
+.combo { position: relative; }
+.suggestions {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10; max-height: 280px; overflow-y: auto;
+  margin: 0; padding: 6px; list-style: none;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow), 0 12px 32px rgb(0 0 0 / 0.16);
+}
+.suggestions li { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--soft); color: var(--soft-text); }
+.suggestions .hash { color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-narrow { max-width: 400px; }
@@ -410,6 +428,9 @@ td.actions { text-align: right; white-space: nowrap; }
   /* Tags open from the button next to the search box instead. */
   .side-tags { display: none; }
   .tags-btn { display: inline-flex; }
+  /* The search box is narrower here, so the help spans the whole row. */
+  .search { position: static; }
+  .tooltip { left: 0; width: auto; }
   .search { gap: 8px; padding-left: 12px; }
   .card { padding: 20px; }
   .bookmark { flex-wrap: wrap; padding: 14px 8px 6px 14px; gap: 4px 12px; }
@@ -449,6 +470,15 @@ code, .secret { font-family: var(--mono); font-size: 0.92em; padding: 1px 6px; b
 .row-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .row-wrap input:not([type="checkbox"]):not([type="file"]) { flex: 1 1 220px; width: auto; margin-top: 0; }
 .row-wrap label.check { margin: 0; }
+/* A file box with its submit button beside it. */
+.file-row { display: flex; align-items: center; gap: 10px; }
+.file-row input[type="file"] { flex: 1 1 auto; min-width: 0; margin-top: 0; padding: 4px; color: var(--muted); font-size: 14px; cursor: pointer; }
+input[type="file"]::file-selector-button {
+  min-height: 34px; margin-right: 12px; padding: 0 14px; border: 1px solid var(--border); border-radius: calc(var(--radius) - 3px);
+  background: var(--raised); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: border-color 120ms, background-color 120ms;
+}
+input[type="file"]::file-selector-button:hover { border-color: var(--accent); }
 select { display: block; width: 100%; margin-top: 6px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit; }
 fieldset[disabled] { opacity: 0.6; }
 .option { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-weight: 400; }
@@ -495,8 +525,12 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 .stats li { display: flex; flex-direction: column; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); }
 .stat { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stats .muted { font-size: 13px; }
-.row-menu { position: relative; display: inline-block; }
-.row-menu summary { list-style: none; }
-.row-menu summary::-webkit-details-marker { display: none; }
-.row-menu .menu { z-index: 5; text-align: left; }
+/* A table row's action menu is a popover: it sits in the top layer, so the
+   table's scroll box can't clip it. It opens under its button where CSS
+   anchor positioning is supported, and centred otherwise. */
+.row-menu { position: fixed; inset: auto; margin: 4px 0; position-area: bottom span-left; position-try-fallbacks: flip-block; text-align: left; }
+@supports not (position-area: bottom) {
+  .row-menu { inset: 0; height: fit-content; margin: auto; }
+}
+.menu-title { padding: 6px 10px 4px; color: var(--muted); font-size: 12px; font-weight: 600; overflow-wrap: anywhere; }
 .menu .danger { color: var(--danger); }
