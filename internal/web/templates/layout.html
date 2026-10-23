@@ -62,7 +62,7 @@
 {{template "content" .}}
 </main>
 <footer class="foot">
-  Anchor is free software under the <a href="{{sourceURL}}/blob/main/LICENSE" rel="license">AGPL-3.0</a> · <a href="{{sourceURL}}">Source code</a>
+  Anchor {{with releaseURL}}<a href="{{.}}">{{version}}</a>{{else}}{{version}}{{end}} is free software under the <a href="{{sourceURL}}/blob/main/LICENSE" rel="license">AGPL-3.0</a> · <a href="{{sourceURL}}">Source code</a>
 </footer>
 {{if .User}}<script src="{{asset "menus.js"}}"></script>{{end}}
 {{block "scripts" .}}{{end}}

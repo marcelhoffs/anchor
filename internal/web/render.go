@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -31,8 +32,27 @@ type pageTemplate = *template.Template
 // its users: a fork points this at its own repository.
 const sourceURL = "https://github.com/marcelhoffs/anchor"
 
+// Version is the release tag Anchor was built from, set at build time with
+// -ldflags "-X github.com/marcelhoffs/anchor/internal/web.Version=v1.2.3".
+var Version = "dev"
+
+// untagged matches what git describe adds to a build between releases
+// (v1.2.3-4-gabc1234, maybe -dirty): such a version has no release page.
+var untagged = regexp.MustCompile(`-[0-9]+-g[0-9a-f]+(-dirty)?$|-dirty$`)
+
+// releaseURL is the GitHub release page of the running version, or "" when
+// it isn't a release.
+func releaseURL() string {
+	if Version == "dev" || untagged.MatchString(Version) {
+		return ""
+	}
+	return sourceURL + "/releases/tag/" + url.PathEscape(Version)
+}
+
 var funcs = template.FuncMap{
 	"sourceURL":  func() string { return sourceURL },
+	"version":    func() string { return Version },
+	"releaseURL": releaseURL,
 	"ago":        ago,
 	"count":      count,
 	"tagURL":     func(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) },
