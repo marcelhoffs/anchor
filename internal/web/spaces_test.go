@@ -197,3 +197,31 @@ func TestSpaceSwitcher(t *testing.T) {
 		t.Fatalf("switched to a space after removal: %d", code)
 	}
 }
+
+func TestMemberSuggestions(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	for _, n := range []string{"alice", "bob", "albert", "malia", "alfred"} {
+		e.user(n)
+	}
+	alice, bob := e.login("alice"), e.login("bob")
+	sp, _ := e.store.CreateSpace(ctx, e.userID("alice"), "Team")
+	e.store.AddMember(ctx, sp, "alfred", "read")
+	path := spaceURL(sp.SpaceID()) + "/members/suggest?q="
+
+	// Names containing the text, those starting with it first; members left out.
+	if code, body, _ := alice.get(path + "AL"); code != http.StatusOK || strings.TrimSpace(body) != `["albert","malia"]` {
+		t.Fatalf("suggestions: %d %s", code, body)
+	}
+	if _, body, _ := alice.get(path); strings.TrimSpace(body) != `[]` {
+		t.Fatalf("empty query: %s", body)
+	}
+	// Only the owner gets them; outsiders don't learn the space exists.
+	e.store.AddMember(ctx, sp, "bob", "write")
+	if code, _, _ := bob.get(path + "al"); code != http.StatusForbidden {
+		t.Fatalf("editor got suggestions: %d", code)
+	}
+	if code, _, _ := e.login("albert").get(path + "al"); code != http.StatusNotFound {
+		t.Fatalf("outsider got suggestions: %d", code)
+	}
+}

@@ -24,7 +24,12 @@
     <form method="post" action="/spaces/{{.Space.ID}}/members" class="row-wrap add-member">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <label class="visually-hidden" for="username">Username</label>
-      <input id="username" name="username" required maxlength="64" placeholder="Username" autocapitalize="none" spellcheck="false">
+      <div class="combo">
+        <input id="username" name="username" required maxlength="64" placeholder="Username" autocapitalize="none" spellcheck="false"
+          autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="user-suggestions"
+          data-suggest="/spaces/{{.Space.ID}}/members/suggest">
+        <ul id="user-suggestions" class="suggestions" role="listbox" aria-label="Matching users" hidden></ul>
+      </div>
       <label class="visually-hidden" for="role">Role</label>
       <select id="role" name="role">
         <option value="write">Can edit</option>
@@ -83,3 +88,4 @@
   </div>
 </div>
 {{end}}
+{{define "scripts"}}<script src="{{asset "users.js"}}"></script>{{end}}

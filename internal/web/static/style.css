@@ -596,3 +596,5 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 .back-link { margin: 0 0 6px; font-size: 14px; }
 .add-member { margin: 12px 0 16px; }
 .add-member select { width: auto; margin-top: 0; }
+.add-member .combo { flex: 1 1 220px; }
+.add-member .combo input { width: 100%; margin-top: 0; }

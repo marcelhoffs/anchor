@@ -1,6 +1,7 @@
 package web
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 
@@ -147,6 +148,25 @@ func (s *Server) addMember(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.store.AddMember(r.Context(), sc, r.PostFormValue("username"), store.Role(r.PostFormValue("role")))
 	s.spaceDone(w, r, sc, err, "added")
+}
+
+// memberSuggestions answers the add-member field's type-ahead with JSON:
+// usernames matching ?q= that aren't in the space yet. Owners only.
+func (s *Server) memberSuggestions(w http.ResponseWriter, r *http.Request) {
+	sc, ok := s.sharedScope(w, r)
+	if !ok {
+		return
+	}
+	names, err := s.store.SuggestMembers(r.Context(), sc, r.URL.Query().Get("q"))
+	if !s.storeError(w, r, err) {
+		return
+	}
+	if names == nil {
+		names = []string{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(names)
 }
 
 func memberParam(r *http.Request) (int64, bool) {
