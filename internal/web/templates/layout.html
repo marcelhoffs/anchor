@@ -37,6 +37,9 @@
 {{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
 {{template "content" .}}
 </main>
+<footer class="foot">
+  Anchor is free software under the <a href="{{sourceURL}}/blob/main/LICENSE" rel="license">AGPL-3.0</a> · <a href="{{sourceURL}}">Source code</a>
+</footer>
 {{block "scripts" .}}{{end}}
 </body>
 </html>

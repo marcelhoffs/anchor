@@ -777,3 +777,13 @@ func TestTagsMustBeCreatedFirst(t *testing.T) {
 		t.Fatalf("api create with tag: %d", code)
 	}
 }
+
+func TestFooterLinksSource(t *testing.T) {
+	e := newEnv(t)
+	// Every page offers the source, signed in or not (AGPL section 13).
+	for path, c := range map[string]*client{"/login": e.client(), "/": e.admin()} {
+		if _, body, _ := c.get(path); !strings.Contains(body, `href="`+sourceURL+`"`) {
+			t.Fatalf("%s: no source code link in the footer", path)
+		}
+	}
+}

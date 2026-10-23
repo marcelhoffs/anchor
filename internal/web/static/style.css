@@ -209,6 +209,9 @@ form.inline { display: inline; }
 
 /* Page layout */
 main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
+.foot { max-width: 1200px; margin: -24px auto 0; padding: 0 24px 32px; color: var(--muted); font-size: 13px; text-align: center; }
+.foot a { color: inherit; }
+.foot a:hover { color: var(--text); }
 .columns { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 32px; }
 .sidebar { flex: 1 1 200px; max-width: 240px; display: flex; flex-direction: column; gap: 2px; }
 /* Sidebar on the right: same markup (navigation first for keyboard and
