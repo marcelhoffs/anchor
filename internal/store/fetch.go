@@ -75,6 +75,16 @@ func (s *Store) Refetch(ctx context.Context, userID, id int64) error {
 	return nil
 }
 
+// RequeueIconless queues every bookmark that has no icon to be fetched again.
+func (s *Store) RequeueIconless(ctx context.Context) (int64, error) {
+	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET fetch_status = ? WHERE favicon_id IS NULL AND fetch_status != ?",
+		FetchPending, FetchPending)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
 // FaviconForDomain returns the stored icon for domain if it was fetched
 // after since; ErrNotFound otherwise.
 func (s *Store) FaviconForDomain(ctx context.Context, domain string, since time.Time) (int64, error) {

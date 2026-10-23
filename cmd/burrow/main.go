@@ -123,6 +123,7 @@ func serve(ctx context.Context) error {
 	worker := jobs.NewWorker(st, log)
 	go worker.Run(ctx)
 	fetcher := jobs.NewFetcher(st, fetch.New(cfg.Fetch == "all"), log)
+	fetcher.IconService = cfg.IconFallback
 	if cfg.Fetch != "off" {
 		go fetcher.Run(ctx)
 	}
