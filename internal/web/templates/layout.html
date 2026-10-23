@@ -19,7 +19,7 @@
        an icon-only square, its label kept for screen readers. */}}
     {{/* Always there: in a space you only read, it saves to your personal one. */}}
     <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>
-    <a class="top-ctl" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>{{icon "hash" "sm"}}<span class="label-sm">Tags</span></a>
+    <a class="top-ctl" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>{{icon "tag" "sm"}}<span class="label-sm">Tags</span></a>
     {{with .Nav}}{{if .Spaces}}
     <details class="top-menu space-menu">
       <summary class="top-ctl" aria-label="Space: {{.Name}}">{{icon "space" "sm"}}<span class="label-sm space-name">{{.Name}}</span>{{icon "chevron-down" "sm chev"}}</summary>

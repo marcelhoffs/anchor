@@ -49,7 +49,7 @@
       </div>
       <button class="btn search-btn">{{icon "search" "sm"}}<span class="label-sm">Search</span></button>
     </form>
-    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "hash" "sm"}}Tags</button>
+    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}Tags</button>
   </div>
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
@@ -87,26 +87,13 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
-      {{if $.CanWrite}}
-      <form method="post" action="/bookmarks/{{.ID}}/flag" class="bm-fav">
-        <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-        <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-        {{if .IsFavourite}}
-        <button class="icon-btn on" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
-        {{else}}
-        <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
-        {{end}}
-      </form>
-      {{else}}
-      <span class="bm-fav">{{if .IsFavourite}}<span class="icon-btn on" role="img" aria-label="Favourite">{{icon "star" "filled"}}</span>{{else}}<span class="icon-btn"></span>{{end}}</span>
-      {{end}}
       {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar" aria-hidden="true">{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
         {{if ne $.Prefs.Descriptions "hide"}}{{with .Description}}<p class="bm-desc">{{.}}</p>{{end}}{{end}}
         <div class="bm-meta">
           <span class="domain">{{.Domain}}</span>
-          {{range .Tags}}<a class="tag" href="{{tagURL .}}">#{{.}}</a>{{end}}
+          {{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}
           {{if .IsArchived}}<span class="badge">Archived</span>{{end}}
           {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}Shared</a>{{end}}
           <time datetime="{{.CreatedAt.Format "2006-01-02T15:04:05Z"}}">{{ago .CreatedAt}}</time>
@@ -125,10 +112,24 @@
         {{end}}
         <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
         <button class="icon-btn danger" popovertarget="delete-{{.ID}}" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
+        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
+          {{if .IsFavourite}}
+          <button class="icon-btn on" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
+          {{else}}
+          <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
+          {{end}}
+        </form>
       </div>
       {{/* On phones the actions fold into this menu, beside the title. */}}
       <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="Actions for {{display .}}">{{icon "more"}}</button>
       <div id="actions-{{.ID}}" class="menu row-menu" popover>
+        <form method="post" action="/bookmarks/{{.ID}}/flag">
+          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
+          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}Remove from favourites{{else}}{{icon "star" "sm"}}Add to favourites{{end}}</button>
+        </form>
         {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
@@ -163,6 +164,8 @@
           <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
         </form>
       </div>
+      {{else if .IsFavourite}}
+      <div class="bm-actions"><span class="icon-btn on" role="img" aria-label="Favourite">{{icon "star" "filled"}}</span></div>
       {{end}}
     </li>
   {{end}}
@@ -195,7 +198,7 @@
 {{define "tag-links"}}
 <nav aria-label="Tags">
   {{range .Tags}}
-  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}><span class="hash" aria-hidden="true">#</span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
+  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}>{{icon "tag"}}<span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
   {{else}}
   <p class="side-empty">No tags yet</p>
   {{end}}
@@ -211,7 +214,7 @@
     {{range .Links}}
     {{if not .Num}}<span class="pager-gap" aria-hidden="true">…</span>
     {{else if .Current}}<a class="btn page-num" href="{{.URL}}" aria-current="page" aria-label="Page {{.Num}}">{{.Num}}</a>
-    {{else}}<a class="btn page-num" href="{{.URL}}" aria-label="Page {{.Num}}">{{.Num}}</a>{{end}}
+    {{else}}<a class="btn page-num{{if .Far}} hide-sm{{end}}" href="{{.URL}}" aria-label="Page {{.Num}}">{{.Num}}</a>{{end}}
     {{end}}
     {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="Next page">→</a>{{else}}<span class="btn" aria-disabled="true">→</span>{{end}}
   </div>

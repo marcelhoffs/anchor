@@ -238,8 +238,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .side-link[aria-current="page"] { background: var(--soft); color: var(--soft-text); font-weight: 600; }
 .side-link .label { flex-grow: 1; overflow-wrap: anywhere; }
 .side-link .count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
-.side-link[aria-current="page"] .count, .side-link[aria-current="page"] .hash { color: var(--soft-text); }
-.side-link .hash { color: var(--muted); }
+.side-link[aria-current="page"] .count { color: var(--soft-text); }
 .side-heading { margin: 20px 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .side-heading-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .side-manage { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }
@@ -278,7 +277,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 
 /* Bookmark list */
 .bookmarks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
-.bookmark { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px 12px 20px; }
+.bookmark { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; }
 .bookmark + .bookmark { border-top: 1px solid var(--border); }
 .avatar {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-top: 2px;
@@ -302,10 +301,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
 .bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
-/* The favourite star leads the row, tucked against the edge and the icon. */
-.bm-fav { flex-shrink: 0; display: flex; margin: 2px -4px 0 -6px; }
-.bm-fav .icon-btn { width: 32px; height: 34px; }
-.bm-fav .icon-btn:not(.on) { opacity: 0.4; } /* full on hover, below */
 .bm-more { display: none; flex-shrink: 0; }
 @media (hover: hover) {
   /* On mouse devices, row actions appear on hover or keyboard focus. */
@@ -408,7 +403,6 @@ textarea { resize: vertical; }
 }
 .suggestions li { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 8px; font-size: 14px; cursor: pointer; }
 .suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--soft); color: var(--soft-text); }
-.suggestions .hash { color: var(--muted); }
 label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-narrow { max-width: 400px; }
@@ -490,11 +484,9 @@ td.actions { text-align: right; white-space: nowrap; }
   main { padding: 20px 16px 48px; }
   .search { gap: 8px; padding-left: 12px; }
   .card { padding: 20px; }
-  .bookmark { padding: 10px 4px 10px 12px; gap: 10px; }
+  .bookmark { padding: 10px 4px 10px 10px; gap: 10px; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
   .avatar.favicon { padding: 6px; }
-  .bm-fav { margin: 0 -2px 0 -4px; }
-  .bm-fav .icon-btn { width: 28px; height: 32px; }
   .bm-body { gap: 2px; }
   .bm-meta { margin-top: 1px; }
   /* The actions fold into a menu beside the title, so rows stay short. */
@@ -505,6 +497,12 @@ td.actions { text-align: right; white-space: nowrap; }
   .top-ctl { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
   .hide-sm { display: none; }
+  /* The range gets its own row and the page buttons stay on one line, so
+     moving between pages doesn't reflow the pager. */
+  .pager-range { flex-basis: 100%; }
+  .pager-links { flex-wrap: nowrap; gap: 2px; }
+  .pager-links .btn { min-width: 34px; padding: 0 6px; }
+  .pager-gap { min-width: 16px; }
   /* The search button becomes the field's only magnifier. */
   .search > .icon { display: none; }
   .search-btn { width: 36px; padding: 0; }

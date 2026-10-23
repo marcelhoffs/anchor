@@ -21,7 +21,7 @@
     <tbody>
     {{range .Tags}}
       <tr>
-        <td><a class="tag" href="{{tagURL .Name}}">#{{.Name}}</a></td>
+        <td><a class="tag" href="{{tagURL .Name}}">{{.Name}}</a></td>
         <td class="num hide-sm">{{.Count}}</td>
         {{if $.CanWrite}}
         <td>
@@ -44,7 +44,7 @@
   </div>
   {{else}}
   <div class="empty-state">
-    <span class="badge-icon">{{icon "hash"}}</span>
+    <span class="badge-icon">{{icon "tag"}}</span>
     <p class="title">No tags yet</p>
     <p>Create your first tag above, then add it to bookmarks when you save or edit them.</p>
   </div>
