@@ -616,3 +616,58 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 		t.Fatal("phones don't swap the sidebar tags for the drawer")
 	}
 }
+
+func TestSearchHelp(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	_, body, _ := e.login("alice").get("/")
+	if !strings.Contains(body, `aria-describedby="search-tips"`) || !strings.Contains(body, `id="search-tips" class="tooltip" role="tooltip"`) {
+		t.Fatal("no search help")
+	}
+	for _, syntax := range []string{"#homelab", "-#homelab", "site:github.com", "!fav", "!shared", "!archived", "after:", "before:"} {
+		if !strings.Contains(body, "<code>"+syntax) {
+			t.Errorf("search help doesn't explain %s", syntax)
+		}
+	}
+	if strings.Contains(body, `class="hints"`) {
+		t.Fatal("the Try bar is still there")
+	}
+}
+
+func TestTagTypeAhead(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	c.post("/bookmarks", url.Values{"url": {"https://a.com"}, "tags": {"go homelab"}})
+	c.post("/bookmarks", url.Values{"url": {"https://b.com"}, "tags": {"homelab"}})
+	for _, path := range []string{"/bookmarks/new", "/bookmarks/1/edit"} {
+		_, body, _ := c.get(path)
+		// Most used first.
+		if !strings.Contains(body, `data-tags="homelab go"`) || !strings.Contains(body, `role="combobox"`) {
+			t.Errorf("%s: no tag suggestions", path)
+		}
+		if !strings.Contains(body, `<script src="/static/tags.js?v=`) {
+			t.Errorf("%s: tags.js not loaded", path)
+		}
+	}
+	// An invalid form shows the field again with its suggestions.
+	if code, body, _ := c.post("/bookmarks", url.Values{"url": {"not a url"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, `data-tags="homelab go"`) {
+		t.Fatalf("error page: %d", code)
+	}
+}
+
+// The user menu on the admin page is a popover, so the table's scroll box
+// can't clip it.
+func TestAdminUserMenuIsAPopover(t *testing.T) {
+	e := newEnv(t)
+	root := e.admin()
+	e.user("alice")
+	id := itoa(e.userID("alice"))
+	_, body, _ := root.get("/admin/")
+	if !strings.Contains(body, `popovertarget="user-menu-`+id+`"`) || !strings.Contains(body, `id="user-menu-`+id+`" class="menu row-menu" popover`) {
+		t.Fatal("user menu isn't a popover")
+	}
+	if strings.Contains(body, `<details class="row-menu"`) {
+		t.Fatal("old details menu still there")
+	}
+}

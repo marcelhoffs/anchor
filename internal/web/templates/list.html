@@ -27,6 +27,25 @@
       {{icon "search"}}
       <label class="visually-hidden" for="q">Search bookmarks</label>
       <input id="q" type="search" name="q" value="{{.Query}}" placeholder="Search titles, notes, URLs and tags">
+      <div class="search-help">
+        <button type="button" class="icon-btn" aria-label="Search syntax" aria-describedby="search-tips">{{icon "help"}}</button>
+        <div id="search-tips" class="tooltip" role="tooltip">
+          <p class="tooltip-title">Search syntax</p>
+          <dl>
+            <dt><code>kubernetes ingress</code></dt><dd>All of these words</dd>
+            <dt><code>"exact phrase"</code></dt><dd>This exact phrase</dd>
+            <dt><code>#homelab</code></dt><dd>Has the tag</dd>
+            <dt><code>-#homelab</code></dt><dd>Doesn't have the tag</dd>
+            <dt><code>site:github.com</code></dt><dd>On this site, including subdomains</dd>
+            <dt><code>!fav</code></dt><dd>Favourites</dd>
+            <dt><code>!shared</code></dt><dd>Shared with a public link</dd>
+            <dt><code>!archived</code></dt><dd>Search the archive instead</dd>
+            <dt><code>after:2026-01-01</code></dt><dd>Saved on or after a date</dd>
+            <dt><code>before:2026-06-01</code></dt><dd>Saved before a date</dd>
+          </dl>
+          <p class="tooltip-foot">Combine them, for example <code>#go site:github.com</code>.</p>
+        </div>
+      </div>
       <button class="btn">Search</button>
     </form>
     <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "hash" "sm"}}Tags</button>
@@ -38,13 +57,6 @@
       <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="Close tags">{{icon "x"}}</button>
     </div>
     {{template "tag-links" .}}
-  </div>
-  <div class="hints">
-    <span>Try</span>
-    <a class="chip" href="/?q=%23homelab">#tag</a>
-    <a class="chip" href="/?q=site%3Agithub.com">site:github.com</a>
-    <a class="chip" href="/?q=%21fav">!fav</a>
-    <a class="chip" href="/?q=-%23archive">-#tag</a>
   </div>
 
   <div class="list-head">

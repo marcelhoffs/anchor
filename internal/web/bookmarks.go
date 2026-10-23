@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -144,6 +145,23 @@ func formData(in store.BookmarkInput) data {
 	}
 }
 
+// renderEdit shows the add/edit form. The tags field suggests the user's
+// tags as they type, most used first.
+func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, status int, d data) {
+	tags, err := s.store.ListTags(r.Context(), currentUser(r).ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	slices.SortStableFunc(tags, func(a, b store.Tag) int { return b.Count - a.Count })
+	names := make([]string, len(tags))
+	for i, t := range tags {
+		names[i] = t.Name
+	}
+	d["TagNames"] = strings.Join(names, " ")
+	s.render(w, r, status, "edit", d)
+}
+
 // newBookmark shows the add form, prefilled from ?url=&title=&description=
 // (which is how the bookmarklet calls it). An already-saved URL goes
 // straight to its edit page.
@@ -162,7 +180,7 @@ func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 	}
 	d := formData(store.BookmarkInput{URL: q.Get("url"), Title: q.Get("title"), Description: q.Get("description")})
 	d["Next"] = safeNext(q.Get("next"))
-	s.render(w, r, http.StatusOK, "edit", d)
+	s.renderEdit(w, r, http.StatusOK, d)
 }
 
 func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +191,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 			d := formData(in)
 			d["Error"] = err.Error()
 			d["Next"] = safeNext(r.PostFormValue("next"))
-			s.render(w, r, http.StatusUnprocessableEntity, "edit", d)
+			s.renderEdit(w, r, http.StatusUnprocessableEntity, d)
 			return
 		}
 		s.serverError(w, r, err)
@@ -211,7 +229,7 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 	} else if n := bookmarkNotices[r.URL.Query().Get("done")]; n != "" {
 		d["Notice"] = n
 	}
-	s.render(w, r, http.StatusOK, "edit", d)
+	s.renderEdit(w, r, http.StatusOK, d)
 }
 
 func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +253,7 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, store.ErrConflict) {
 			d["Error"] = "Another bookmark already has this URL."
 		}
-		s.render(w, r, http.StatusUnprocessableEntity, "edit", d)
+		s.renderEdit(w, r, http.StatusUnprocessableEntity, d)
 		return
 	}
 	if !s.storeError(w, r, err) {
