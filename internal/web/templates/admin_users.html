@@ -30,7 +30,7 @@
             <div id="user-menu-{{.ID}}" class="menu row-menu" popover>
                 <p class="menu-title">{{.Username}}</p>
                 {{if .IsActive}}
-                <form method="post" action="/admin/users/{{.ID}}/disable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Disable account</button></form>
+                <button type="button" popovertarget="disable-{{.ID}}">Disable account</button>
                 {{else}}
                 <form method="post" action="/admin/users/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Enable account</button></form>
                 {{end}}
@@ -39,11 +39,21 @@
                 {{else}}
                 <form method="post" action="/admin/users/{{.ID}}/make-admin"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Make admin</button></form>
                 {{end}}
-                <form method="post" action="/admin/users/{{.ID}}/reset-password"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>Reset password</button></form>
+                <button type="button" popovertarget="reset-password-{{.ID}}">Reset password</button>
                 {{if or .TOTPEnabled .Passkeys}}
-                <form method="post" action="/admin/users/{{.ID}}/reset-2fa"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button class="danger">Reset two-factor</button></form>
+                <button type="button" class="danger" popovertarget="reset-2fa-{{.ID}}">Reset two-factor</button>
                 {{end}}
             </div>
+            {{if .IsActive}}
+            {{template "confirm" dict "ID" (print "disable-" .ID) "Title" "Disable this account?" "Name" .Username
+              "Text" "is signed out everywhere and can't sign in or use API tokens until you enable the account again." "Action" (print "/admin/users/" .ID "/disable") "Button" "Disable" "CSRF" $.CSRF}}
+            {{end}}
+            {{template "confirm" dict "ID" (print "reset-password-" .ID) "Title" "Reset this password?" "Name" .Username
+              "Text" "gets a new random password and is signed out everywhere." "Action" (print "/admin/users/" .ID "/reset-password") "Button" "Reset password" "CSRF" $.CSRF}}
+            {{if or .TOTPEnabled .Passkeys}}
+            {{template "confirm" dict "ID" (print "reset-2fa-" .ID) "Title" "Reset two-factor?" "Name" .Username
+              "Text" "loses every authenticator app, passkey and recovery code, and is signed out everywhere." "Action" (print "/admin/users/" .ID "/reset-2fa") "Button" "Reset two-factor" "CSRF" $.CSRF}}
+            {{end}}
             {{end}}
           </td>
         </tr>

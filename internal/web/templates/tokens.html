@@ -27,10 +27,9 @@
           <td>{{if .LastUsedAt.IsZero}}<span class="muted">Never</span>{{else}}{{ago .LastUsedAt}}{{end}}</td>
           <td>{{if .ExpiresAt.IsZero}}<span class="muted">Never</span>{{else}}{{.ExpiresAt.Format "2 Jan 2006"}}{{end}}</td>
           <td class="actions">
-            <form method="post" action="/settings/tokens/{{.ID}}/delete">
-              <input type="hidden" name="csrf" value="{{$.CSRF}}">
-              <button class="link-btn danger">Revoke</button>
-            </form>
+            <button type="button" class="link-btn danger" popovertarget="revoke-token-{{.ID}}">Revoke</button>
+            {{template "confirm" dict "ID" (print "revoke-token-" .ID) "Title" "Revoke this token?" "Name" .Name
+              "Text" "stops working immediately. Anything using it will need a new token." "Action" (print "/settings/tokens/" .ID "/delete") "Button" "Revoke" "CSRF" $.CSRF}}
           </td>
         </tr>
       {{end}}

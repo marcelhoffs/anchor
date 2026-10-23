@@ -22,15 +22,14 @@
         <td>
           <form method="post" action="/tags/{{.ID}}/rename" class="row">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <input name="name" value="{{.Name}}" aria-label="New name for {{.Name}}" required autocapitalize="none" spellcheck="false">
+            <input name="name" value="{{.Name}}" aria-label="New name for {{.Name}}" required maxlength="64" autocapitalize="none" spellcheck="false">
             <button class="btn">Rename</button>
           </form>
         </td>
         <td class="actions">
-          <form method="post" action="/tags/{{.ID}}/delete">
-            <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <button class="icon-btn danger" aria-label="Delete tag {{.Name}}">{{icon "trash"}}</button>
-          </form>
+          <button type="button" class="icon-btn danger" popovertarget="delete-tag-{{.ID}}" aria-label="Delete tag {{.Name}}">{{icon "trash"}}</button>
+          {{template "confirm" dict "ID" (print "delete-tag-" .ID) "Title" "Delete this tag?" "Name" (print "#" .Name)
+            "Text" (print "is removed from " (count .Count "bookmark") ". The bookmarks themselves stay.") "Action" (print "/tags/" .ID "/delete") "Button" "Delete tag" "CSRF" $.CSRF}}
         </td>
       </tr>
     {{end}}

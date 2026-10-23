@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/store"
@@ -55,9 +57,9 @@ func newCredentials(r *http.Request) (username, password, msg string) {
 	password = r.PostFormValue("password")
 	switch {
 	case auth.ValidateUsername(username) != nil:
-		msg = auth.ValidateUsername(username).Error()
+		msg = sentence(auth.ValidateUsername(username))
 	case auth.ValidatePassword(password) != nil:
-		msg = auth.ValidatePassword(password).Error()
+		msg = sentence(auth.ValidatePassword(password))
 	case password != r.PostFormValue("confirm"):
 		msg = "Passwords do not match."
 	}
@@ -143,7 +145,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 // dropBrowserSession deletes whatever session the browser's cookie names, so
 // every login issues a fresh token (no session fixation).
 func (s *Server) dropBrowserSession(r *http.Request) {
-	if c, err := r.Cookie(sessionCookie); err == nil {
+	if c, err := r.Cookie(s.sessionCookie); err == nil {
 		if old, _, err := s.store.SessionByHash(r.Context(), auth.HashToken(c.Value)); err == nil {
 			s.store.DeleteSession(r.Context(), old.UserID, old.TokenHash)
 		}
@@ -307,14 +309,22 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	u, cur := currentUser(r), currentSession(r)
-	fail := func(msg string) { s.renderSecurity(w, r, http.StatusUnprocessableEntity, data{"Error": msg}) }
+	render := func(status int, msg string) { s.renderSecurity(w, r, status, data{"Error": msg}) }
+	fail := func(msg string) { render(http.StatusUnprocessableEntity, msg) }
+	// Wrong current passwords count with failed second factors, so a stolen
+	// session can't be used to guess the password.
+	if s.mfaBlocked(w, r, *u, false, render) {
+		return
+	}
 	if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
+		s.mfaUser.Hit(fmt.Sprint(u.ID))
 		fail("Current password is wrong.")
 		return
 	}
+	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	password := r.PostFormValue("password")
 	if err := auth.ValidatePassword(password); err != nil {
-		fail(err.Error())
+		fail(sentence(err))
 		return
 	}
 	if password != r.PostFormValue("confirm") {
@@ -363,6 +373,17 @@ func (s *Server) bookmarklet() template.URL {
 	base, _ := json.Marshal(s.cfg.BaseURL.String() + "/bookmarks/new?url=")
 	return template.URL("javascript:void(window.open(" + string(base) +
 		"+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)))")
+}
+
+// sentence turns a Go error ("password must be …") into a message for the
+// page ("Password must be ….").
+func sentence(err error) string {
+	msg := err.Error()
+	if msg == "" {
+		return msg
+	}
+	r, size := utf8.DecodeRuneInString(msg)
+	return string(unicode.ToUpper(r)) + strings.TrimSuffix(msg[size:], ".") + "."
 }
 
 func truncate(s string, n int) string {

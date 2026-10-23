@@ -94,8 +94,12 @@ func (s *Server) apiAuthenticate(next http.Handler) http.Handler {
 			problem(w, http.StatusTooManyRequests, "Rate limit is 600 requests per minute per token.")
 			return
 		}
-		if err := s.store.TouchAPIToken(r.Context(), t.ID); err != nil {
-			s.log.Error("touch api token", "err", err)
+		// Last use is recorded to the minute; skipping the write otherwise keeps
+		// busy clients off the single database writer.
+		if time.Since(t.LastUsedAt) > time.Minute {
+			if err := s.store.TouchAPIToken(r.Context(), t.ID); err != nil {
+				s.log.Error("touch api token", "err", err)
+			}
 		}
 		limit := int64(maxFormBody)
 		if r.URL.Path == "/api/v1/import" {

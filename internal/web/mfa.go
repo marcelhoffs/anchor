@@ -465,7 +465,7 @@ func (s *Server) recoveryRegenerate(w http.ResponseWriter, r *http.Request) {
 // other session is signed out.
 func (s *Server) removingFactor(r *http.Request, before store.MFAStatus) error {
 	if s.require2FA(r.Context()) && before.Passkeys+boolInt(before.TOTP) <= 1 {
-		return errors.New("Two-factor authentication is required here. Add another method before removing this one.")
+		return errors.New("two-factor authentication is required here; add another method before removing this one")
 	}
 	return nil
 }
@@ -499,7 +499,7 @@ func (s *Server) totpDisable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.removingFactor(r, m); err != nil {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": err.Error()})
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": sentence(err)})
 		return
 	}
 	if err := s.store.DisableTOTP(r.Context(), u.ID); err != nil {
@@ -585,7 +585,7 @@ func (s *Server) passkeyDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.removingFactor(r, m); err != nil {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": err.Error()})
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": sentence(err)})
 		return
 	}
 	if !s.storeError(w, r, s.store.DeletePasskey(r.Context(), u.ID, id)) {

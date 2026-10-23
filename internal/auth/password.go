@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"unicode/utf8"
 
@@ -29,6 +30,16 @@ const (
 
 var ErrMismatch = errors.New("password mismatch")
 
+// argonSlots caps concurrent hashing: each takes argonMemory, so a burst of
+// logins would otherwise be a way to exhaust the server's memory.
+var argonSlots = make(chan struct{}, max(2, runtime.NumCPU()))
+
+func idKey(password string, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
+	argonSlots <- struct{}{}
+	defer func() { <-argonSlots }()
+	return argon2.IDKey([]byte(password), salt, time, memory, threads, keyLen)
+}
+
 // dummyHash is verified against when a username does not exist, so a failed
 // login takes the same time either way.
 var dummyHash = HashPassword("burrow-dummy-password")
@@ -47,7 +58,7 @@ func ValidatePassword(p string) error {
 func HashPassword(password string) string {
 	salt := make([]byte, saltLen)
 	rand.Read(salt)
-	key := argon2.IDKey([]byte(password), salt, argonTime, argonMemory, argonThreads, argonKeyLen)
+	key := idKey(password, salt, argonTime, argonMemory, argonThreads, argonKeyLen)
 	b64 := base64.RawStdEncoding
 	return fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argonMemory, argonTime, argonThreads, b64.EncodeToString(salt), b64.EncodeToString(key))
@@ -77,7 +88,7 @@ func VerifyPassword(encoded, password string) error {
 	if err != nil {
 		return err
 	}
-	got := argon2.IDKey([]byte(password), salt, iterations, memory, threads, uint32(len(want)))
+	got := idKey(password, salt, iterations, memory, threads, uint32(len(want)))
 	if subtle.ConstantTimeCompare(got, want) != 1 {
 		return ErrMismatch
 	}

@@ -46,13 +46,20 @@ func csrfToken(r *http.Request) string {
 const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; " +
 	"base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 
-func securityHeaders(next http.Handler) http.Handler {
+func (s *Server) securityHeaders(next http.Handler) http.Handler {
+	https := s.cfg.SecureCookies()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Security-Policy", csp)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")
+		h.Set("Cross-Origin-Opener-Policy", "same-origin")
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
+		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()")
+		if https {
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -86,7 +93,7 @@ func (s *Server) limitBody(next http.Handler) http.Handler {
 func (s *Server) csrf(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := ""
-		if c, err := r.Cookie(csrfCookie); err == nil && s.validCSRF(c.Value) {
+		if c, err := r.Cookie(s.csrfCookie); err == nil && s.validCSRF(c.Value) {
 			token = c.Value
 		}
 		switch r.Method {
@@ -94,7 +101,7 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 			if token == "" {
 				token = s.newCSRF()
 				http.SetCookie(w, &http.Cookie{
-					Name: csrfCookie, Value: token, Path: "/", HttpOnly: true,
+					Name: s.csrfCookie, Value: token, Path: "/", HttpOnly: true,
 					Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 				})
 			}
@@ -133,7 +140,7 @@ func (s *Server) csrfSig(raw string) string {
 // loadSession attaches the logged-in user, if any, to the request.
 func (s *Server) loadSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := r.Cookie(sessionCookie)
+		c, err := r.Cookie(s.sessionCookie)
 		if err != nil {
 			next.ServeHTTP(w, r)
 			return
@@ -166,14 +173,14 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 
 func (s *Server) setSessionCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: token, Path: "/", MaxAge: int(sessionTTL.Seconds()),
+		Name: s.sessionCookie, Value: token, Path: "/", MaxAge: int(sessionTTL.Seconds()),
 		HttpOnly: true, Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 	})
 }
 
 func (s *Server) clearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name: sessionCookie, Value: "", Path: "/", MaxAge: -1,
+		Name: s.sessionCookie, Value: "", Path: "/", MaxAge: -1,
 		HttpOnly: true, Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -249,7 +256,7 @@ func (s *Server) trusted(ip netip.Addr) bool {
 // pendingLogin returns the session and user of a login that passed the
 // password check and is waiting for its second factor.
 func (s *Server) pendingLogin(r *http.Request) (store.Session, store.User, bool) {
-	c, err := r.Cookie(sessionCookie)
+	c, err := r.Cookie(s.sessionCookie)
 	if err != nil {
 		return store.Session{}, store.User{}, false
 	}

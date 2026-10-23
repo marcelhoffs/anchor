@@ -33,10 +33,9 @@
           <td>{{if not .UsedAt.IsZero}}Used by {{.UsedBy}} {{ago .UsedAt}}{{else if .ExpiresAt.Before $.Now}}<span class="muted">Expired</span>{{else}}<span class="badge on">Open</span> until {{.ExpiresAt.Format "2 Jan"}}{{end}}</td>
           <td class="actions">
             {{if .UsedAt.IsZero}}
-            <form method="post" action="/admin/invites/{{.ID}}/delete">
-              <input type="hidden" name="csrf" value="{{$.CSRF}}">
-              <button class="link-btn danger">Revoke</button>
-            </form>
+            <button type="button" class="link-btn danger" popovertarget="revoke-invite-{{.ID}}">Revoke</button>
+            {{template "confirm" dict "ID" (print "revoke-invite-" .ID) "Title" "Revoke this invite?" "Text" "Its link stops working. You can create a new invite at any time."
+              "Action" (print "/admin/invites/" .ID "/delete") "Button" "Revoke" "CSRF" $.CSRF}}
             {{end}}
           </td>
         </tr>
