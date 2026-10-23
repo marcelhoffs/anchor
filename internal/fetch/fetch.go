@@ -286,7 +286,13 @@ func site(raw string) string {
 	if err != nil {
 		return ""
 	}
-	host := strings.ToLower(u.Hostname())
+	return RegistrableDomain(u.Hostname())
+}
+
+// RegistrableDomain is host's site: cronos.sharepoint.com → sharepoint.com,
+// www.bbc.co.uk → bbc.co.uk. IP addresses and unknown hosts stay as they are.
+func RegistrableDomain(host string) string {
+	host = strings.ToLower(host)
 	if _, err := netip.ParseAddr(host); err == nil {
 		return host
 	}

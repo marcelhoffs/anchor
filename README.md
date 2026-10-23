@@ -74,7 +74,7 @@ curl -H "Authorization: Bearer $TOKEN" -d '{"url":"https://go.dev","tags":["go"]
 | `BURROW_REQUIRE_2FA` | admin's choice (`false`) | Require 2FA for everyone; when set, overrides the admin page |
 | `BURROW_TRUSTED_PROXIES` | empty | CIDRs whose `X-Forwarded-For` is honoured |
 | `BURROW_FETCH` | `public` | Fetch page details from public addresses only; `all` also allows your own network (loopback, private, Tailscale ranges); `off` disables fetching |
-| `BURROW_FAVICON_FALLBACK` | `off` | `duckduckgo`: when a site serves no icon (or blocks Burrow), ask DuckDuckGo's icon service. It learns the bookmarked domain, never the full link. Switching it on fetches icons again for bookmarks that have none |
+| `BURROW_FAVICON_FALLBACK` | `off` | `duckduckgo`: when a site serves no icon (or blocks Burrow), ask DuckDuckGo's icon service, for the host and then its main domain (`cronos.sharepoint.com`, then `sharepoint.com`). It learns the domain, never the full link. Switching it on fetches icons again for bookmarks that have none |
 | `BURROW_LOG_LEVEL` | `info` | `debug` / `info` / `warn` |
 | `BURROW_ADMIN_USER`, `BURROW_ADMIN_PASSWORD` | empty | Create the first admin on an empty database |
 

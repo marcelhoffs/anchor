@@ -113,7 +113,7 @@ func (s *Store) SignUp(ctx context.Context, username, passwordHash string, invit
 const (
 	SettingSignup     = "signup"      // closed | invite | open
 	SettingRequire2FA = "require_2fa" // "true" | "false"
-	// SettingIconBackfill records the icon service whose one-off backfill ran.
+	// SettingIconBackfill records which icon-service backfill last ran.
 	SettingIconBackfill = "icon_backfill"
 )
 

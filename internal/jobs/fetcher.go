@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -113,19 +114,24 @@ func (f *Fetcher) fetchOne(ctx context.Context, it store.FetchItem) store.FetchR
 	return r
 }
 
+// iconBackfillVersion goes up when the icon service lookup improves, so
+// bookmarks still without an icon get one more try.
+const iconBackfillVersion = "2"
+
 // backfillIcons queues bookmarks without an icon to be fetched again once,
-// when an icon service is first switched on.
+// when an icon service is switched on (or its lookup improved).
 func (f *Fetcher) backfillIcons(ctx context.Context) {
 	if f.IconService == "" {
 		return
 	}
+	marker := f.IconService + "/" + iconBackfillVersion
 	done, err := f.store.InstanceSetting(ctx, store.SettingIconBackfill, "")
-	if err != nil || done == f.IconService {
+	if err != nil || done == marker {
 		return
 	}
 	n, err := f.store.RequeueIconless(ctx)
 	if err == nil {
-		err = f.store.SetInstanceSetting(ctx, store.SettingIconBackfill, f.IconService)
+		err = f.store.SetInstanceSetting(ctx, store.SettingIconBackfill, marker)
 	}
 	if err != nil {
 		f.log.Error("icon backfill", "err", err)
@@ -162,14 +168,25 @@ func (f *Fetcher) icon(ctx context.Context, it store.FetchItem, m fetch.Meta) in
 	if id, err := f.store.FaviconForDomain(ctx, it.Domain, time.Time{}); err == nil {
 		return id
 	}
-	if u := f.serviceURL(f.IconService, it.Domain); f.IconService != "" && u != "" {
-		if mime, data, err := f.client.Icon(ctx, u); err == nil {
-			if id, err := f.store.SaveFavicon(ctx, it.Domain, mime, data); err == nil {
-				return id
-			}
-		} else {
-			f.log.Debug("icon service", "domain", it.Domain, "err", err)
+	if f.IconService == "" {
+		return 0
+	}
+	// The host first, then its site: a tenant like cronos.sharepoint.com is
+	// unknown to the service, but sharepoint.com's icon fits.
+	for _, d := range slices.Compact([]string{it.Domain, fetch.RegistrableDomain(it.Domain)}) {
+		u := f.serviceURL(f.IconService, d)
+		if u == "" {
+			break
 		}
+		mime, data, err := f.client.Icon(ctx, u)
+		if err != nil {
+			f.log.Debug("icon service", "domain", d, "err", err)
+			continue
+		}
+		if id, err := f.store.SaveFavicon(ctx, it.Domain, mime, data); err == nil {
+			return id
+		}
+		break
 	}
 	return 0
 }
