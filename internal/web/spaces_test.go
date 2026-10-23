@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -223,5 +224,65 @@ func TestMemberSuggestions(t *testing.T) {
 	}
 	if code, _, _ := e.login("albert").get(path + "al"); code != http.StatusNotFound {
 		t.Fatalf("outsider got suggestions: %d", code)
+	}
+}
+
+func TestAPISpaces(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.user("alice")
+	e.user("bob")
+	e.user("carol")
+	alice := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "write")}
+	bob := apiClient{t, e.srv.URL, apiToken(t, e.login("bob"), "write")}
+	carol := apiClient{t, e.srv.URL, apiToken(t, e.login("carol"), "write")}
+	team, _ := e.store.CreateSpace(ctx, e.userID("alice"), "Team")
+	e.store.AddMember(ctx, team, "bob", "read")
+	q := "?space=" + itoa(team.SpaceID())
+
+	code, out := bob.do("GET", "/spaces", nil)
+	list, _ := out["results"].([]any)
+	if code != 200 || len(list) != 2 {
+		t.Fatalf("spaces: %d %v", code, out)
+	}
+	if first := list[0].(map[string]any); first["personal"] != true || first["name"] != "Personal" {
+		t.Fatalf("personal space not first: %v", first)
+	}
+	if second := list[1].(map[string]any); second["name"] != "Team" || second["role"] != "read" {
+		t.Fatalf("shared space: %v", second)
+	}
+
+	// Writes and reads go to the space named in ?space=, nowhere else.
+	if code, out := alice.do("POST", "/tags"+q, map[string]any{"name": "team"}); code != 201 {
+		t.Fatalf("tag in space: %d %v", code, out)
+	}
+	code, out = alice.do("POST", "/bookmarks"+q, map[string]any{"url": "https://go.dev", "tags": []string{"team"}})
+	if code != 201 {
+		t.Fatalf("bookmark in space: %d %v", code, out)
+	}
+	id := strconv.FormatInt(int64(out["id"].(float64)), 10)
+	if code, out := alice.do("GET", "/bookmarks", nil); code != 200 || len(out["results"].([]any)) != 0 {
+		t.Fatalf("space's bookmark in the personal list: %v", out)
+	}
+	if code, _ := alice.do("GET", "/bookmarks/"+id, nil); code != 404 {
+		t.Fatalf("space's bookmark found in the personal space: %d", code)
+	}
+	if code, out := bob.do("GET", "/bookmarks"+q, nil); code != 200 || len(out["results"].([]any)) != 1 {
+		t.Fatalf("reader's list: %d %v", code, out)
+	}
+
+	// A write token can't do more than the member's role allows.
+	if code, out := bob.do("PATCH", "/bookmarks/"+id+q, map[string]any{"title": "x"}); code != 403 || out["status"] != float64(403) {
+		t.Fatalf("reader changed a bookmark: %d %v", code, out)
+	}
+	if code, _ := bob.do("POST", "/bookmarks"+q, map[string]any{"url": "https://x.org"}); code != 403 {
+		t.Fatalf("reader added a bookmark: %d", code)
+	}
+	// Outsiders and bad ids get nothing.
+	if code, _ := carol.do("GET", "/bookmarks"+q, nil); code != 404 {
+		t.Fatalf("outsider listed the space: %d", code)
+	}
+	if code, _ := alice.do("GET", "/bookmarks?space=abc", nil); code != 400 {
+		t.Fatalf("bad space id: %d", code)
 	}
 }
