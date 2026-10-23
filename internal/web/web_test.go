@@ -804,6 +804,28 @@ func TestFooterLinksSource(t *testing.T) {
 	}
 }
 
+func TestFooterShowsVersion(t *testing.T) {
+	defer func(v string) { Version = v }(Version)
+	c := newEnv(t).admin()
+	for v, link := range map[string]string{
+		"dev":               "",
+		"v1.2.3":            sourceURL + "/releases/tag/v1.2.3",
+		"v1.3.0-rc.1":       sourceURL + "/releases/tag/v1.3.0-rc.1",
+		"v1.2.3-4-gabc1234": "",
+		"v1.2.3-dirty":      "",
+	} {
+		Version = v
+		_, body, _ := c.get("/")
+		if link == "" {
+			if !strings.Contains(body, "Anchor "+v+" is free software") {
+				t.Errorf("%s: version not shown", v)
+			}
+		} else if !strings.Contains(body, `Anchor <a href="`+link+`">`+v+`</a>`) {
+			t.Errorf("%s: no link to %s", v, link)
+		}
+	}
+}
+
 // personal is a user's scope in their own space.
 func personal(st *store.Store, userID int64) store.Scope {
 	sc, err := st.PersonalScope(context.Background(), userID)

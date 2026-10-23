@@ -37,6 +37,7 @@ Commands:
   user reset-2fa <name>          remove all second factors and sign out all sessions
   backup <file>                  write a consistent snapshot of the database
   healthcheck                    exit 0 if the local server answers /healthz
+  version                        print the version
 
 Configuration is read from ANCHOR_* environment variables.
 `
@@ -61,6 +62,8 @@ func main() {
 		err = backup(ctx, args)
 	case "healthcheck":
 		err = healthcheck()
+	case "version", "--version":
+		fmt.Println(web.Version)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 	default:
