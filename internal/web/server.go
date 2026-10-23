@@ -184,7 +184,6 @@ func (s *Server) Handler() http.Handler {
 				r.Get("/", s.adminUsers)
 				r.Get("/invites", s.adminInvites)
 				r.Get("/settings", s.adminSettings)
-				r.Get("/audit", s.adminAudit)
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireRecentAuth)
 					r.Post("/users", s.adminCreateUser)
@@ -246,13 +245,4 @@ func (s *Server) require2FA(ctx context.Context) bool {
 		return false
 	}
 	return v == "true"
-}
-
-// audit records an event, filling in the client IP. Failures are logged:
-// they must not break the action being audited.
-func (s *Server) audit(r *http.Request, e store.AuditEntry) {
-	e.IP = s.clientIP(r)
-	if err := s.store.Audit(r.Context(), e); err != nil {
-		s.log.Error("audit", "event", e.Event, "err", err)
-	}
 }

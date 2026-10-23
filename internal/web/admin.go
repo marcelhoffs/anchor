@@ -71,7 +71,6 @@ func (s *Server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, ActorID: currentUser(r).ID, Event: store.EventUserCreated})
 	s.showSecret(w, r, "users", "User "+u.Username+" created",
 		"Give them this password. It is shown only once; they can change it under Settings.", password)
 }
@@ -93,26 +92,23 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 			data{"Error": "Use Settings to change your own account."})
 		return
 	}
-	entry := store.AuditEntry{UserID: id, ActorID: me.ID}
 	switch action {
 	case "disable":
-		err, entry.Event = s.store.SetActive(r.Context(), id, false), store.EventUserDisabled
+		err = s.store.SetActive(r.Context(), id, false)
 	case "enable":
-		err, entry.Event = s.store.SetActive(r.Context(), id, true), store.EventUserEnabled
+		err = s.store.SetActive(r.Context(), id, true)
 	case "make-admin":
-		err, entry.Event = s.store.SetAdmin(r.Context(), id, true), store.EventAdminGranted
+		err = s.store.SetAdmin(r.Context(), id, true)
 	case "remove-admin":
-		err, entry.Event = s.store.SetAdmin(r.Context(), id, false), store.EventAdminRevoked
+		err = s.store.SetAdmin(r.Context(), id, false)
 	case "reset-2fa":
-		err, entry.Event = s.store.ResetMFA(r.Context(), id), store.EventMFAReset
+		err = s.store.ResetMFA(r.Context(), id)
 	case "reset-password":
 		password := auth.RandomPassword()
 		if err := s.store.SetPassword(r.Context(), id, auth.HashPassword(password), nil); err != nil {
 			s.serverError(w, r, err)
 			return
 		}
-		entry.Event = store.EventPasswordReset
-		s.audit(r, entry)
 		if id == me.ID {
 			s.clearSessionCookie(w)
 		}
@@ -130,7 +126,6 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, err) {
 		return
 	}
-	s.audit(r, entry)
 	http.Redirect(w, r, "/admin/?done="+action, http.StatusSeeOther)
 }
 
@@ -158,7 +153,6 @@ func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{ActorID: currentUser(r).ID, Event: store.EventInviteCreated, Detail: note})
 	msg := "Send this link to the person you're inviting. It works once and expires in 7 days. It is shown only once."
 	if mode := s.signupMode(r.Context()); mode == "closed" {
 		msg += " Note: signup is closed, so the link won't work until you allow invites under Instance."
@@ -175,7 +169,6 @@ func (s *Server) adminDeleteInvite(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, s.store.DeleteInvite(r.Context(), id)) {
 		return
 	}
-	s.audit(r, store.AuditEntry{ActorID: currentUser(r).ID, Event: store.EventInviteRevoked})
 	http.Redirect(w, r, "/admin/invites?done=invite-off", http.StatusSeeOther)
 }
 
@@ -194,7 +187,6 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 
 func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	var changed []string
 	if s.cfg.Signup == "" {
 		mode := r.PostFormValue("signup")
 		valid := false
@@ -209,7 +201,6 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
-		changed = append(changed, "signup="+mode)
 	}
 	if s.cfg.Require2FA == nil {
 		req := strconv.FormatBool(r.PostFormValue("require_2fa") != "")
@@ -217,27 +208,6 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
-		changed = append(changed, "require_2fa="+req)
 	}
-	s.audit(r, store.AuditEntry{ActorID: currentUser(r).ID, Event: store.EventSettingsChanged, Detail: strings.Join(changed, ", ")})
 	http.Redirect(w, r, "/admin/settings?done=settings", http.StatusSeeOther)
-}
-
-func (s *Server) adminAudit(w http.ResponseWriter, r *http.Request) {
-	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-	page = max(page, 1)
-	const per = 100
-	rows, more, err := s.store.ListAudit(r.Context(), per, (page-1)*per)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	d := data{"AdminTab": "audit", "Entries": rows}
-	if page > 1 {
-		d["PrevURL"] = "/admin/audit?page=" + strconv.Itoa(page-1)
-	}
-	if more {
-		d["NextURL"] = "/admin/audit?page=" + strconv.Itoa(page+1)
-	}
-	s.render(w, r, http.StatusOK, "admin_audit", d)
 }

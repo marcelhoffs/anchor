@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/marcelhoffs/burrow/internal/auth"
-	"github.com/marcelhoffs/burrow/internal/store"
 )
 
 // apiTokenPrefix marks Burrow tokens, so secret scanners can recognise them.
@@ -50,7 +49,6 @@ func (s *Server) createToken(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventTokenCreated, Detail: t.Name})
 	s.renderTokens(w, r, http.StatusOK, data{"NewToken": token, "NewTokenName": t.Name})
 }
 
@@ -64,6 +62,5 @@ func (s *Server) deleteToken(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, s.store.DeleteAPIToken(r.Context(), u.ID, id)) {
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventTokenRevoked})
 	http.Redirect(w, r, "/settings/tokens?done=token-off", http.StatusSeeOther)
 }

@@ -223,7 +223,7 @@ func (s *Server) apiListBookmarks(w http.ResponseWriter, r *http.Request) {
 	if q.Get("favourite") == "true" {
 		query += " !fav"
 	}
-	list, more, err := s.store.Search(r.Context(), apiCaller(r).user.ID, search.Parse(query), limit, offset)
+	list, total, err := s.store.Search(r.Context(), apiCaller(r).user.ID, search.Parse(query), store.SortNewest, limit, offset)
 	if !s.apiStoreError(w, err) {
 		return
 	}
@@ -232,7 +232,7 @@ func (s *Server) apiListBookmarks(w http.ResponseWriter, r *http.Request) {
 		out[i] = toAPI(b)
 	}
 	var next any
-	if more {
+	if offset+limit < total {
 		next = encodeCursor(offset + limit)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": out, "next": next})

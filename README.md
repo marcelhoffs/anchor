@@ -6,7 +6,7 @@ Burrow is a self-hosted, multi-user bookmark manager: one Go binary, an embedded
 
 - Bookmarks with tags, full-text search, favourites and an archive; light/dark themes with two accent colours.
 - Accounts: two-factor authentication (authenticator app, passkeys, recovery codes), API tokens and a REST API.
-- Admin: user management, invites and signup modes, a 2FA policy, an audit log, rate limits.
+- Admin: user management, invites and signup modes, a 2FA policy, rate limits.
 - Import from and export to browsers, linkding, Pocket and Pinboard (Netscape HTML) and Burrow JSON.
 
 Metadata fetching, favicons, bundles and sharing arrive with the rest of milestone 3.

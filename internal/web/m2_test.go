@@ -204,16 +204,6 @@ func TestLoginRateLimit(t *testing.T) {
 	if code, _, _ := c.post("/login", url.Values{"username": {"bob"}, "password": {"bob-password"}}); code != http.StatusSeeOther {
 		t.Fatalf("bob blocked by alice's failures: %d", code)
 	}
-	rows, _, _ := e.store.ListAudit(context.Background(), 50, 0)
-	fails := 0
-	for _, r := range rows {
-		if r.Event == store.EventLoginFail {
-			fails++
-		}
-	}
-	if fails != 10 {
-		t.Fatalf("audit has %d login failures, want 10", fails)
-	}
 }
 
 func TestSensitiveActionsNeedRecentAuth(t *testing.T) {
@@ -612,11 +602,9 @@ func TestAdmin(t *testing.T) {
 		t.Fatalf("stale admin action: %d %q", code, loc)
 	}
 
-	_, body, _ = root.get("/admin/audit")
-	for _, ev := range []string{store.EventUserCreated, store.EventUserDisabled, store.EventLoginOK} {
-		if !strings.Contains(body, ev) {
-			t.Errorf("audit log missing %s", ev)
-		}
+	// The audit log is gone.
+	if code, _, _ := root.get("/admin/audit"); code != http.StatusNotFound {
+		t.Fatalf("audit log page: %d, want 404", code)
 	}
 }
 

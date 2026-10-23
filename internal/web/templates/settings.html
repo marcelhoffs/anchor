@@ -26,7 +26,40 @@
         </div>
         <span class="hint">System follows your device's light or dark setting.</span>
       </fieldset>
+      <fieldset>
+        <legend>Sidebar</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="sidebar" value="left"{{if eq .Prefs.Sidebar "left"}} checked{{end}}><span class="layout-icon left" aria-hidden="true"></span>Left</label>
+          <label class="choice"><input type="radio" name="sidebar" value="right"{{if eq .Prefs.Sidebar "right"}} checked{{end}}><span class="layout-icon right" aria-hidden="true"></span>Right</label>
+        </div>
+        <span class="hint">Where views and tags sit next to your bookmarks. On phones, views stay below the list and tags open from the Tags button.</span>
+      </fieldset>
       <button class="btn btn-primary">Save appearance</button>
+    </form>
+  </section>
+
+  <section aria-labelledby="list-settings">
+    <h2 id="list-settings">Bookmark list</h2>
+    <p class="muted">How your bookmarks are listed.</p>
+    <form method="post" action="/settings/appearance">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <fieldset>
+        <legend>Sort by</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="sort" value="newest"{{if eq .Prefs.Sort "newest"}} checked{{end}}>Newest first</label>
+          <label class="choice"><input type="radio" name="sort" value="title"{{if eq .Prefs.Sort "title"}} checked{{end}}>Title, A–Z</label>
+        </div>
+        <span class="hint">Searches for words still show the best matches first.</span>
+      </fieldset>
+      <fieldset>
+        <legend>Descriptions</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="descriptions" value="show"{{if eq .Prefs.Descriptions "show"}} checked{{end}}>Show</label>
+          <label class="choice"><input type="radio" name="descriptions" value="hide"{{if eq .Prefs.Descriptions "hide"}} checked{{end}}>Hide</label>
+        </div>
+        <span class="hint">Hiding them makes the list more compact.</span>
+      </fieldset>
+      <button class="btn btn-primary">Save list settings</button>
     </form>
   </section>
 

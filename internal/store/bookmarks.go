@@ -202,16 +202,25 @@ func (s *Store) DeleteBookmark(ctx context.Context, userID, id int64) error {
 	})
 }
 
+// List orders.
+const (
+	SortNewest = "newest"
+	SortTitle  = "title" // A–Z by title, or by URL when there is no title
+)
+
 // Search returns one page of the user's bookmarks matching q, best match
-// first for free-text queries and newest first otherwise. more reports
-// whether another page follows.
-func (s *Store) Search(ctx context.Context, userID int64, q search.Query, limit, offset int) (list []Bookmark, more bool, err error) {
+// first for free-text queries and then in sort order (one of Sorts; anything
+// else means newest first). total is how many match in all.
+func (s *Store) Search(ctx context.Context, userID int64, q search.Query, sort string, limit, offset int) (list []Bookmark, total int, err error) {
 	var (
 		from  = "bookmarks b"
 		where = []string{"b.user_id = ?"}
 		args  []any
 		order = "b.created_at DESC, b.id DESC"
 	)
+	if sort == SortTitle {
+		order = "CASE b.title WHEN '' THEN b.url ELSE b.title END COLLATE NOCASE, b.id"
+	}
 	if fts := q.FTS(); fts != "" {
 		// Title weighted ×3 over description, notes, URL and tags.
 		from = "bookmarks b JOIN bookmarks_fts ON bookmarks_fts.rowid = b.id"
@@ -253,33 +262,35 @@ func (s *Store) Search(ctx context.Context, userID int64, q search.Query, limit,
 		where = append(where, "b.created_at < ?")
 		args = append(args, unix(q.Before))
 	}
-	args = append(args, limit+1, offset)
+	cond := " FROM " + from + " WHERE " + strings.Join(where, " AND ")
+	if err := s.r.QueryRowContext(ctx, "SELECT count(*)"+cond, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	if offset >= total {
+		return nil, total, nil
+	}
 
 	rows, err := s.r.QueryContext(ctx,
-		"SELECT "+bookmarkCols+" FROM "+from+" WHERE "+strings.Join(where, " AND ")+" ORDER BY "+order+" LIMIT ? OFFSET ?",
-		args...)
+		"SELECT "+bookmarkCols+cond+" ORDER BY "+order+" LIMIT ? OFFSET ?", append(args, limit, offset)...)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		b, err := scanBookmark(rows)
 		if err != nil {
-			return nil, false, err
+			return nil, 0, err
 		}
 		list = append(list, b)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, false, err
-	}
-	if len(list) > limit {
-		list, more = list[:limit], true
+		return nil, 0, err
 	}
 	ptrs := make([]*Bookmark, len(list))
 	for i := range list {
 		ptrs[i] = &list[i]
 	}
-	return list, more, s.loadTags(ctx, ptrs)
+	return list, total, s.loadTags(ctx, ptrs)
 }
 
 // loadTags fills in Tags for bookmarks that were already loaded for one user.

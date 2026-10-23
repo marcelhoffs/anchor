@@ -1,5 +1,5 @@
 {{define "layout"}}<!doctype html>
-<html lang="en" data-accent="{{.Prefs.Accent}}" data-theme="{{.Prefs.Theme}}">
+<html lang="en" data-accent="{{.Prefs.Accent}}" data-theme="{{.Prefs.Theme}}" data-sidebar="{{.Prefs.Sidebar}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -56,6 +56,5 @@
   <a href="/admin/"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>Users</a>
   <a href="/admin/invites"{{if eq .AdminTab "invites"}} aria-current="page"{{end}}>Invites</a>
   <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>Instance</a>
-  <a href="/admin/audit"{{if eq .AdminTab "audit"}} aria-current="page"{{end}}>Audit log</a>
 </nav>
 {{end}}

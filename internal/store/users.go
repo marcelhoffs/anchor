@@ -28,12 +28,22 @@ type User struct {
 type Settings struct {
 	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first
 	Theme  string `json:"theme,omitempty"`  // one of Themes; "" = the first
+	// Sidebar is where the views and tags sit next to the bookmark list.
+	Sidebar string `json:"sidebar,omitempty"` // one of Sidebars; "" = the first
+	// Sort is the bookmark list order: newest first or by title.
+	Sort string `json:"sort,omitempty"` // one of Sorts; "" = the first
+	// Descriptions shows or hides bookmark descriptions in the list.
+	Descriptions string `json:"descriptions,omitempty"` // one of DescriptionModes; "" = the first
 }
 
-// Accents and Themes list the allowed values, the default first.
+// Accents, Themes, Sidebars, Sorts and DescriptionModes list the allowed
+// values, the default first.
 var (
-	Accents = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
-	Themes  = []string{"system", "light", "dark"}
+	Accents          = []string{"indigo", "terracotta", "emerald", "ocean", "violet", "rose", "graphite"}
+	Themes           = []string{"system", "light", "dark"}
+	Sidebars         = []string{"left", "right"}
+	Sorts            = []string{SortNewest, SortTitle}
+	DescriptionModes = []string{"show", "hide"}
 )
 
 // Normalized fills in defaults and replaces unknown values with them.
@@ -46,7 +56,10 @@ func (st Settings) Normalized() Settings {
 		}
 		return allowed[0]
 	}
-	return Settings{Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes)}
+	return Settings{
+		Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Sidebar: pick(st.Sidebar, Sidebars),
+		Sort: pick(st.Sort, Sorts), Descriptions: pick(st.Descriptions, DescriptionModes),
+	}
 }
 
 const userCols = `id, username, password_hash, is_admin, is_active, settings, created_at, coalesce(last_login_at, 0),
@@ -73,7 +86,7 @@ func scanUser(row interface{ Scan(...any) error }) (User, error) {
 // SaveSettings stores a user's preferences. Unknown values are rejected.
 func (s *Store) SaveSettings(ctx context.Context, userID int64, st Settings) error {
 	if st.Normalized() != st {
-		return invalid("Unknown appearance setting.")
+		return invalid("Unknown setting.")
 	}
 	b, err := json.Marshal(st)
 	if err != nil {

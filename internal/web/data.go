@@ -126,5 +126,4 @@ func (s *Server) writeExport(w http.ResponseWriter, r *http.Request, userID int6
 		s.log.Error("export", "user", userID, "err", err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: userID, Event: store.EventExport, Detail: format})
 }
