@@ -72,6 +72,28 @@ func TestIconServiceFallback(t *testing.T) {
 	if items, _ := st.PendingFetches(ctx, 10); len(items) != 0 {
 		t.Fatalf("requeued again: %+v", items)
 	}
+	// A tenant host the service doesn't know falls back to its site's icon.
+	tenant, _, _ := st.CreateBookmark(ctx, u.ID, store.BookmarkInput{URL: "https://cronos.sharepoint.invalid/"})
+	f.serviceURL = func(_, domain string) string {
+		if domain != "sharepoint.invalid" {
+			return service.URL + "/unknown"
+		}
+		return service.URL + "/" + domain + ".ico"
+	}
+	unknown := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.URL.Path)
+		if r.URL.Path == "/unknown" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte(icon))
+	})
+	service.Config.Handler = unknown
+	for f.RunOnce(ctx) {
+	}
+	if got, _ := st.GetBookmark(ctx, u.ID, tenant.ID); got.FaviconID == 0 || asked[len(asked)-1] != "/sharepoint.invalid.ico" {
+		t.Fatalf("tenant icon: %+v, asked %v", got, asked)
+	}
 	if fetch.ServiceIcon("duckduckgo", "www.klm.be") != "https://icons.duckduckgo.com/ip3/www.klm.be.ico" || fetch.ServiceIcon("nope", "x") != "" {
 		t.Fatal("ServiceIcon")
 	}
