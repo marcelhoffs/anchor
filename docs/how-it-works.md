@@ -3,6 +3,7 @@
 This page explains what Anchor does behind its pages: how it stores bookmarks, searches them, fetches page details, imports and exports, and keeps accounts safe. For running it, see [Deployment](deployment.md); for the API, see [REST API](api.md).
 
 - [Overview](#overview)
+- [Spaces](#spaces)
 - [Bookmarks](#bookmarks)
 - [Tags](#tags)
 - [Search](#search)
@@ -18,13 +19,33 @@ Anchor is a single Go program. It serves HTML pages rendered on the server (with
 
 Everything is stored in one SQLite database, `anchor.db`, in write-ahead-log mode. All writes go through one connection, so they never conflict; reads use a separate pool and don't wait for writes. Background work keeps its queue in the database too, so a restart picks up where it left off.
 
-Every user's data is private. The data layer takes the owning user as a required argument on every query that touches user data, so one user can't reach another's bookmarks, tags or tokens. The only things shared between users are site icons, which belong to a domain, not a person.
+Bookmarks, tags and saved searches live in [spaces](#spaces): every user's personal space, and shared spaces with several members. The data layer only hands out access to a space after checking the user is a member, and every query on bookmarks, tags or saved searches needs that access, so nobody can reach a space they aren't in. Account data (sessions, tokens, second factors) is filtered on the user. The only things shared beyond a space are site icons, which belong to a domain, not a person.
+
+## Spaces
+
+Every user has a **personal space**, which only they can see. **Shared spaces** hold bookmarks and tags for a family or a team: everyone in a shared space sees the same bookmarks, tags, favourites and archive.
+
+Each member of a shared space has a role:
+
+| Role | Can |
+| --- | --- |
+| Owner | Everything an editor can, plus rename the space, add and remove members, change roles, make someone else the owner, and delete the space |
+| Can edit | Add, change, archive, share and delete bookmarks; create, rename and delete tags; import |
+| Read only | See the bookmarks and tags, search them and export them |
+
+Every space has exactly one owner. The owner adds people by username (the field suggests matching users as you type) and can't leave without first making someone else the owner; they then stay on as an editor. Deleting a space deletes its bookmarks, tags and saved searches for every member. Making someone the owner and deleting a space ask you to confirm your identity again. Admins choose under Admin → Instance whether everyone or only admins may create shared spaces.
+
+**Switching.** Once you're in a shared space, the top bar shows a space switcher. The space you pick is remembered per browser session, and the list, sidebar, tags, saved searches, import and export all show that space. Pages about one bookmark follow the bookmark's own space, so a link to it works whichever space you're in. Membership is checked again on every request: someone removed from a space is back in their personal space at once.
+
+**Adding.** A new bookmark goes into the space you're looking at if you can edit it, otherwise into your personal space; the add form says which. Read-only members don't see the controls that would change anything, and Anchor refuses those changes if they're sent anyway.
+
+**Saved searches** stay personal: each member keeps their own in each space, so readers can save searches too.
 
 ## Bookmarks
 
 A bookmark has a URL, a title, a description, your notes, tags, and two flags: favourite and archived.
 
-**One bookmark per URL.** Before saving, Anchor normalises the URL: it adds `https://` if no scheme was given, lower-cases the scheme and host, drops the default port (`:443` for https, `:80` for http), and adds a `/` path if there is none. Only `http` and `https` links are accepted. Two spellings of the same address therefore become the same bookmark: saving a URL you already have opens your existing bookmark instead of making a second one.
+**One bookmark per URL.** Before saving, Anchor normalises the URL: it adds `https://` if no scheme was given, lower-cases the scheme and host, drops the default port (`:443` for https, `:80` for http), and adds a `/` path if there is none. Only `http` and `https` links are accepted. Two spellings of the same address therefore become the same bookmark: saving a URL the space already has opens the existing bookmark instead of making a second one. Different spaces can each have the same URL.
 
 **Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`.
 
@@ -32,7 +53,7 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 ## Tags
 
-Tags are created on the Tags page before bookmarks can use them, which keeps typos from turning into new tags. Names may contain spaces but not commas or double quotes.
+Each space has its own tags. They are created on the Tags page before bookmarks can use them, which keeps typos from turning into new tags. Names may contain spaces but not commas or double quotes.
 
 Renaming a tag to a name you already have merges the two: every bookmark gets the surviving tag. Deleting a tag removes it from its bookmarks and leaves the bookmarks themselves alone.
 
@@ -64,7 +85,7 @@ Search uses SQLite's full-text index (FTS5), which is kept up to date as bookmar
 
 **Bundles** are saved searches. Run a search, choose "Save search", and the bundle appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically.
 
-**Public links** make one bookmark readable by anyone with the link, at `/s/<token>`. The page shows the bookmark's title, site and description; never your notes, tags or other bookmarks. The token is random and unguessable. Turning sharing off breaks the link for good; turning it on again makes a new one. A disabled account's links stop working too.
+**Public links** make one bookmark readable by anyone with the link, at `/s/<token>`. The page shows the bookmark's title, site and description; never your notes, tags or other bookmarks. The token is random and unguessable. Turning sharing off breaks the link for good; turning it on again makes a new one. Links from a personal space stop working when its owner's account is disabled; links from a shared space work as long as the space exists.
 
 ## Page details and icons
 
@@ -84,14 +105,14 @@ Icons are stored once per host and shared by every bookmark, and every user, on 
 
 ## Import and export
 
-**Import** (Settings → Import & export, or the API) reads:
+**Import** (Settings → Import & export, or the API) adds to the space you're in, if you can edit it. It reads:
 
 - Netscape bookmark HTML, as exported by every browser, linkding, Pocket and Pinboard. Folders become tags (except browsers' own root folders such as "Bookmarks bar", which would tag almost everything), and the files' own tags, descriptions and dates are kept.
 - Anchor's JSON export.
 
-Files up to 32 MiB are accepted. The import runs in the background in small batches, so it doesn't slow down other users, and the page shows its progress. A URL you already have isn't duplicated: the existing bookmark gains the imported tags, empty fields are filled in, and favourite or archived can be turned on but never off. Links that aren't http or https are skipped and counted. Imported bookmarks then join the page-details queue.
+Files up to 32 MiB are accepted. The import runs in the background in small batches, so it doesn't slow down other users, and the page shows its progress. A URL the space already has isn't duplicated: the existing bookmark gains the imported tags, empty fields are filled in, and favourite or archived can be turned on but never off. Links that aren't http or https are skipped and counted. Imported bookmarks then join the page-details queue.
 
-**Export** writes all your bookmarks as Netscape HTML, which any browser can import, or as Anchor JSON, which keeps everything Anchor knows, including notes and flags.
+**Export** writes all the bookmarks in the space you're in as Netscape HTML, which any browser can import, or as Anchor JSON, which keeps everything Anchor knows, including notes and flags.
 
 ## Accounts and sign-in
 
