@@ -1,6 +1,6 @@
 # Deploying Anchor
 
-Anchor is one Go binary with an embedded SQLite database. The Docker image holds nothing but that binary and its licenses; all state lives in one volume mounted at `/data`.
+Anchor is one Go binary with an embedded SQLite database. The Docker image holds nothing but that binary and its licenses; all state lives in one named Docker volume, `anchor-data`, mounted at `/data`.
 
 - [Quick start](#quick-start)
 - [The first account](#the-first-account)
@@ -20,11 +20,12 @@ You need Docker with the Compose plugin, and a copy of this repository (for `doc
 cp .env.example .env
 sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
 # Set ANCHOR_BASE_URL in .env to the address people will use.
-mkdir data && sudo chown 65532:65532 data
 docker compose up -d --build
 ```
 
-Anchor listens on port 8080. The compose file mounts `./data` as the data volume, runs the container read-only, and restarts it unless you stop it. The container runs as the unprivileged user 65532, so a bind-mounted data directory must be writable by that user (the `chown` above); a named Docker volume needs nothing.
+Anchor listens on port 8080. The compose file keeps the database in the named volume `anchor-data`, runs the container read-only, and restarts it unless you stop it. Docker creates the volume on the first start, owned by the container's unprivileged user (65532), so there's nothing to prepare; `docker volume inspect anchor-data` shows where it lives on the host. The volume outlives the container: `docker compose down` keeps your data, and only `docker compose down -v` or `docker volume rm anchor-data` deletes it.
+
+`.env.example` starts from the secure choices: two-factor authentication required for everyone, page details fetched from public addresses only, no public icon services, and signup closed (the built-in default). Loosen them in `.env` only when you need to; [Configuration](#configuration) explains each.
 
 The image has a health check (`anchor healthcheck`, which asks the local server's `/healthz`), so `docker ps` shows whether Anchor is up.
 
@@ -37,7 +38,7 @@ ANCHOR_ADMIN_USER=admin
 ANCHOR_ADMIN_PASSWORD=at-least-10-characters
 ```
 
-After that, admins manage everyone else on the Admin page: create users, send invite links, choose who may sign up, and require two-factor authentication.
+With `ANCHOR_REQUIRE_2FA=true` (as in `.env.example`), the first admin is asked to set up two-factor authentication right after signing in. After that, admins manage everyone else on the Admin page: create users, send invite links and choose who may sign up.
 
 ## Configuration
 
@@ -48,7 +49,7 @@ Anchor reads its settings from `ANCHOR_*` environment variables; the compose fil
 | `ANCHOR_BASE_URL` | required | The public URL people use, such as `https://anchor.example.com`. `https` turns on Secure `__Host-` cookies and HSTS; a domain name over https enables passkeys. |
 | `ANCHOR_SECRET_KEY` | required | 32 or more random bytes, base64-encoded (`openssl rand -base64 32`). Encrypts authenticator-app secrets and signs CSRF tokens. |
 | `ANCHOR_SIGNUP` | set on the Admin page (`closed`) | `closed`, `invite` or `open`. When set, it overrides the Admin page. |
-| `ANCHOR_REQUIRE_2FA` | set on the Admin page (`false`) | Require two-factor authentication for everyone. When set, it overrides the Admin page. |
+| `ANCHOR_REQUIRE_2FA` | set on the Admin page (`false`); `true` in `.env.example` | Require two-factor authentication for everyone. When set, it overrides the Admin page. |
 | `ANCHOR_TRUSTED_PROXIES` | empty | CIDRs of reverse proxies whose `X-Forwarded-For` header is trusted. |
 | `ANCHOR_FETCH` | `public` | Where page details may be fetched from: `public` (internet addresses only), `all` (also your own network) or `off`. |
 | `ANCHOR_FAVICON_FALLBACK` | `off` | `duckduckgo`, `google`, or both (`duckduckgo,google`, asked in that order) for sites that serve no icon. |
@@ -84,36 +85,37 @@ Some sites serve no icon or block automated requests. `ANCHOR_FAVICON_FALLBACK` 
 
 ## Command line
 
-The `anchor` binary also has administration commands. Run them inside the container:
+The `anchor` binary also has administration commands. Run them in the running container, from the directory with `docker-compose.yml`:
 
 ```sh
-docker exec anchor /anchor user create alice                   # prints a generated password
-echo 'a-long-password' | docker exec -i anchor /anchor user create bob --password-stdin
-docker exec anchor /anchor user create carol --admin           # an admin account
-docker exec anchor /anchor user reset-password alice           # also signs out every session
-docker exec anchor /anchor user reset-2fa alice                # lost phone: removes all second factors
-docker exec anchor /anchor backup /data/backups/anchor.db      # a consistent snapshot, while running
-docker exec anchor /anchor migrate                             # apply database migrations and exit
+docker compose exec anchor /anchor user create alice              # prints a generated password
+echo 'a-long-password' | docker compose exec -T anchor /anchor user create bob --password-stdin
+docker compose exec anchor /anchor user create carol --admin      # an admin account
+docker compose exec anchor /anchor user reset-password alice      # also signs out every session
+docker compose exec anchor /anchor user reset-2fa alice           # lost phone: removes all second factors
+docker compose exec anchor /anchor backup /data/backups/anchor.db # a consistent snapshot, while running
+docker compose exec anchor /anchor migrate                        # apply database migrations and exit
 ```
 
 `anchor help` lists every command.
 
 ## Backups and restores
 
-The database is `anchor.db` in the data directory, with `anchor.db-wal` and `anchor.db-shm` beside it. Recent writes live in the `-wal` file, so never copy `anchor.db` on its own while Anchor is running. Use the backup command, which writes a consistent snapshot without stopping anything:
+The database is `anchor.db` in the `anchor-data` volume, with `anchor.db-wal` and `anchor.db-shm` beside it. Recent writes live in the `-wal` file, so never copy `anchor.db` on its own while Anchor is running. Use the backup command, which writes a consistent snapshot without stopping anything, then copy the snapshot out of the volume:
 
 ```sh
-docker exec anchor /anchor backup /data/backups/anchor-$(date +%F).db
+docker compose exec anchor /anchor backup /data/backups/anchor-$(date +%F).db
+docker compose cp anchor:/data/backups/anchor-$(date +%F).db .
 ```
 
-Then copy the snapshot somewhere else; a backup on the same disk as the database protects you against mistakes, not against losing the disk. A cron job running the command above and copying the file off the server is enough.
+Then keep the copy somewhere else; a backup on the same disk as the database protects you against mistakes, not against losing the disk. A cron job running these two commands and moving the file off the server is enough. Old snapshots stay in `/data/backups` until you remove them.
 
-To restore, stop Anchor, replace the database with the snapshot, and remove the old `-wal` and `-shm` files so they aren't replayed onto the restored database:
+To restore, stop Anchor, put the snapshot in place of the database, and remove the old `-wal` and `-shm` files so they aren't replayed onto the restored database. The Anchor image has no shell, so a small helper container does the copying, with the snapshot in the current directory:
 
 ```sh
 docker compose stop
-cp data/backups/anchor-2026-10-23.db data/anchor.db
-rm -f data/anchor.db-wal data/anchor.db-shm
+docker run --rm -v anchor-data:/data -v "$PWD":/restore alpine sh -c \
+  'cp /restore/anchor-2026-10-23.db /data/anchor.db && rm -f /data/anchor.db-wal /data/anchor.db-shm && chown 65532:65532 /data/anchor.db'
 docker compose start
 ```
 
