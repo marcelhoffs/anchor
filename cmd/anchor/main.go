@@ -286,6 +286,10 @@ func backup(ctx context.Context, args []string) error {
 	if _, err := os.Stat(args[0]); err == nil {
 		return fmt.Errorf("%s already exists", args[0])
 	}
+	// A folder for backups, such as /data/backups, needn't exist yet.
+	if err := os.MkdirAll(filepath.Dir(args[0]), 0o750); err != nil {
+		return err
+	}
 	return withDB(ctx, func(d *db.DB) error {
 		if err := d.Backup(ctx, args[0]); err != nil {
 			return err
