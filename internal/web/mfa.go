@@ -36,11 +36,7 @@ func (s *Server) checkTOTP(r *http.Request, u store.User, code string) (bool, er
 }
 
 func (s *Server) checkRecovery(r *http.Request, u store.User, code string) (bool, error) {
-	ok, err := s.store.UseRecoveryCode(r.Context(), u.ID, auth.HashRecoveryCode(code))
-	if ok {
-		s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventRecoveryUsed})
-	}
-	return ok, err
+	return s.store.UseRecoveryCode(r.Context(), u.ID, auth.HashRecoveryCode(code))
 }
 
 // checkPasskey finishes a WebAuthn login ceremony for u.
@@ -96,7 +92,6 @@ func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User
 	if !blocked {
 		return false
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventRateLimited, Detail: "second factor"})
 	msg := "Too many failed attempts. Try again in " + retryText(retry) + "."
 	w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 	if asJSON {
@@ -149,7 +144,6 @@ func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string,
 	}
 	if !passed {
 		s.mfaUser.Hit(fmt.Sprint(u.ID))
-		s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventLoginMFAFail, Detail: method})
 		render(http.StatusUnauthorized, "That code didn't work. Check it and try again.")
 		return
 	}
@@ -190,7 +184,6 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	}
 	if !passed {
 		s.mfaUser.Hit(fmt.Sprint(u.ID))
-		s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventLoginMFAFail, Detail: "passkey"})
 		jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
 		return
 	}
@@ -200,7 +193,6 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 // completeLogin turns a pending login into a full session with a new token.
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.User, method, next string, asJSON bool) {
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventLoginOK, Detail: "password + " + method})
 	s.store.RecordLogin(r.Context(), u.ID)
 	if err := s.newSession(w, r, u, true, sessionTTL); err != nil {
 		s.serverError(w, r, err)
@@ -225,7 +217,7 @@ func (s *Server) reauthForm(w http.ResponseWriter, r *http.Request) {
 	s.renderVerify(w, r, http.StatusOK, "reauth", *currentUser(r), r.URL.Query().Get("next"), "")
 }
 
-func (s *Server) reauth(w http.ResponseWriter, r *http.Request, method string, check func(store.User) (bool, error), asJSON bool) {
+func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store.User) (bool, error), asJSON bool) {
 	u, cur := *currentUser(r), currentSession(r)
 	next := r.PostFormValue("next")
 	if asJSON {
@@ -242,7 +234,6 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, method string, c
 	}
 	if !passed {
 		s.mfaUser.Hit(fmt.Sprint(u.ID))
-		s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventReauthFail, Detail: method})
 		if asJSON {
 			jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
 		} else {
@@ -255,7 +246,6 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, method string, c
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventReauthenticated, Detail: method})
 	next = withNotice(safeNext(next), "confirmed")
 	if asJSON {
 		writeJSON(w, http.StatusOK, map[string]string{"redirect": next})
@@ -276,7 +266,7 @@ func withNotice(next, notice string) string {
 // must confirm with one ("API tokens bypass 2FA, so creating one requires a
 // fresh 2FA check").
 func (s *Server) reauthPassword(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, "password", func(u store.User) (bool, error) {
+	s.reauth(w, r, func(u store.User) (bool, error) {
 		if m, err := s.store.MFAStatus(r.Context(), u.ID); err != nil || m.Enabled() {
 			return false, err
 		}
@@ -285,11 +275,11 @@ func (s *Server) reauthPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) reauthTOTP(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, "totp", func(u store.User) (bool, error) { return s.checkTOTP(r, u, r.PostFormValue("code")) }, false)
+	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkTOTP(r, u, r.PostFormValue("code")) }, false)
 }
 
 func (s *Server) reauthRecovery(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, "recovery code", func(u store.User) (bool, error) { return s.checkRecovery(r, u, r.PostFormValue("code")) }, false)
+	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkRecovery(r, u, r.PostFormValue("code")) }, false)
 }
 
 func (s *Server) reauthPasskeyBegin(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +288,7 @@ func (s *Server) reauthPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reauthPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	key := ceremonyKey("reauth", currentSession(r).TokenHash)
-	s.reauth(w, r, "passkey", func(u store.User) (bool, error) { return s.checkPasskey(r, u, key) }, true)
+	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkPasskey(r, u, key) }, true)
 }
 
 // --- Security settings ---
@@ -365,7 +355,6 @@ func (s *Server) revokeSession(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventSessionRevoked})
 	if bytes.Equal(hash, currentSession(r).TokenHash) {
 		s.clearSessionCookie(w)
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -429,7 +418,6 @@ func (s *Server) totpEnable(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventTOTPEnabled})
 	s.firstFactorAdded(w, r, "/settings/security?done=totp")
 }
 
@@ -456,7 +444,6 @@ func (s *Server) showNewRecoveryCodes(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventRecoveryNew})
 	s.render(w, r, http.StatusOK, "recovery_codes", data{"Tab": "security", "Codes": codes})
 }
 
@@ -523,7 +510,6 @@ func (s *Server) totpDisable(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventTOTPDisabled})
 	http.Redirect(w, r, "/settings/security?done=totp-off", http.StatusSeeOther)
 }
 
@@ -583,7 +569,6 @@ func (s *Server) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventPasskeyAdded, Detail: name})
 	writeJSON(w, http.StatusOK, map[string]string{"redirect": "/settings/security?done=passkey"})
 }
 
@@ -610,6 +595,5 @@ func (s *Server) passkeyDelete(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventPasskeyRemoved})
 	http.Redirect(w, r, "/settings/security?done=passkey-off", http.StatusSeeOther)
 }

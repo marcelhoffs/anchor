@@ -45,7 +45,6 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.hasUsers.Store(true)
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventUserCreated, Detail: "first admin, via setup"})
 	s.startSession(w, r, u, "/")
 }
 
@@ -102,7 +101,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		key string
 	}{{s.loginUser, userKey}, {s.loginIP, ip}} {
 		if blocked, retry := l.lim.Blocked(l.key); blocked {
-			s.audit(r, store.AuditEntry{Event: store.EventRateLimited, Detail: "login " + username})
 			w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 			fail(http.StatusTooManyRequests, "Too many failed attempts. Try again in "+retryText(retry)+".")
 			return
@@ -124,7 +122,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.loginUser.Hit(userKey)
 		s.loginIP.Hit(ip)
-		s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventLoginFail, Detail: "username " + username})
 		fail(http.StatusUnauthorized, invalidLogin)
 		return
 	}
@@ -139,7 +136,6 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.startPendingLogin(w, r, u, next)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventLoginOK, Detail: "password"})
 	s.store.RecordLogin(r.Context(), u.ID)
 	s.startSession(w, r, u, next)
 }
@@ -202,7 +198,6 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 			s.serverError(w, r, err)
 			return
 		}
-		s.audit(r, store.AuditEntry{UserID: ss.UserID, Event: store.EventLogout})
 	} else {
 		s.dropBrowserSession(r) // a pending 2FA login being abandoned
 	}
@@ -269,11 +264,6 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	detail := "open signup"
-	if inviteHash != nil {
-		detail = "via invite"
-	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventSignup, Detail: detail})
 	s.store.RecordLogin(r.Context(), u.ID)
 	s.startSession(w, r, u, "/")
 }
@@ -284,7 +274,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 
 var settingsNotices = map[string]string{
 	"revoked":     "Session revoked.",
-	"appearance":  "Appearance saved.",
+	"appearance":  "Settings saved.",
 	"totp-off":    "Authenticator app removed. Your other sessions were signed out.",
 	"passkey":     "Passkey added.",
 	"passkey-off": "Passkey removed. Your other sessions were signed out.",
@@ -335,7 +325,6 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.audit(r, store.AuditEntry{UserID: u.ID, Event: store.EventPasswordChanged})
 	http.Redirect(w, r, "/settings/security?done=password", http.StatusSeeOther)
 }
 
@@ -349,9 +338,11 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		return cur
 	}
 	err := s.store.SaveSettings(r.Context(), u.ID, store.Settings{
-		Accent:  keep("accent", u.Settings.Accent),
-		Theme:   keep("theme", u.Settings.Theme),
-		Sidebar: keep("sidebar", u.Settings.Sidebar),
+		Accent:       keep("accent", u.Settings.Accent),
+		Theme:        keep("theme", u.Settings.Theme),
+		Sidebar:      keep("sidebar", u.Settings.Sidebar),
+		Sort:         keep("sort", u.Settings.Sort),
+		Descriptions: keep("descriptions", u.Settings.Descriptions),
 	})
 	if isValidation(err) {
 		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})

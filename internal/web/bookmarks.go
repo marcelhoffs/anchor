@@ -17,7 +17,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	page = max(page, 1)
 
-	list, more, err := s.store.Search(r.Context(), u.ID, search.Parse(q), pageSize, (page-1)*pageSize)
+	list, total, err := s.store.Search(r.Context(), u.ID, search.Parse(q), u.Settings.Sort, pageSize, (page-1)*pageSize)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -45,18 +45,56 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		}
 		return "/?" + v.Encode()
 	}
+	pages := (total + pageSize - 1) / pageSize
+	if page > pages && pages > 0 {
+		http.Redirect(w, r, pageURL(pages), http.StatusSeeOther)
+		return
+	}
 	view, heading := listView(q)
 	d := data{
 		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "Here": r.URL.RequestURI(),
 		"View": view, "Heading": heading,
 	}
-	if page > 1 {
-		d["PrevURL"] = pageURL(page - 1)
-	}
-	if more {
-		d["NextURL"] = pageURL(page + 1)
+	if pages > 1 {
+		d["Pager"] = newPager(page, pages, total, pageURL)
 	}
 	s.render(w, r, http.StatusOK, "list", d)
+}
+
+// pager is what the list template needs to draw page controls.
+type pager struct {
+	From, To, Total int
+	PrevURL         string // "" on the first page
+	NextURL         string // "" on the last page
+	Links           []pageLink
+}
+
+// pageLink is one numbered page; Num 0 marks a gap ("…").
+type pageLink struct {
+	Num     int
+	URL     string
+	Current bool
+}
+
+// newPager links the first and last page and those within two of the
+// current one, with gaps for the rest.
+func newPager(page, pages, total int, pageURL func(int) string) pager {
+	p := pager{From: (page-1)*pageSize + 1, To: min(page*pageSize, total), Total: total}
+	if page > 1 {
+		p.PrevURL = pageURL(page - 1)
+	}
+	if page < pages {
+		p.NextURL = pageURL(page + 1)
+	}
+	for n := 1; n <= pages; n++ {
+		switch {
+		case n == 1 || n == pages || (n >= page-2 && n <= page+2):
+			p.Links = append(p.Links, pageLink{Num: n, URL: pageURL(n), Current: n == page})
+		case p.Links[len(p.Links)-1].Num != 0:
+			p.Links = append(p.Links, pageLink{})
+		}
+	}
+	return p
 }
 
 // listView names the sidebar entry a query corresponds to ("all", "fav",

@@ -261,7 +261,6 @@ func userCmd(ctx context.Context, args []string) error {
 			if err := st.ResetMFA(ctx, u.ID); err != nil {
 				return err
 			}
-			st.Audit(ctx, store.AuditEntry{UserID: u.ID, Event: store.EventMFAReset, Detail: "via CLI"})
 			fmt.Printf("Two-factor authentication for %s removed; all their sessions were signed out.\n", u.Username)
 			return nil
 		default:

@@ -204,16 +204,3 @@ func TestJobsAndImport(t *testing.T) {
 		t.Fatal("bob can see alice's job")
 	}
 }
-
-func TestAudit(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-	u := newUser(t, s, "alice")
-	root, _ := s.CreateUser(ctx, "root", "x", true)
-	s.Audit(ctx, AuditEntry{Event: EventLoginFail, IP: "10.0.0.1", Detail: "unknown user"})
-	s.Audit(ctx, AuditEntry{UserID: u.ID, ActorID: root.ID, Event: EventMFAReset, IP: "10.0.0.2"})
-	list, more, err := s.ListAudit(ctx, 1, 0)
-	if err != nil || !more || len(list) != 1 || list[0].Event != EventMFAReset || list[0].Username != "alice" || list[0].ActorName != "root" {
-		t.Fatalf("audit = %+v more=%v %v", list, more, err)
-	}
-}

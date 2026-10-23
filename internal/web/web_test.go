@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -519,5 +520,92 @@ func TestSidebarPreference(t *testing.T) {
 	css, _ := assets.ReadFile("static/style.css")
 	if !strings.Contains(string(css), `:root[data-sidebar="right"] .sidebar { order: 2; }`) {
 		t.Fatal("no CSS for the right-hand sidebar")
+	}
+}
+
+func TestListPreferences(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	ctx := context.Background()
+	e.store.CreateBookmark(ctx, e.userID("alice"), store.BookmarkInput{URL: "https://a.com", Title: "Aardvark"})
+	e.store.CreateBookmark(ctx, e.userID("alice"), store.BookmarkInput{URL: "https://z.com", Title: "Zebra", Description: "Stripes and more"})
+	_, body, _ := c.get("/")
+	if strings.Index(body, "Zebra") > strings.Index(body, "Aardvark") || !strings.Contains(body, "Stripes and more") {
+		t.Fatal("default should be newest first, with descriptions")
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"sort": {"title"}, "descriptions": {"hide"}}); code != http.StatusSeeOther {
+		t.Fatalf("save list settings: %d", code)
+	}
+	_, body, _ = c.get("/")
+	if strings.Index(body, "Aardvark") > strings.Index(body, "Zebra") {
+		t.Fatal("not sorted by title")
+	}
+	if strings.Contains(body, "Stripes and more") {
+		t.Fatal("description shown although hidden")
+	}
+	if _, body, _ := c.get("/settings"); !strings.Contains(body, `value="title" checked`) || !strings.Contains(body, `value="hide" checked`) {
+		t.Fatal("settings page doesn't show the saved list settings")
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"sort": {"random"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown sort: %d", code)
+	}
+}
+
+func TestPagination(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	id := e.userID("alice")
+	for i := range 2*pageSize + 20 {
+		e.store.CreateBookmark(context.Background(), id, store.BookmarkInput{URL: "https://example.com/" + strconv.Itoa(i)})
+	}
+	_, body, _ := c.get("/")
+	if n := strings.Count(body, `class="pager"`); n != 2 {
+		t.Fatalf("%d pagers, want one above and one below the list", n)
+	}
+	if !strings.Contains(body, "1–50 of 120") || !strings.Contains(body, `href="/?page=3"`) || !strings.Contains(body, `rel="next"`) {
+		t.Fatal("first page controls")
+	}
+	_, body, _ = c.get("/?page=3")
+	if !strings.Contains(body, "101–120 of 120") || strings.Contains(body, `rel="next"`) || !strings.Contains(body, `href="/?page=2" rel="prev"`) {
+		t.Fatal("last page controls")
+	}
+	if code, _, loc := c.get("/?page=9"); code != http.StatusSeeOther || loc != "/?page=3" {
+		t.Fatalf("past the last page: %d %q", code, loc)
+	}
+	// Few enough for one page: no controls.
+	e.user("bob")
+	if _, body, _ := e.login("bob").get("/"); strings.Contains(body, `class="pager"`) {
+		t.Fatal("pager on a single page")
+	}
+}
+
+func TestPagerLinks(t *testing.T) {
+	pageURL := func(n int) string { return strconv.Itoa(n) }
+	var got []int
+	for _, l := range newPager(6, 20, 1000, pageURL).Links {
+		got = append(got, l.Num)
+	}
+	if want := []int{1, 0, 4, 5, 6, 7, 8, 0, 20}; !slices.Equal(got, want) {
+		t.Fatalf("links = %v, want %v", got, want)
+	}
+}
+
+func TestTagsDrawerOnPhones(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	e.store.CreateBookmark(context.Background(), e.userID("alice"), store.BookmarkInput{URL: "https://a.com", Tags: []string{"homelab"}})
+	_, body, _ := c.get("/")
+	if !strings.Contains(body, `popovertarget="tag-drawer"`) || !strings.Contains(body, `id="tag-drawer"`) {
+		t.Fatal("no Tags button and drawer")
+	}
+	if n := strings.Count(body, `href="/?q=%23homelab"`); n < 2 {
+		t.Fatalf("tag listed %d times, want in the sidebar and the drawer", n)
+	}
+	css, _ := assets.ReadFile("static/style.css")
+	if !strings.Contains(string(css), ".side-tags { display: none; }") || !strings.Contains(string(css), ".tags-btn { display: inline-flex; }") {
+		t.Fatal("phones don't swap the sidebar tags for the drawer")
 	}
 }

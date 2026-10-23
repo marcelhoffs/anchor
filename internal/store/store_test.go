@@ -1,6 +1,7 @@
 package store
 
 import (
+	"cmp"
 	"context"
 	"path/filepath"
 	"slices"
@@ -34,7 +35,7 @@ func newUser(t *testing.T, s *Store, name string) User {
 
 func titles(t *testing.T, s *Store, userID int64, q string) []string {
 	t.Helper()
-	list, _, err := s.Search(context.Background(), userID, search.Parse(q), 50, 0)
+	list, _, err := s.Search(context.Background(), userID, search.Parse(q), SortNewest, 50, 0)
 	if err != nil {
 		t.Fatalf("search %q: %v", q, err)
 	}
@@ -245,25 +246,61 @@ func TestSettings(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
-	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Sidebar: "left"}) {
+	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right"}); err != nil {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right"}) {
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
 		t.Fatalf("saved = %+v", got.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Sidebar: "left"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
 		t.Fatalf("unknown accent: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "top"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "top", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
 		t.Fatalf("unknown sidebar: %v", err)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "left", Sort: "random", Descriptions: "show"}); !isValidationErr(err) {
+		t.Fatalf("unknown sort: %v", err)
 	}
 	// A corrupt value falls back to defaults rather than failing the login.
 	s.w.Exec("UPDATE users SET settings = 'not json' WHERE id = ?", u.ID)
 	if got, err := s.UserByID(ctx, u.ID); err != nil || got.Settings.Theme != "system" {
 		t.Fatalf("corrupt settings: %+v %v", got.Settings, err)
+	}
+}
+
+func TestSearchSortAndTotal(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u := newUser(t, s, "alice")
+	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://b.com", Title: "banana"})
+	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://c.com"}) // no title: sorts by URL
+	s.CreateBookmark(ctx, u.ID, BookmarkInput{URL: "https://a.com", Title: "Apple"})
+	order := func(sort string, limit, offset int) ([]string, int) {
+		t.Helper()
+		list, total, err := s.Search(ctx, u.ID, search.Parse(""), sort, limit, offset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, b := range list {
+			out = append(out, cmp.Or(b.Title, b.URL))
+		}
+		return out, total
+	}
+	if got, total := order(SortNewest, 10, 0); !slices.Equal(got, []string{"Apple", "https://c.com/", "banana"}) || total != 3 {
+		t.Fatalf("newest = %v (%d)", got, total)
+	}
+	if got, _ := order(SortTitle, 10, 0); !slices.Equal(got, []string{"Apple", "banana", "https://c.com/"}) {
+		t.Fatalf("title = %v", got)
+	}
+	if got, total := order(SortTitle, 2, 2); !slices.Equal(got, []string{"https://c.com/"}) || total != 3 {
+		t.Fatalf("second page = %v (%d)", got, total)
+	}
+	if got, total := order(SortTitle, 2, 4); got != nil || total != 3 {
+		t.Fatalf("past the end = %v (%d)", got, total)
 	}
 }
 

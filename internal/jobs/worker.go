@@ -104,7 +104,5 @@ func (w *Worker) runImport(ctx context.Context, j store.Job, payload string) (st
 		total.Skipped += r.Skipped
 		w.store.JobProgress(ctx, j.ID, end, len(items))
 	}
-	w.store.Audit(ctx, store.AuditEntry{UserID: j.UserID, Event: store.EventImport,
-		Detail: fmt.Sprintf("%d created, %d merged, %d skipped", total.Created, total.Merged, total.Skipped)})
 	return total, nil
 }

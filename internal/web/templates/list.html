@@ -7,23 +7,30 @@
     <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star"}}<span class="label">Favourites</span><span class="count">{{.Counts.Favourites}}</span></a>
     <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive"}}<span class="label">Archive</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
-  <h2 class="side-heading">Tags</h2>
-  <nav aria-label="Tags">
-    {{range .Tags}}
-    <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}><span class="hash" aria-hidden="true">#</span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
-    {{else}}
-    <p class="side-empty">No tags yet</p>
-    {{end}}
-  </nav>
+  <div class="side-tags">
+    <h2 class="side-heading">Tags</h2>
+    {{template "tag-links" .}}
+  </div>
 </aside>
 
 <div class="content">
-  <form class="search" method="get" action="/" role="search">
-    {{icon "search"}}
-    <label class="visually-hidden" for="q">Search bookmarks</label>
-    <input id="q" type="search" name="q" value="{{.Query}}" placeholder="Search titles, notes, URLs and tags">
-    <button class="btn">Search</button>
-  </form>
+  <div class="search-row">
+    <form class="search" method="get" action="/" role="search">
+      {{icon "search"}}
+      <label class="visually-hidden" for="q">Search bookmarks</label>
+      <input id="q" type="search" name="q" value="{{.Query}}" placeholder="Search titles, notes, URLs and tags">
+      <button class="btn">Search</button>
+    </form>
+    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "hash" "sm"}}Tags</button>
+  </div>
+  {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
+  <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
+    <div class="drawer-head">
+      <h2 class="side-heading" id="tag-drawer-title">Tags</h2>
+      <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="Close tags">{{icon "x"}}</button>
+    </div>
+    {{template "tag-links" .}}
+  </div>
   <div class="hints">
     <span>Try</span>
     <a class="chip" href="/?q=%23homelab">#tag</a>
@@ -37,6 +44,7 @@
     {{if ne .View "all"}}<a class="btn" href="/">Clear filters{{icon "x" "sm"}}</a>{{end}}
   </div>
 
+  {{template "pager" .}}
   {{if .Bookmarks}}
   <ul class="bookmarks">
   {{range .Bookmarks}}
@@ -44,7 +52,7 @@
       <span class="avatar" aria-hidden="true">{{initial .Domain}}</span>
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
-        {{with .Description}}<p class="bm-desc">{{.}}</p>{{end}}
+        {{if ne $.Prefs.Descriptions "hide"}}{{with .Description}}<p class="bm-desc">{{.}}</p>{{end}}{{end}}
         <div class="bm-meta">
           <span class="domain">{{.Domain}}</span>
           {{range .Tags}}<a class="tag" href="{{tagURL .}}">#{{.}}</a>{{end}}
@@ -115,12 +123,34 @@
   </div>
   {{end}}
 
-  {{if or .PrevURL .NextURL}}
-  <nav class="pager" aria-label="Pages">
-    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev">← Newer</a>{{else}}<span></span>{{end}}
-    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next">Older →</a>{{end}}
-  </nav>
+  {{template "pager" .}}
+</div>
+</div>
+{{end}}
+
+{{define "tag-links"}}
+<nav aria-label="Tags">
+  {{range .Tags}}
+  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}><span class="hash" aria-hidden="true">#</span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
+  {{else}}
+  <p class="side-empty">No tags yet</p>
   {{end}}
-</div>
-</div>
+</nav>
+{{end}}
+
+{{define "pager"}}
+{{with .Pager}}
+<nav class="pager" aria-label="Pages">
+  <span class="pager-range">{{.From}}–{{.To}} of {{.Total}}</span>
+  <div class="pager-links">
+    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="Previous page">←</a>{{else}}<span class="btn" aria-disabled="true">←</span>{{end}}
+    {{range .Links}}
+    {{if not .Num}}<span class="pager-gap" aria-hidden="true">…</span>
+    {{else if .Current}}<a class="btn page-num" href="{{.URL}}" aria-current="page" aria-label="Page {{.Num}}">{{.Num}}</a>
+    {{else}}<a class="btn page-num" href="{{.URL}}" aria-label="Page {{.Num}}">{{.Num}}</a>{{end}}
+    {{end}}
+    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="Next page">→</a>{{else}}<span class="btn" aria-disabled="true">→</span>{{end}}
+  </div>
+</nav>
+{{end}}
 {{end}}
