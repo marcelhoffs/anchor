@@ -1,5 +1,5 @@
-// Package jobs runs queued background work (imports today; metadata fetching
-// and link checks later) from the jobs table, so it survives restarts.
+// Package jobs runs background work that survives restarts: queued jobs
+// from the jobs table (imports), and fetching new bookmarks' page details.
 package jobs
 
 import (

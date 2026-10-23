@@ -22,6 +22,8 @@ type Bookmark struct {
 	IsArchived  bool
 	IsFavourite bool
 	IsShared    bool
+	ShareToken  string // "" unless shared
+	FaviconID   int64  // 0 = no icon
 	FetchStatus string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -51,13 +53,14 @@ var flagColumns = map[Flag]string{
 }
 
 const bookmarkCols = `b.id, b.url, b.domain, b.title, b.description, b.notes, b.is_archived,
-	b.is_favourite, b.share_token IS NOT NULL, b.fetch_status, b.created_at, b.updated_at`
+	b.is_favourite, coalesce(b.share_token, ''), coalesce(b.favicon_id, 0), b.fetch_status, b.created_at, b.updated_at`
 
 func scanBookmark(row interface{ Scan(...any) error }) (Bookmark, error) {
 	var b Bookmark
 	var created, updated int64
 	err := row.Scan(&b.ID, &b.URL, &b.Domain, &b.Title, &b.Description, &b.Notes, &b.IsArchived,
-		&b.IsFavourite, &b.IsShared, &b.FetchStatus, &created, &updated)
+		&b.IsFavourite, &b.ShareToken, &b.FaviconID, &b.FetchStatus, &created, &updated)
+	b.IsShared = b.ShareToken != ""
 	b.CreatedAt, b.UpdatedAt = fromUnix(created), fromUnix(updated)
 	return b, notFound(err)
 }
@@ -144,7 +147,8 @@ func (s *Store) GetBookmark(ctx context.Context, userID, id int64) (Bookmark, er
 }
 
 // UpdateBookmark replaces a bookmark's editable fields. It returns
-// ErrConflict if the new URL is already saved as another bookmark.
+// ErrConflict if the new URL is already saved as another bookmark. A new URL
+// drops the old icon and queues the page details to be fetched again.
 func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in BookmarkInput) (Bookmark, error) {
 	normalized, domain, err := in.clean()
 	if err != nil {
@@ -153,9 +157,12 @@ func (s *Store) UpdateBookmark(ctx context.Context, userID, id int64, in Bookmar
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx,
 			`UPDATE bookmarks SET url = ?, url_hash = ?, domain = ?, title = ?, description = ?, notes = ?,
-			 is_favourite = ?, updated_at = ? WHERE user_id = ? AND id = ?`,
+			 is_favourite = ?, updated_at = ?,
+			 favicon_id = CASE WHEN url = ? THEN favicon_id END,
+			 fetch_status = CASE WHEN url = ? THEN fetch_status ELSE 'pending' END
+			 WHERE user_id = ? AND id = ?`,
 			normalized, urlHash(normalized), domain, in.Title, in.Description, in.Notes,
-			in.IsFavourite, unix(s.now()), userID, id)
+			in.IsFavourite, unix(s.now()), normalized, normalized, userID, id)
 		if isUniqueViolation(err) {
 			return ErrConflict
 		}

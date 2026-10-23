@@ -1,0 +1,277 @@
+// Package fetch reads a web page's title, description and icon for a new
+// bookmark. Users choose the URLs, so by default it refuses to connect to
+// loopback, private and other non-public addresses (checked on every
+// connection, so redirects and DNS tricks can't get around it).
+package fetch
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/netip"
+	"net/url"
+	"strings"
+	"syscall"
+	"time"
+	"unicode/utf8"
+
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/charset"
+)
+
+const (
+	timeout      = 10 * time.Second
+	maxPage      = 1 << 20   // only the <head> matters; stop reading after 1 MiB
+	maxIcon      = 100 << 10 // 100 KiB
+	maxRedirects = 5
+	userAgent    = "Mozilla/5.0 (compatible; Burrow/1.0; bookmark details)"
+
+	maxTitle       = 500
+	maxDescription = 2000
+)
+
+// ErrBlocked means the address is not one Burrow may connect to.
+var ErrBlocked = errors.New("address not allowed")
+
+type Client struct {
+	http *http.Client
+}
+
+// New returns a client. allowPrivate also lets it reach loopback, private
+// and link-local addresses (for bookmarks of services on your own network).
+func New(allowPrivate bool) *Client {
+	dialer := &net.Dialer{
+		Timeout: timeout,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				return err
+			}
+			ip, err := netip.ParseAddr(host)
+			if err != nil {
+				return err
+			}
+			if !allowPrivate && !public(ip) {
+				return fmt.Errorf("%w: %s", ErrBlocked, ip)
+			}
+			return nil
+		},
+	}
+	return &Client{http: &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			Proxy:                 nil, // a proxy would make the address check meaningless
+			DialContext:           dialer.DialContext,
+			TLSHandshakeTimeout:   timeout,
+			ResponseHeaderTimeout: timeout,
+			MaxIdleConns:          10,
+			IdleConnTimeout:       30 * time.Second,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return errors.New("too many redirects")
+			}
+			if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
+				return errors.New("redirect to a non-http URL")
+			}
+			return nil
+		},
+	}}
+}
+
+// cgnat is 100.64.0.0/10, used by carrier NAT and by Tailscale.
+var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+
+func public(ip netip.Addr) bool {
+	ip = ip.Unmap()
+	return ip.IsGlobalUnicast() && !ip.IsPrivate() && !cgnat.Contains(ip) &&
+		!(ip.Is4() && ip.As4()[0] == 0)
+}
+
+// Meta is what a page says about itself.
+type Meta struct {
+	Title       string
+	Description string
+	Icons       []string // absolute icon URLs the page links, best first
+	FinalURL    string   // after redirects
+}
+
+// Page fetches rawURL and reads its metadata. A response that isn't HTML
+// (a PDF, an image) gives empty Meta and no error.
+func (c *Client) Page(ctx context.Context, rawURL string) (Meta, error) {
+	res, err := c.get(ctx, rawURL, "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5")
+	if err != nil {
+		return Meta{}, err
+	}
+	defer res.Body.Close()
+	m := Meta{FinalURL: res.Request.URL.String()}
+	if res.StatusCode != http.StatusOK {
+		return m, fmt.Errorf("status %d", res.StatusCode)
+	}
+	ct := res.Header.Get("Content-Type")
+	if !strings.Contains(ct, "html") {
+		return m, nil
+	}
+	body, err := charset.NewReader(io.LimitReader(res.Body, maxPage), ct)
+	if err != nil {
+		body = io.LimitReader(res.Body, maxPage)
+	}
+	parseHead(body, res.Request.URL, &m)
+	return m, nil
+}
+
+// parseHead reads <title>, description meta tags and icon links, stopping
+// at <body>. og: values are only used when the plain ones are missing.
+func parseHead(r io.Reader, base *url.URL, m *Meta) {
+	var ogTitle, ogDesc, title string
+	var icons, appleIcons []string
+	inTitle := false
+	z := html.NewTokenizer(r)
+loop:
+	for {
+		switch z.Next() {
+		case html.ErrorToken:
+			break loop
+		case html.TextToken:
+			if inTitle {
+				title += string(z.Text())
+			}
+		case html.EndTagToken:
+			name, _ := z.TagName()
+			switch string(name) {
+			case "title":
+				inTitle = false
+			case "head":
+				break loop
+			}
+		case html.StartTagToken, html.SelfClosingTagToken:
+			name, hasAttr := z.TagName()
+			attrs := map[string]string{}
+			for hasAttr {
+				var k, v []byte
+				k, v, hasAttr = z.TagAttr()
+				attrs[string(k)] = string(v)
+			}
+			switch string(name) {
+			case "body":
+				break loop
+			case "title":
+				inTitle = title == ""
+			case "meta":
+				key := strings.ToLower(cmpOr(attrs["property"], attrs["name"]))
+				switch key {
+				case "description":
+					m.Description = cmpOr(m.Description, attrs["content"])
+				case "og:title":
+					ogTitle = cmpOr(ogTitle, attrs["content"])
+				case "og:description":
+					ogDesc = cmpOr(ogDesc, attrs["content"])
+				}
+			case "link":
+				rels := strings.Fields(strings.ToLower(attrs["rel"]))
+				href := resolve(base, attrs["href"])
+				if href == "" || strings.Contains(attrs["type"], "svg") || strings.HasSuffix(strings.ToLower(attrs["href"]), ".svg") {
+					continue
+				}
+				for _, rel := range rels {
+					switch rel {
+					case "icon":
+						icons = append(icons, href)
+					case "apple-touch-icon":
+						appleIcons = append(appleIcons, href)
+					}
+				}
+			}
+		}
+	}
+	m.Title = clean(cmpOr(title, ogTitle), maxTitle)
+	m.Description = clean(cmpOr(m.Description, ogDesc), maxDescription)
+	m.Icons = append(icons, appleIcons...)
+}
+
+// Icon downloads an icon, accepting only common raster formats (sniffed, not
+// trusted from the header). SVG is refused: it can carry scripts.
+func (c *Client) Icon(ctx context.Context, rawURL string) (mime string, data []byte, err error) {
+	res, err := c.get(ctx, rawURL, "image/*")
+	if err != nil {
+		return "", nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", nil, fmt.Errorf("status %d", res.StatusCode)
+	}
+	data, err = io.ReadAll(io.LimitReader(res.Body, maxIcon+1))
+	if err != nil {
+		return "", nil, err
+	}
+	if len(data) > maxIcon {
+		return "", nil, errors.New("icon too large")
+	}
+	switch mime = http.DetectContentType(data); mime {
+	case "image/png", "image/gif", "image/jpeg", "image/webp", "image/x-icon", "image/vnd.microsoft.icon":
+		return mime, data, nil
+	}
+	// DetectContentType doesn't know every ICO variant.
+	if bytes.HasPrefix(data, []byte{0, 0, 1, 0}) {
+		return "image/x-icon", data, nil
+	}
+	return "", nil, fmt.Errorf("not an image (%s)", mime)
+}
+
+func (c *Client) get(ctx context.Context, rawURL, accept string) (*http.Response, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return nil, errors.New("not an http(s) URL")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", userAgent)
+	req.Header.Set("Accept", accept)
+	return c.http.Do(req)
+}
+
+func resolve(base *url.URL, href string) string {
+	href = strings.TrimSpace(href)
+	if href == "" || strings.HasPrefix(href, "data:") {
+		return ""
+	}
+	u, err := base.Parse(href)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return ""
+	}
+	return u.String()
+}
+
+// clean collapses whitespace and cuts s to at most n runes.
+func clean(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if !utf8.ValidString(s) {
+		s = strings.ToValidUTF8(s, "")
+	}
+	if utf8.RuneCountInString(s) > n {
+		s = string([]rune(s)[:n-1]) + "…"
+	}
+	return s
+}
+
+func cmpOr(a, b string) string {
+	if strings.TrimSpace(a) != "" {
+		return a
+	}
+	return b
+}
+
+// DefaultIcon is where a site's icon lives when the page doesn't say.
+func DefaultIcon(pageURL string) string {
+	u, err := url.Parse(pageURL)
+	if err != nil {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host + "/favicon.ico"
+}

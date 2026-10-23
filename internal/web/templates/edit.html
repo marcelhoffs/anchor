@@ -18,6 +18,40 @@
     </div>
   </form>
   {{with .Bookmark}}
+  <section class="edit-extra" aria-labelledby="sharing">
+    <h2 id="sharing">Sharing</h2>
+    {{if .IsShared}}
+    <p class="muted">Anyone with this link can see the title, link and description. Notes and tags stay private.</p>
+    <input class="mono" readonly value="{{$.ShareURL}}" aria-label="Public link">
+    <form method="post" action="/bookmarks/{{.ID}}/share" class="form-actions">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
+      <input type="hidden" name="on" value="0">
+      <a class="btn" href="{{$.ShareURL}}" target="_blank" rel="noopener">{{icon "link" "sm"}}Open public page</a>
+      <button class="btn btn-danger">Stop sharing</button>
+    </form>
+    {{else}}
+    <p class="muted">Make a public link to this bookmark's title, link and description. Notes and tags stay private.</p>
+    <form method="post" action="/bookmarks/{{.ID}}/share">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
+      <input type="hidden" name="on" value="1">
+      <button class="btn">{{icon "link" "sm"}}Create public link</button>
+    </form>
+    {{end}}
+  </section>
+  <section class="edit-extra" aria-labelledby="page-details">
+    <h2 id="page-details">Page details</h2>
+    <p class="muted">
+      {{if eq .FetchStatus "pending"}}Fetching the page's title, description and icon. Empty fields are filled in when it's done.
+      {{else if eq .FetchStatus "failed"}}The page couldn't be fetched, so empty fields stay empty.
+      {{else}}Burrow fills in an empty title or description, and the site's icon, from the page itself.{{end}}
+    </p>
+    {{if ne .FetchStatus "pending"}}
+    <form method="post" action="/bookmarks/{{.ID}}/refetch">
+      <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
+      <button class="btn">{{icon "refresh" "sm"}}Fetch again</button>
+    </form>
+    {{end}}
+  </section>
   <div class="danger-zone">
     <p class="muted">Saved {{ago .CreatedAt}}.</p>
     <button type="button" class="btn btn-danger" popovertarget="delete-bookmark">{{icon "trash" "sm"}}Delete bookmark</button>

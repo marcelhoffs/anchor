@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
+
 	"github.com/marcelhoffs/burrow/internal/search"
 	"github.com/marcelhoffs/burrow/internal/store"
 )
@@ -32,6 +34,11 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	bundles, err := s.store.ListBundles(r.Context(), u.ID)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	pageURL := func(p int) string {
 		v := url.Values{}
 		if q != "" {
@@ -50,9 +57,9 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, pageURL(pages), http.StatusSeeOther)
 		return
 	}
-	view, heading := listView(q)
+	view, heading := listView(q, bundles)
 	d := data{
-		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "Here": r.URL.RequestURI(),
+		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "Bundles": bundles, "Here": r.URL.RequestURI(),
 		"View": view, "Heading": heading,
 	}
 	if pages > 1 {
@@ -98,8 +105,9 @@ func newPager(page, pages, total int, pageURL func(int) string) pager {
 }
 
 // listView names the sidebar entry a query corresponds to ("all", "fav",
-// "archive", "#<tag>", or "" for any other search) and the page heading.
-func listView(q string) (view, heading string) {
+// "archive", "#<tag>", "bundle:<id>", or "" for any other search) and the
+// page heading.
+func listView(q string, bundles []store.Bundle) (view, heading string) {
 	switch q = strings.TrimSpace(q); {
 	case q == "":
 		return "all", "All bookmarks"
@@ -109,6 +117,11 @@ func listView(q string) (view, heading string) {
 		return "archive", "Archive"
 	case strings.HasPrefix(q, "#") && len(q) > 1 && len(strings.Fields(q)) == 1:
 		return q, q
+	}
+	for _, b := range bundles {
+		if b.Query == q {
+			return "bundle:" + strconv.FormatInt(b.ID, 10), b.Name
+		}
 	}
 	return "", "Search results"
 }
@@ -170,6 +183,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(b.ID, 10)+"/edit?dup=1", http.StatusSeeOther)
 		return
 	}
+	s.fetcher.Notify()
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
 }
 
@@ -189,8 +203,13 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 	})
 	d["Bookmark"] = b
 	d["Next"] = safeNext(r.URL.Query().Get("next"))
+	if b.IsShared {
+		d["ShareURL"] = s.shareURL(b)
+	}
 	if r.URL.Query().Get("dup") != "" {
 		d["Notice"] = "You already saved this URL."
+	} else if n := bookmarkNotices[r.URL.Query().Get("done")]; n != "" {
+		d["Notice"] = n
 	}
 	s.render(w, r, http.StatusOK, "edit", d)
 }
@@ -222,7 +241,87 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, err) {
 		return
 	}
+	s.fetcher.Notify() // in case the URL changed
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
+}
+
+var bookmarkNotices = map[string]string{
+	"shared":    "Anyone with the link can now see this bookmark's title, link and description.",
+	"unshared":  "The public link no longer works.",
+	"refetched": "Fetching the page again. Empty fields and the icon are filled in when it's done.",
+}
+
+// shareURL is a shared bookmark's public link.
+func (s *Server) shareURL(b store.Bookmark) string {
+	return s.cfg.BaseURL.String() + "/s/" + b.ShareToken
+}
+
+func (s *Server) shareBookmark(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	on := r.PostFormValue("on") == "1"
+	if !s.storeError(w, r, s.store.SetShared(r.Context(), currentUser(r).ID, id, on)) {
+		return
+	}
+	done := "unshared"
+	if on {
+		done = "shared"
+	}
+	http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(id, 10)+"/edit?done="+done+"&next="+url.QueryEscape(safeNext(r.PostFormValue("next"))), http.StatusSeeOther)
+}
+
+func (s *Server) refetchBookmark(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	if !s.storeError(w, r, s.store.Refetch(r.Context(), currentUser(r).ID, id)) {
+		return
+	}
+	s.fetcher.Notify()
+	http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(id, 10)+"/edit?done=refetched&next="+url.QueryEscape(safeNext(r.PostFormValue("next"))), http.StatusSeeOther)
+}
+
+// sharedBookmark is the public page behind a share link.
+func (s *Server) sharedBookmark(w http.ResponseWriter, r *http.Request) {
+	b, err := s.store.SharedBookmark(r.Context(), chi.URLParam(r, "token"))
+	if errors.Is(err, store.ErrNotFound) {
+		s.notFound(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	w.Header().Set("X-Robots-Tag", "noindex")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	s.render(w, r, http.StatusOK, "shared", data{"Shared": b})
+}
+
+// favicon serves a stored site icon to a user who has a bookmark using it.
+func (s *Server) favicon(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	mime, img, err := s.store.Favicon(r.Context(), currentUser(r).ID, id)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", mime)
+	w.Header().Set("Cache-Control", "private, max-age=86400")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	w.Write(img)
 }
 
 func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {

@@ -20,18 +20,20 @@ import (
 	"github.com/marcelhoffs/burrow/internal/auth"
 	"github.com/marcelhoffs/burrow/internal/config"
 	"github.com/marcelhoffs/burrow/internal/db"
+	"github.com/marcelhoffs/burrow/internal/fetch"
 	"github.com/marcelhoffs/burrow/internal/jobs"
 	"github.com/marcelhoffs/burrow/internal/store"
 )
 
 type env struct {
-	t      *testing.T
-	srv    *httptest.Server
-	store  *store.Store
-	db     *db.DB
-	server *Server
-	worker *jobs.Worker
-	origin string // the configured base URL (WebAuthn origin)
+	t       *testing.T
+	srv     *httptest.Server
+	store   *store.Store
+	db      *db.DB
+	server  *Server
+	worker  *jobs.Worker
+	fetcher *jobs.Fetcher
+	origin  string // the configured base URL (WebAuthn origin)
 }
 
 func newEnv(t *testing.T) *env {
@@ -60,14 +62,16 @@ func newEnvHost(t *testing.T, host string) *env {
 	cfg := &config.Config{BaseURL: base, SecretKey: make([]byte, 32)}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	worker := jobs.NewWorker(st, log)
-	s, err := New(cfg, st, log, worker)
+	// Tests fetch from httptest servers on 127.0.0.1.
+	fetcher := jobs.NewFetcher(st, fetch.New(true), log)
+	s, err := New(cfg, st, log, worker, fetcher)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ts.Config.Handler = s.Handler()
 	ts.Start()
 	t.Cleanup(ts.Close)
-	return &env{t: t, srv: ts, store: st, db: d, server: s, worker: worker, origin: base.String()}
+	return &env{t: t, srv: ts, store: st, db: d, server: s, worker: worker, fetcher: fetcher, origin: base.String()}
 }
 
 type client struct {
@@ -391,14 +395,17 @@ func TestPagesAreCSPClean(t *testing.T) {
 	e.user("alice")
 	c := e.login("alice")
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
+	c.post("/bookmarks/1/share", url.Values{"on": {"1"}})
+	c.post("/bundles", url.Values{"name": {"Go"}, "query": {"#go site:go.dev"}})
+	b, _ := e.store.GetBookmark(context.Background(), e.userID("alice"), 1)
 	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope",
-		"/settings/security", "/settings/tokens", "/settings/data", "/reauth"} {
+		"/settings/security", "/settings/tokens", "/settings/data", "/reauth", "/bundles", "/?q=%23go+site%3Ago.dev"} {
 		_, body, _ := c.get(path)
 		if m := cspViolation(body); m != "" {
 			t.Errorf("%s contains %q", path, m)
 		}
 	}
-	for _, path := range []string{"/login", "/setup"} {
+	for _, path := range []string{"/login", "/setup", "/s/" + b.ShareToken} {
 		if _, body, _ := e.client().get(path); cspViolation(body) != "" {
 			t.Errorf("%s has inline style or script", path)
 		}

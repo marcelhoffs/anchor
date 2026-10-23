@@ -42,7 +42,7 @@ const (
 	maxImportBody = 32 << 20 // 32 MiB
 )
 
-// JobNotifier is told when a background job is queued.
+// JobNotifier is told when background work is queued.
 type JobNotifier interface{ Notify() }
 
 type Server struct {
@@ -50,6 +50,7 @@ type Server struct {
 	store    *store.Store
 	log      *slog.Logger
 	jobs     JobNotifier
+	fetcher  JobNotifier // told when a bookmark needs its page details
 	pages    map[string]pageTemplate
 	keys     auth.Keys
 	csrfKey  []byte
@@ -62,7 +63,7 @@ type Server struct {
 	loginUser, loginIP, mfaUser, apiToken, signupIP *ratelimit.Limiter
 }
 
-func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs JobNotifier) (*Server, error) {
+func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher JobNotifier) (*Server, error) {
 	keys := auth.NewKeys(cfg.SecretKey)
 	// Passkeys are bound to a domain name. Reached by IP address, Burrow runs
 	// without them (TOTP and recovery codes still work).
@@ -76,7 +77,7 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs JobNotifier
 		wa = nil
 	}
 	s := &Server{
-		cfg: cfg, store: st, log: log, jobs: jobs, keys: keys, csrfKey: keys.Derive("csrf"), webauthn: wa,
+		cfg: cfg, store: st, log: log, jobs: jobs, fetcher: fetcher, keys: keys, csrfKey: keys.Derive("csrf"), webauthn: wa,
 		cer:       ceremonies{m: map[string]ceremony{}},
 		loginUser: ratelimit.New(10, 15*time.Minute),
 		loginIP:   ratelimit.New(100, 15*time.Minute),
@@ -134,6 +135,9 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/login/2fa/passkey/begin", s.login2FAPasskeyBegin)
 		r.Post("/login/2fa/passkey/finish", s.login2FAPasskeyFinish)
 
+		// A shared bookmark's public page.
+		r.Get("/s/{token}", s.sharedBookmark)
+
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireUser, s.enforce2FA)
 			r.Get("/", s.list)
@@ -143,6 +147,13 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/bookmarks/{id}", s.updateBookmark)
 			r.Post("/bookmarks/{id}/delete", s.deleteBookmark)
 			r.Post("/bookmarks/{id}/flag", s.flagBookmark)
+			r.Post("/bookmarks/{id}/share", s.shareBookmark)
+			r.Post("/bookmarks/{id}/refetch", s.refetchBookmark)
+			r.Get("/favicons/{id}", s.favicon)
+			r.Get("/bundles", s.bundles)
+			r.Post("/bundles", s.createBundle)
+			r.Post("/bundles/{id}", s.updateBundle)
+			r.Post("/bundles/{id}/delete", s.deleteBundle)
 			r.Get("/tags", s.tags)
 			r.Post("/tags/{id}/rename", s.renameTag)
 			r.Post("/tags/{id}/delete", s.deleteTag)
