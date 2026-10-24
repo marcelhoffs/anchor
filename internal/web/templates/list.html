@@ -24,6 +24,12 @@
 </aside>
 
 <div class="content">
+  {{/* Without room for the sidebar, the views sit above the search box. */}}
+  <nav class="view-bar" aria-label="Views">
+    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}All bookmarks</a>
+    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}Favourites</a>
+    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive" "sm"}}Archive</a>
+  </nav>
   <div class="search-row">
     <form class="search" method="get" action="/" role="search">
       {{icon "search"}}
@@ -54,12 +60,6 @@
     </form>
     <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}Tags</button>
   </div>
-  {{/* Without room for the sidebar, the views sit under the search box. */}}
-  <nav class="view-bar" aria-label="Views">
-    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}All bookmarks</a>
-    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}Favourites</a>
-    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive" "sm"}}Archive</a>
-  </nav>
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
     <div class="drawer-head">

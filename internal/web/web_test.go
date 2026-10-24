@@ -841,12 +841,12 @@ func TestIconsDrawFromThePage(t *testing.T) {
 	}
 }
 
-func TestViewBarUnderSearch(t *testing.T) {
+func TestViewBarAboveSearch(t *testing.T) {
 	c := newEnv(t).admin()
 	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
 	bar := strings.Index(body, `<nav class="view-bar"`)
-	if bar < strings.Index(body, `role="search"`) || bar > strings.Index(body, `class="list-head"`) {
-		t.Fatal("no view bar between the search box and the list")
+	if bar < strings.Index(body, `class="content"`) || bar > strings.Index(body, `role="search"`) {
+		t.Fatal("no view bar above the search box")
 	}
 	if !strings.Contains(body[bar:], `<a href="/?q=%21fav" aria-current="page">`) {
 		t.Fatal("view bar doesn't mark Favourites")
