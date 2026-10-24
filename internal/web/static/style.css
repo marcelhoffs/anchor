@@ -281,7 +281,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .search .btn { min-height: 36px; }
 .search-btn .icon { display: none; } /* phones show it instead of the label */
 .list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
-.list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
+/* A long title stays on the row and fades out where the actions start. */
+.list-head h1 {
+  flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap;
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+.list-head .list-actions { flex-shrink: 0; }
 
 /* Bookmark list */
 .bookmarks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
