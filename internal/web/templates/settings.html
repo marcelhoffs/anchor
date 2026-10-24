@@ -34,9 +34,14 @@
       </fieldset>
       <fieldset>
         <legend>Font</legend>
-        <div class="choices">
+        {{/* Like the accent: each option, and the button, in its own font. */}}
+        <button type="button" class="btn picker" popovertarget="font-menu">
+          {{range .Fonts}}{{if eq $.Prefs.Font .Value}}<span class="picker-current"><span class="font-sample {{.Value}}">{{.Label}}</span></span>{{end}}{{end}}
+          {{icon "chevron-down" "sm"}}
+        </button>
+        <div id="font-menu" class="menu row-menu picker-menu" popover>
           {{range .Fonts}}
-          <label class="choice font-sample {{.Value}}"><input type="radio" name="font" value="{{.Value}}"{{if eq $.Prefs.Font .Value}} checked{{end}}>{{.Label}}</label>
+          <label class="picker-option"><input type="radio" name="font" value="{{.Value}}"{{if eq $.Prefs.Font .Value}} checked{{end}}><span class="font-sample {{.Value}}">{{.Label}}</span></label>
           {{end}}
         </div>
         <span class="hint">System uses your device's own font, so nothing extra is downloaded.</span>
