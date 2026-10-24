@@ -119,7 +119,7 @@ func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int
 }
 
 func (s *Server) login2FAForm(w http.ResponseWriter, r *http.Request) {
-	_, u, ok := s.pendingLogin(r)
+	r, _, u, ok := s.pendingLogin(r)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -128,7 +128,7 @@ func (s *Server) login2FAForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string, check func(store.User) (bool, error)) {
-	_, u, ok := s.pendingLogin(r)
+	r, _, u, ok := s.pendingLogin(r)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
@@ -159,7 +159,7 @@ func (s *Server) login2FARecovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login2FAPasskeyBegin(w http.ResponseWriter, r *http.Request) {
-	ss, u, ok := s.pendingLogin(r)
+	r, ss, u, ok := s.pendingLogin(r)
 	if !ok {
 		jsonError(w, http.StatusUnauthorized, langOf(r).T("Your sign-in expired. Start again."))
 		return
@@ -168,7 +168,7 @@ func (s *Server) login2FAPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
-	ss, u, ok := s.pendingLogin(r)
+	r, ss, u, ok := s.pendingLogin(r)
 	if !ok {
 		jsonError(w, http.StatusUnauthorized, langOf(r).T("Your sign-in expired. Start again."))
 		return

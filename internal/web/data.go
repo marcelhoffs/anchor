@@ -81,9 +81,18 @@ func (s *Server) importFile(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 	b, err := readImport(f)
 	if err != nil {
-		msg := i18n.M("Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.")
-		if tooBig := (*http.MaxBytesError)(nil); errors.As(err, &tooBig) {
+		var tooBig *http.MaxBytesError
+		var version importexport.VersionError
+		msg := i18n.M("Couldn't read that file. Try uploading it again.")
+		switch {
+		case errors.As(err, &tooBig):
 			msg = i18n.M("Couldn't import that file: it's larger than %d MB.", maxImportBody>>20)
+		case errors.As(err, &version):
+			msg = i18n.M("That export comes from a newer version of Anchor. Update this Anchor to import it.")
+		case errors.Is(err, importexport.ErrNotAnchorJSON):
+			msg = i18n.M("That file isn't a valid Anchor JSON export. Export it from Anchor again.")
+		case errors.Is(err, importexport.ErrNotBookmarkFile):
+			msg = i18n.M("Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.")
 		}
 		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": msg})
 		return

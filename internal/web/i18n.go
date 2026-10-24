@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"html"
@@ -14,9 +15,23 @@ import (
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
+type langKey struct{}
+
+// withUserLang makes r answer in u's chosen language before u is signed in
+// all the way: between the password and the second factor.
+func withUserLang(r *http.Request, u store.User) *http.Request {
+	if l, ok := i18n.Parse(u.Settings.Language); ok {
+		return r.WithContext(context.WithValue(r.Context(), langKey{}, l))
+	}
+	return r
+}
+
 // langOf is the language to answer r in: the user's choice, else the
 // browser's.
 func langOf(r *http.Request) i18n.Lang {
+	if l, ok := r.Context().Value(langKey{}).(i18n.Lang); ok {
+		return l
+	}
 	if u := currentUser(r); u != nil {
 		if l, ok := i18n.Parse(u.Settings.Language); ok {
 			return l
@@ -93,19 +108,18 @@ func toInt(n any) (int, error) {
 	return 0, fmt.Errorf("tn: %T is not a count", n)
 }
 
-// escapeArgs HTML-escapes the string args of t; template.HTML stays as is.
+// escapeArgs HTML-escapes t's args: template.HTML stays as it is, and
+// counts stay numbers for %d; everything else is escaped text.
 func escapeArgs(args []any) []any {
 	out := make([]any, len(args))
 	for i, a := range args {
 		switch v := a.(type) {
 		case template.HTML:
 			out[i] = string(v)
-		case string:
-			out[i] = html.EscapeString(v)
-		case fmt.Stringer:
-			out[i] = html.EscapeString(v.String())
+		case int, int64:
+			out[i] = v // for %d
 		default:
-			out[i] = v
+			out[i] = html.EscapeString(fmt.Sprint(v))
 		}
 	}
 	return out

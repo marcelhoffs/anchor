@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"time"
+
+	"github.com/marcelhoffs/anchor/internal/i18n"
 )
 
 type User struct {
@@ -45,11 +47,21 @@ var (
 	Accents          = []string{"indigo", "terracotta", "yellow", "emerald", "forest", "ocean", "rose", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
 	Fonts            = []string{"inter", "system", "roboto", "open-sans", "lato"}
-	Languages        = []string{"auto", "en", "nl", "es", "fr"}
+	Languages        = languages()
 	Sidebars         = []string{"left", "right"}
 	Sorts            = []string{SortNewest, SortTitle}
 	DescriptionModes = []string{"show", "hide"}
 )
+
+// languages are "auto" (follow the browser) and every language the
+// interface speaks.
+func languages() []string {
+	out := []string{"auto"}
+	for _, l := range i18n.Langs {
+		out = append(out, string(l))
+	}
+	return out
+}
 
 // Normalized fills in defaults and replaces unknown values with them.
 func (st Settings) Normalized() Settings {
