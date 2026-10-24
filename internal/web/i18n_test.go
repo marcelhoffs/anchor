@@ -189,7 +189,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 
 	pages := []string{"/", "/?q=%23go", "/?q=nothing", "/?q=%21archived", "/tags", "/bundles", "/bookmarks/new",
 		"/bookmarks/1/edit", "/settings", "/settings/security", "/settings/tokens", "/settings/data", "/spaces",
-		spaceURL(spaces[0].ID), "/admin/", "/admin/invites", "/admin/spaces", "/admin/settings", "/reauth",
+		spaceURL(spaces[0].ID), "/admin/", "/admin/users", "/admin/invites", "/admin/spaces", "/reauth",
 		"/s/" + b.ShareToken, "/no-such-page"}
 	anon := e.client()
 	for _, lang := range i18n.Langs {
@@ -209,7 +209,6 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 			path string
 			form url.Values
 		}{
-			{"/admin/users", url.Values{"username": {"bob-" + string(lang)}}},
 			{"/tags", url.Values{"name": {"bad,name"}}},
 			{"/bookmarks", url.Values{"url": {"not a url"}}},
 		} {

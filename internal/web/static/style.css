@@ -444,6 +444,13 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
 .card section + section { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--border); }
 .card section > h2 { margin-bottom: 4px; }
 .card section > .muted { margin-bottom: 16px; font-size: 14px; }
+/* A section that starts collapsed: its heading opens it. */
+.fold > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary .chev { color: var(--muted); transition: transform 0.15s; }
+.fold[open] > summary { margin-bottom: 4px; }
+.fold[open] > summary .chev { transform: rotate(180deg); }
+.fold > .muted { margin-bottom: 16px; font-size: 14px; }
 .auth { min-height: calc(100vh - 140px); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .bare .auth { min-height: calc(100dvh - 110px); } /* no top bar */
 .auth .card { width: 100%; max-width: 400px; }
@@ -480,6 +487,8 @@ label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-narrow { max-width: 400px; }
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
+/* Save buttons sit the fieldset's 20px below the last setting, as on Settings. */
+fieldset + .form-actions { margin-top: 0; }
 .mono { font-family: var(--mono); font-size: 13.5px; }
 .edit-extra { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
 .edit-extra h2 { margin-bottom: 4px; }
@@ -634,6 +643,7 @@ input[type="file"]::file-selector-button:hover { border-color: var(--accent); }
 select { display: block; width: 100%; margin-top: 6px; padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font: inherit; }
 fieldset[disabled] { opacity: 0.6; }
 .option { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; font-weight: 400; }
+.option:last-child { margin-bottom: 0; }
 .option input { margin-top: 3px; }
 .option .hint { margin-top: 2px; }
 

@@ -4,9 +4,7 @@
   <h1>{{t "Settings"}}</h1>
   {{template "settings-nav" .}}
 
-  <section aria-labelledby="appearance">
-    <h2 id="appearance">{{t "Appearance"}}</h2>
-    <p class="muted">{{t "Applies to every device you sign in on."}}</p>
+  <section aria-label="{{t "Appearance"}}">
     <form method="post" action="/settings/appearance">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>

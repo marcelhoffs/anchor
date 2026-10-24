@@ -65,17 +65,5 @@
     </table>
     </div>
   </section>
-
-  <section aria-labelledby="add-user">
-    <h2 id="add-user">{{t "Add a user"}}</h2>
-    <p class="muted">{{t "Anchor generates a password for you to pass on. Or send an %s so they choose their own." (link "/admin/invites" (t "invite link"))}}</p>
-    <form method="post" action="/admin/users" class="row-wrap">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <label class="visually-hidden" for="new-username">{{t "Username"}}</label>
-      <input id="new-username" name="username" required placeholder="{{t "Username"}}" autocapitalize="none" spellcheck="false">
-      <label class="check"><input type="checkbox" name="admin" value="1"> {{t "Admin"}}</label>
-      <button class="btn btn-primary">{{icon "plus" "sm"}}{{t "Add user"}}</button>
-    </form>
-  </section>
 </div>
 {{end}}

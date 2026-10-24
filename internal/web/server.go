@@ -236,17 +236,17 @@ func (s *Server) Handler() http.Handler {
 
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(s.requireAdmin)
-				r.Get("/", s.adminUsers)
+				r.Get("/", s.adminSettings)
+				r.Get("/users", s.adminUsers)
 				r.Get("/invites", s.adminInvites)
-				r.Get("/settings", s.adminSettings)
 				r.Get("/spaces", s.adminSpaces)
 				r.Group(func(r chi.Router) {
 					r.Use(s.requireRecentAuth)
-					r.Post("/users", s.adminCreateUser)
 					r.Post("/users/{id}/{action}", s.adminUserAction)
 					r.Post("/invites", s.adminCreateInvite)
 					r.Post("/invites/{id}/delete", s.adminDeleteInvite)
 					r.Post("/settings", s.adminSaveSettings)
+					r.Post("/spaces", s.adminSaveSpaceCreation)
 					r.Post("/spaces/{id}/owner", s.adminSpaceOwner)
 					r.Post("/spaces/{id}/delete", s.adminDeleteSpace)
 				})

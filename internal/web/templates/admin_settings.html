@@ -1,4 +1,4 @@
-{{define "title"}}{{t "Admin"}} · {{t "Instance"}}{{end}}
+{{define "title"}}{{t "Admin"}} · {{t "Security"}}{{end}}
 {{define "content"}}
 <div class="card wide-card">
   <h1>{{t "Admin"}}</h1>
@@ -12,7 +12,7 @@
       <fieldset{{if .SignupFromEnv}} disabled{{end}}>
         <legend class="visually-hidden">{{t "Who can create an account"}}</legend>
         <label class="option"><input type="radio" name="signup" value="closed"{{if eq .SignupMode "closed"}} checked{{end}}>
-          <span><strong>{{t "Closed"}}</strong><span class="hint">{{t "Only admins add users."}}</span></span></label>
+          <span><strong>{{t "Closed"}}</strong><span class="hint">{{t "Nobody new can create an account."}}</span></span></label>
         <label class="option"><input type="radio" name="signup" value="invite"{{if eq .SignupMode "invite"}} checked{{end}}>
           <span><strong>{{t "Invite only"}}</strong><span class="hint">{{t "People sign up with a single-use invite link."}}</span></span></label>
         <label class="option"><input type="radio" name="signup" value="open"{{if eq .SignupMode "open"}} checked{{end}}>
@@ -23,23 +23,13 @@
     <section aria-labelledby="policy">
       <h2 id="policy">{{t "Two-factor authentication"}}</h2>
       {{if .Require2FAFromEnv}}<p class="muted">{{t "Set by %s; change it there." (code "ANCHOR_REQUIRE_2FA")}}</p>{{end}}
-      <label class="check"><input type="checkbox" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
-        {{t "Require every user to set up two-factor authentication"}}</label>
-      <span class="hint">{{t "Users without it are sent to set it up the next time they use Anchor."}}</span>
-    </section>
-
-    <section aria-labelledby="spaces">
-      <h2 id="spaces">{{t "Spaces"}}</h2>
       <fieldset>
-        <legend class="visually-hidden">{{t "Who can create shared spaces"}}</legend>
-        <label class="option"><input type="radio" name="space_creation" value="everyone"{{if ne .SpaceCreation "admins"}} checked{{end}}>
-          <span><strong>{{t "Everyone"}}</strong><span class="hint">{{t "Any user can create a shared space and add others to it."}}</span></span></label>
-        <label class="option"><input type="radio" name="space_creation" value="admins"{{if eq .SpaceCreation "admins"}} checked{{end}}>
-          <span><strong>{{t "Admins only"}}</strong><span class="hint">{{t "Only admins create spaces; they can then make someone else the owner."}}</span></span></label>
+        <label class="check"><input type="checkbox" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
+          {{t "Require every user to set up two-factor authentication"}}</label>
+        <span class="hint">{{t "Users without it are sent to set it up the next time they use Anchor."}}</span>
       </fieldset>
+      <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
     </section>
-
-    <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
   </form>
 </div>
 {{end}}

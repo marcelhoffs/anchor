@@ -5,7 +5,7 @@
   {{template "admin-nav" .}}
 
   {{if eq .SignupMode "closed"}}
-  <p class="error">{{t "Sign-up is closed, so you can't invite anyone and invite links won't work. Allow invites under %s." (link "/admin/settings" (t "Instance"))}}</p>
+  <p class="error">{{t "Sign-up is closed, so you can't invite anyone and invite links won't work. Allow invites under %s." (link "/admin/" (t "Security"))}}</p>
   {{else}}
   <section aria-labelledby="new-invite">
     <h2 id="new-invite">{{t "Invite someone"}}</h2>
