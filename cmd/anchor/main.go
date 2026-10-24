@@ -35,6 +35,7 @@ Commands:
                                  or reads one from stdin with --password-stdin
   user reset-password <name>     set a new password and sign out all sessions
   user reset-2fa <name>          remove all second factors and sign out all sessions
+  user unlink-sso <name>         unlink single sign-on, for a lost provider account
   backup <file>                  write a consistent snapshot of the database
   healthcheck                    exit 0 if the local server answers /healthz
   version                        print the version
@@ -201,7 +202,7 @@ func cleanSessions(ctx context.Context, st *store.Store, log *slog.Logger) {
 
 func userCmd(ctx context.Context, args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: anchor user create|reset-password|reset-2fa <name>")
+		return errors.New("usage: anchor user create|reset-password|reset-2fa|unlink-sso <name>")
 	}
 	fs := flag.NewFlagSet("user "+args[0], flag.ContinueOnError)
 	admin := fs.Bool("admin", false, "make the user an administrator")
@@ -271,6 +272,24 @@ func userCmd(ctx context.Context, args []string) error {
 				return err
 			}
 			fmt.Printf("Two-factor authentication for %s removed; all their sessions were signed out.\n", u.Username)
+			return nil
+		case "unlink-sso":
+			u, err := st.UserByUsername(ctx, name)
+			if errors.Is(err, store.ErrNotFound) {
+				return fmt.Errorf("no user %q", name)
+			}
+			if err != nil {
+				return err
+			}
+			if err := st.UnlinkIdentity(ctx, u.ID, true); errors.Is(err, store.ErrNotFound) {
+				return fmt.Errorf("%s has no single sign-on linked", u.Username)
+			} else if err != nil {
+				return err
+			}
+			fmt.Printf("Single sign-on unlinked from %s.\n", u.Username)
+			if !u.HasPassword() {
+				fmt.Printf("They have no password: set one with anchor user reset-password %s.\n", u.Username)
+			}
 			return nil
 		default:
 			return fmt.Errorf("unknown user command %q", args[0])

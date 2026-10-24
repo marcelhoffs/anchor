@@ -39,13 +39,21 @@
         <button class="btn wide">{{t "Use recovery code"}}</button>
       </form>
     </details>
-    {{else}}
+    {{else if .HasPassword}}
     <form method="post" action="/reauth/password">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="next" value="{{.Next}}">
       <input type="text" name="username" value="{{.Who}}" autocomplete="username" hidden>
       <label>{{t "Password"}} <input type="password" name="password" required autocomplete="current-password" autofocus></label>
       <button class="btn btn-primary wide">{{t "Confirm"}}</button>
+    </form>
+    {{end}}
+
+    {{if .SSOLinked}}
+    <form method="post" action="/reauth/sso" class="verify-option">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <button class="btn wide{{if not (or .MFA.Enabled .HasPassword)}} btn-primary{{end}}">{{icon "key" "sm"}}{{t "Confirm with %s" .SSO.Name}}</button>
     </form>
     {{end}}
 

@@ -115,6 +115,8 @@ func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int
 	s.render(w, r, status, "verify", data{
 		"Mode": mode, "Next": next, "Error": problem, "MFA": m, "Who": u.Username, "Action": action,
 		"PasskeyFinish": action + "/passkey/finish?next=" + urlQueryEscape(next),
+		"SSOLinked":     mode == "reauth" && s.ssoLinked(r.Context(), &u),
+		"HasPassword":   u.HasPassword(),
 	})
 }
 
@@ -193,7 +195,7 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.User, method, next string, asJSON bool) {
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	s.store.RecordLogin(r.Context(), u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -306,6 +308,8 @@ var securityNotices = map[string]i18n.Msg{
 	"passkey-off":  i18n.M("Passkey removed. Your other sessions were signed out."),
 	"confirmed":    i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 	"recovery-low": i18n.M("You're running low on recovery codes. Generate new ones below."),
+	"sso-linked":   i18n.M("Your account is linked: you can now sign in with single sign-on."),
+	"sso-unlinked": i18n.M("Single sign-on is unlinked from your account."),
 }
 
 func (s *Server) security(w http.ResponseWriter, r *http.Request) {
@@ -339,6 +343,7 @@ func (s *Server) renderSecurity(w http.ResponseWriter, r *http.Request, status i
 	d["Sessions"] = rows
 	d["Required"] = s.require2FA(r.Context()) && !m.Enabled()
 	d["MinPassword"] = auth.MinPasswordLen
+	d["SSOLinked"] = s.ssoLinked(r.Context(), u)
 	s.render(w, r, status, "security", d)
 }
 

@@ -70,20 +70,36 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, safeNext(r.URL.Query().Get("next")), http.StatusSeeOther)
 		return
 	}
-	s.render(w, r, http.StatusOK, "login", data{
-		"Next": r.URL.Query().Get("next"), "OpenSignup": s.signupMode(r.Context()) == "open",
-	})
+	s.renderLogin(w, r, http.StatusOK, data{"Next": r.URL.Query().Get("next")})
+}
+
+// renderLogin shows the login page, which offers sign-up when it's open.
+func (s *Server) renderLogin(w http.ResponseWriter, r *http.Request, status int, d data) {
+	d["OpenSignup"] = s.signupMode(r.Context()) == "open"
+	s.render(w, r, status, "login", d)
+}
+
+// passwordsOff answers a password sign-in or sign-up while single sign-on
+// is the only way in; it reports whether it did.
+func (s *Server) passwordsOff(w http.ResponseWriter, r *http.Request) bool {
+	if s.cfg.OIDC == nil || !s.cfg.OIDC.Only {
+		return false
+	}
+	s.notFound(w, r)
+	return true
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	if s.passwordsOff(w, r) {
+		return
+	}
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	password := r.PostFormValue("password")
 	next := r.PostFormValue("next")
 	ip := s.clientIP(r)
 	userKey := ip + "|" + strings.ToLower(username)
 	fail := func(status int, msg i18n.Msg) {
-		s.render(w, r, status, "login", data{"Error": msg, "Username": username, "Next": next,
-			"OpenSignup": s.signupMode(r.Context()) == "open"})
+		s.renderLogin(w, r, status, data{"Error": msg, "Username": username, "Next": next})
 	}
 
 	// Attempts are limited per IP and username, and per IP overall. Each one
@@ -141,12 +157,14 @@ func (s *Server) dropBrowserSession(r *http.Request) {
 	}
 }
 
-func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User, mfaPassed bool, ttl time.Duration) error {
+// newSession signs u in: fully (mfaPassed) or waiting for a second factor;
+// sso marks a sign-in through the OpenID Connect provider.
+func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User, mfaPassed bool, ttl time.Duration, sso bool) error {
 	s.dropBrowserSession(r)
 	token, hash := auth.NewToken(32)
 	now := time.Now()
 	ss := store.Session{
-		TokenHash: hash, UserID: u.ID, MFAPassed: mfaPassed,
+		TokenHash: hash, UserID: u.ID, MFAPassed: mfaPassed, SSO: sso,
 		UserAgent: truncate(r.UserAgent(), 256), IP: s.clientIP(r),
 		CreatedAt: now, ExpiresAt: now.Add(ttl), LastSeenAt: now,
 	}
@@ -163,7 +181,7 @@ func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User
 
 // startSession signs u in fully and redirects to next.
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.User, next string) {
-	if err := s.newSession(w, r, u, true, sessionTTL); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -173,7 +191,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.Us
 // startPendingLogin records a passed password check and asks for the second
 // factor. The pending session can do nothing else and expires in minutes.
 func (s *Server) startPendingLogin(w http.ResponseWriter, r *http.Request, u store.User, next string) {
-	if err := s.newSession(w, r, u, false, pendingTTL); err != nil {
+	if err := s.newSession(w, r, u, false, pendingTTL, false); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -227,6 +245,9 @@ func (s *Server) signupForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
+	if s.passwordsOff(w, r) {
+		return
+	}
 	token := r.PostFormValue("invite")
 	inviteHash, ok := s.signupAllowed(r, token)
 	if !ok {
@@ -336,7 +357,14 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	if s.mfaBlocked(w, r, *u, false, render) {
 		return
 	}
-	if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
+	if !u.HasPassword() {
+		// An account made by single sign-on sets its first password: there's
+		// no current one to check, so it proves itself at the provider.
+		if time.Since(cur.VerifiedAt) > reauthWindow {
+			http.Redirect(w, r, "/reauth?next=%2Fsettings%2Fsecurity", http.StatusSeeOther)
+			return
+		}
+	} else if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
 		fail(i18n.M("Current password is wrong."))
 		return
 	}

@@ -218,6 +218,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	}
 	d["Prefs"] = prefs
 	d["PasskeysAvailable"] = s.webauthn != nil
+	d["SSO"] = s.cfg.OIDC // nil when single sign-on is off
 	// Pages outside the signed-in area have no space, so nothing is read-only.
 	nav := currentNav(r)
 	d["Nav"] = nav
