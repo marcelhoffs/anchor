@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/marcelhoffs/anchor/internal/i18n"
@@ -261,6 +262,65 @@ func (s *Store) SetAdmin(ctx context.Context, userID int64, admin bool) error {
 		}
 		return nil
 	})
+}
+
+// DeleteUser deletes an account for good, with its personal space and
+// everything in it. Shared spaces it owned go to heirID, an active admin
+// (0 = the longest-standing one); bookmarks it added to shared spaces stay.
+// It returns how many shared spaces changed owner.
+func (s *Store) DeleteUser(ctx context.Context, userID, heirID int64) (int, error) {
+	var moved int
+	err := s.tx(ctx, func(tx *sql.Tx) error {
+		if err := lastAdminGuard(ctx, tx, userID); err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx,
+			`SELECT m.space_id FROM space_members m JOIN spaces sp ON sp.id = m.space_id
+			 WHERE m.user_id = ? AND m.role = 'owner' AND sp.personal_of IS NULL`, userID)
+		if err != nil {
+			return err
+		}
+		var owned []int64
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			owned = append(owned, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		if len(owned) > 0 {
+			err := tx.QueryRowContext(ctx,
+				`SELECT id FROM users WHERE is_admin = 1 AND is_active = 1 AND id != ?
+				 ORDER BY id != ? , id LIMIT 1`, userID, heirID).Scan(&heirID)
+			if errors.Is(err, sql.ErrNoRows) {
+				return invalid("Anchor needs an active admin to take over this user's shared spaces.")
+			}
+			if err != nil {
+				return err
+			}
+		}
+		now := unix(s.now())
+		for _, id := range owned {
+			// One owner per space: the old owner steps out before the heir
+			// steps up, joining if they weren't a member.
+			if _, err := tx.ExecContext(ctx, "DELETE FROM space_members WHERE space_id = ? AND user_id = ?", id, userID); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO space_members (space_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)
+				 ON CONFLICT (space_id, user_id) DO UPDATE SET role = 'owner'`, id, heirID, now); err != nil {
+				return err
+			}
+		}
+		moved = len(owned)
+		return affected(tx.ExecContext(ctx, "DELETE FROM users WHERE id = ?", userID))
+	})
+	return moved, err
 }
 
 // lastAdminGuard refuses to take away the last active admin.

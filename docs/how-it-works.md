@@ -136,7 +136,7 @@ Admins can require two-factor authentication for everyone. Users without it are 
 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 
-**Admins** can create, disable and re-enable users, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. They can also change the owner of a shared space or delete it. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
+**Admins** can create, disable, re-enable and delete users, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. Deleting an account removes it with its personal space for good; the shared spaces it owned go to the admin who deleted it, and what it added to shared spaces stays. They can also change the owner of a shared space or delete it. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
 
 ## Languages
 

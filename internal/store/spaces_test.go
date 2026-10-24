@@ -289,3 +289,53 @@ func TestSharedSpaces(t *testing.T) {
 		t.Fatalf("access to a deleted space: %v", err)
 	}
 }
+
+func TestDeleteUser(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	root, err := s.CreateUser(ctx, "root", "x", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gone, member := newUser(t, s, "gone"), newUser(t, s, "member")
+	team := newShared(t, s, map[int64]Role{gone.ID: RoleOwner, member.ID: RoleWrite})
+	shared := newShared(t, s, map[int64]Role{gone.ID: RoleOwner, root.ID: RoleRead})
+	if _, _, err := s.CreateBookmark(ctx, personal(s, gone.ID), BookmarkInput{URL: "https://private.example", Title: "private"}); err != nil {
+		t.Fatal(err)
+	}
+	sc, _ := s.Access(ctx, gone.ID, team)
+	if _, _, err := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://team.example", Title: "team"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// The last active admin can't be deleted.
+	if _, err := s.DeleteUser(ctx, root.ID, 0); !isValidationErr(err) {
+		t.Fatalf("deleted the last admin: %v", err)
+	}
+	moved, err := s.DeleteUser(ctx, gone.ID, root.ID)
+	if err != nil || moved != 2 {
+		t.Fatalf("DeleteUser: %d %v", moved, err)
+	}
+	if _, err := s.UserByID(ctx, gone.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("user still there: %v", err)
+	}
+	// The admin owns both shared spaces now, joining the one they weren't in.
+	for _, id := range []int64{team, shared} {
+		if sc, err := s.Access(ctx, root.ID, id); err != nil || sc.Role() != RoleOwner {
+			t.Fatalf("space %d: %v %v", id, sc.Role(), err)
+		}
+	}
+	// The shared bookmark stays; the personal one is gone, from search too.
+	sc, _ = s.Access(ctx, member.ID, team)
+	if n, err := s.CountBookmarks(ctx, sc); err != nil || n.All != 1 {
+		t.Fatalf("shared bookmarks: %d %v", n, err)
+	}
+	var left int
+	s.r.QueryRowContext(ctx, "SELECT (SELECT count(*) FROM bookmarks) + (SELECT count(*) FROM bookmarks_fts WHERE bookmarks_fts MATCH 'private')").Scan(&left)
+	if left != 1 {
+		t.Fatalf("rows left: %d, want only the shared bookmark", left)
+	}
+	if _, err := s.DeleteUser(ctx, gone.ID, root.ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("deleted twice: %v", err)
+	}
+}

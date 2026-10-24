@@ -134,3 +134,38 @@ func TestRequire2FAPolicy(t *testing.T) {
 		t.Fatalf("removed the only factor under the policy: %d", code)
 	}
 }
+
+func TestAdminDeleteUser(t *testing.T) {
+	ctx := context.Background()
+	e := newEnv(t)
+	e.user("alice")
+	alice := e.login("alice")
+	root := e.admin()
+	sc, err := e.store.CreateSpace(ctx, e.userID("alice"), "Team")
+	if err != nil {
+		t.Fatal(err)
+	}
+	aliceID := itoa(e.userID("alice"))
+	if _, body, _ := root.get("/admin/"); !strings.Contains(body, `action="/admin/users/`+aliceID+`/delete"`) {
+		t.Fatal("no delete confirmation on the users page")
+	}
+	if code, _, _ := alice.post("/admin/users/"+aliceID+"/delete", nil); code != http.StatusNotFound {
+		t.Fatalf("non-admin deleted a user: %d", code)
+	}
+	if code, body, _ := root.post("/admin/users/"+itoa(e.userID("root"))+"/delete", nil); code != http.StatusUnprocessableEntity || !strings.Contains(body, "own account") {
+		t.Fatalf("admin deleted themselves: %d", code)
+	}
+	code, _, loc := root.post("/admin/users/"+aliceID+"/delete", nil)
+	if code != http.StatusSeeOther || loc != "/admin/?done=delete-spaces" {
+		t.Fatalf("delete: %d %q", code, loc)
+	}
+	if _, body, _ := root.get(loc); !strings.Contains(body, "now yours") || strings.Contains(body, ">alice<") {
+		t.Fatal("users page after delete")
+	}
+	if code, _, _ := alice.get("/"); code != http.StatusSeeOther {
+		t.Fatalf("deleted user still signed in: %d", code)
+	}
+	if got, err := e.store.Access(ctx, e.userID("root"), sc.SpaceID()); err != nil || !got.CanWrite() {
+		t.Fatalf("admin didn't get the space: %v", err)
+	}
+}
