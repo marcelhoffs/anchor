@@ -17,17 +17,14 @@ import (
 // icons in static/icons (see generate.sh there), and a service worker that
 // caches only static files and an offline page, never anyone's bookmarks.
 
-// themeColours are each accent's --accent in light and dark mode (see
-// style.css): the browser's and app window's toolbar colour.
-var themeColours = map[string][2]string{
-	"indigo":     {"#4f46e5", "#8b8cf8"},
-	"terracotta": {"#c2410c", "#fb8b4f"},
-	"yellow":     {"#eab308", "#facc15"},
-	"emerald":    {"#047857", "#34d399"},
-	"forest":     {"#2d6a4f", "#95c9a8"},
-	"ocean":      {"#0369a1", "#38bdf8"},
-	"rose":       {"#be123c", "#fb7185"},
-	"graphite":   {"#1e293b", "#e2e8f0"},
+// pageBackground is --bg in light and dark mode (see style.css), which
+// Android's status and navigation bars take on so they blend with the page.
+// Terracotta has warmer neutrals; every other accent shares the slate ones.
+func pageBackground(accent string) [2]string {
+	if accent == "terracotta" {
+		return [2]string{"#fafaf9", "#100f0e"}
+	}
+	return [2]string{"#f8fafc", "#0c0d11"}
 }
 
 // themeColor is one <meta name="theme-color">; Media is empty when it
@@ -37,7 +34,7 @@ type themeColor struct{ Color, Media string }
 // themeColors follows the theme setting: one colour for light or dark, both
 // with a media query for system.
 func themeColors(accent, theme string) []themeColor {
-	c := themeColours[accent]
+	c := pageBackground(accent)
 	switch theme {
 	case "light":
 		return []themeColor{{Color: c[0]}}
@@ -50,8 +47,10 @@ func themeColors(accent, theme string) []themeColor {
 	}
 }
 
-func manifestURL(accent, lang string) string {
-	return "/app.webmanifest?" + url.Values{"accent": {accent}, "lang": {lang}, "v": {assetVersion}}.Encode()
+// manifestURL has no asset version: the manifest is built in Go, so it can
+// change without any static file changing. It's revalidated instead.
+func manifestURL(accent, lang, theme string) string {
+	return "/app.webmanifest?" + url.Values{"accent": {accent}, "lang": {lang}, "theme": {theme}}.Encode()
 }
 
 func appleTouchIconURL(accent string) string {
@@ -65,12 +64,15 @@ type manifestIcon struct {
 	Purpose string `json:"purpose,omitempty"`
 }
 
-// manifest serves /app.webmanifest?accent=…&lang=…, public like the favicon.
+// manifest serves /app.webmanifest?accent=…&lang=…&theme=…, public like the
+// favicon. Chrome on Android colours an installed app's navigation bar with
+// theme_color, fixed at install, so it can't follow the phone's dark mode.
+// The light theme gets the light background; dark and system get the dark
+// one (leaving the colours out for system gave a white bar, not the phone's).
 func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	accent := q.Get("accent")
-	colours, ok := iconColours[accent]
-	if !ok {
+	if _, ok := iconColours[accent]; !ok {
 		http.NotFound(w, r)
 		return
 	}
@@ -85,17 +87,15 @@ func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 			manifestIcon{Src: assetURL("icons/maskable-" + accent + "-" + size + ".png"), Sizes: size + "x" + size, Type: "image/png", Purpose: "maskable"})
 	}
 	m := map[string]any{
-		"id":               "/",
-		"start_url":        "/",
-		"scope":            "/",
-		"display":          "standalone",
-		"name":             "Anchor",
-		"short_name":       "Anchor",
-		"description":      lang.T("Your bookmarks, with tags, search and shared spaces."),
-		"lang":             string(lang),
-		"theme_color":      colours[0],
-		"background_color": "#f8fafc", // --bg in light mode
-		"icons":            icons,
+		"id":          "/",
+		"start_url":   "/",
+		"scope":       "/",
+		"display":     "standalone",
+		"name":        "Anchor",
+		"short_name":  "Anchor",
+		"description": lang.T("Your bookmarks, with tags, search and shared spaces."),
+		"lang":        string(lang),
+		"icons":       icons,
 		"shortcuts": []map[string]any{{
 			"name":  lang.T("Add bookmark"),
 			"url":   "/bookmarks/new",
@@ -108,8 +108,13 @@ func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 			"params": map[string]string{"url": "url", "title": "title", "text": "text"},
 		},
 	}
+	bg := pageBackground(accent)[1]
+	if q.Get("theme") == "light" {
+		bg = pageBackground(accent)[0]
+	}
+	m["theme_color"], m["background_color"] = bg, bg
 	w.Header().Set("Content-Type", "application/manifest+json")
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Cache-Control", "no-cache")
 	json.NewEncoder(w).Encode(m)
 }
 
