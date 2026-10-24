@@ -143,7 +143,7 @@ Admins can require two-factor authentication for everyone. Users without it are 
 
 ## Installing as an app
 
-Anchor is a progressive web app: Chrome, Edge and Android offer to install it, and on iOS it's *Share → Add to Home Screen*. It then opens in its own window with Anchor's icon in your accent colour. Bookmarks open in your normal browser, so the app keeps your list.
+Anchor is a progressive web app: Chrome, Edge and Android offer to install it, and on iOS it's *Share → Add to Home Screen*. It then opens in its own window with Anchor's icon in your accent colour. On Android the status and navigation bars take the page's background colour; the navigation bar is fixed when the app is installed, so it's light only with the theme set to Light; with Dark or System it's dark. Bookmarks open in your normal browser, so the app keeps your list.
 
 On Android, the installed app shows up in the share sheet: sharing a link from another app opens Anchor's add form with the link, title and text filled in. Many apps send the link inside the text; Anchor takes the first `http` or `https` link from it, and the rest becomes the description. A link you already saved opens its bookmark instead. Signed out, you sign in first and land on the filled-in form.
 

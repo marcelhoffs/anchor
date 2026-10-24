@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="{{asset "style.css"}}">
 <link rel="icon" href="{{appIconURL .Prefs.Accent}}" type="image/svg+xml">
 {{/* Installing Anchor as an app: see pwa.go. */}}
-<link rel="manifest" href="{{manifestURL .Prefs.Accent lang}}">
+<link rel="manifest" href="{{manifestURL .Prefs.Accent lang .Prefs.Theme}}">
 <link rel="apple-touch-icon" href="{{appleTouchIconURL .Prefs.Accent}}">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">

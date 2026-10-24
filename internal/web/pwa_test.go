@@ -15,7 +15,7 @@ func TestManifest(t *testing.T) {
 	anon := e.client()
 	for accent := range iconColours {
 		for _, lang := range []string{"en", "nl", "xx"} {
-			code, body, _ := anon.get("/app.webmanifest?accent=" + accent + "&lang=" + lang)
+			code, body, _ := anon.get("/app.webmanifest?accent=" + accent + "&lang=" + lang + "&theme=light")
 			if code != http.StatusOK {
 				t.Fatalf("%s %s: %d", accent, lang, code)
 			}
@@ -38,7 +38,7 @@ func TestManifest(t *testing.T) {
 				t.Fatalf("%s %s: %v\n%s", accent, lang, err, body)
 			}
 			if m.ID != "/" || m.StartURL != "/" || m.Scope != "/" || m.Display != "standalone" || m.Name != "Anchor" ||
-				m.ShortName == "" || m.Description == "" || m.ThemeColor != iconColours[accent][0] {
+				m.ShortName == "" || m.Description == "" || m.ThemeColor != pageBackground(accent)[0] {
 				t.Fatalf("%s %s: %+v", accent, lang, m)
 			}
 			if m.ShareTarget.Action != "/bookmarks/new" || m.ShareTarget.Method != "GET" {
@@ -60,6 +60,19 @@ func TestManifest(t *testing.T) {
 			}
 		}
 	}
+	// The dark theme gets the dark background for Android's system bars.
+	if _, body, _ := anon.get("/app.webmanifest?accent=terracotta&theme=dark"); !strings.Contains(body, `"theme_color":"#100f0e"`) ||
+		!strings.Contains(body, `"background_color":"#100f0e"`) {
+		t.Fatalf("dark manifest:\n%s", body)
+	}
+	// System gets the dark background too: the bar can't follow the phone.
+	if _, body, _ := anon.get("/app.webmanifest?accent=ocean&theme=system"); !strings.Contains(body, `"theme_color":"#0c0d11"`) {
+		t.Fatalf("system manifest isn't dark:\n%s", body)
+	}
+	// It's built in Go, so a deploy can change it without a new asset version.
+	if res, err := http.Get(e.srv.URL + "/app.webmanifest?accent=ocean"); err != nil || res.Header.Get("Cache-Control") != "no-cache" {
+		t.Fatalf("manifest should be revalidated: %v %v", err, res.Header)
+	}
 	if code, _, _ := anon.get("/app.webmanifest?accent=pink"); code != http.StatusNotFound {
 		t.Fatalf("unknown accent: %d", code)
 	}
@@ -73,9 +86,6 @@ func TestEveryAccentHasItsIcons(t *testing.T) {
 			if _, err := fs.Stat(assets, "static/icons/"+f+".png"); err != nil {
 				t.Errorf("missing static/icons/%s.png", f)
 			}
-		}
-		if _, ok := themeColours[accent]; !ok {
-			t.Errorf("%s has no theme colours", accent)
 		}
 	}
 }
@@ -125,10 +135,10 @@ func TestHeadTags(t *testing.T) {
 	c := e.admin()
 	_, body, _ := c.get("/")
 	for _, want := range []string{
-		`<link rel="manifest" href="/app.webmanifest?accent=indigo&amp;lang=en&amp;v=` + assetVersion + `">`,
+		`<link rel="manifest" href="/app.webmanifest?accent=indigo&amp;lang=en&amp;theme=system">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-indigo.png?v=`,
-		`<meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">`,
-		`<meta name="theme-color" content="#8b8cf8" media="(prefers-color-scheme: dark)">`,
+		`<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">`,
+		`<meta name="theme-color" content="#0c0d11" media="(prefers-color-scheme: dark)">`,
 		`viewport-fit=cover`,
 	} {
 		if !strings.Contains(body, want) {
@@ -136,7 +146,7 @@ func TestHeadTags(t *testing.T) {
 		}
 	}
 	c.post("/settings/appearance", url.Values{"accent": {"rose"}, "theme": {"dark"}})
-	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="#fb7185">`) {
+	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="#0c0d11">`) {
 		t.Error("dark theme should have one dark theme colour")
 	}
 }
