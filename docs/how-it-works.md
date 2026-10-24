@@ -132,6 +132,8 @@ Files up to 32 MiB are accepted. The import runs in the background in small batc
 
 Admins can require two-factor authentication for everyone. Users without it are then held on the Security page until they set it up.
 
+**Single sign-on.** With an OpenID Connect provider configured, people can sign in through it (the authorization code flow with PKCE; Anchor checks the ID token's signature, issuer, audience, expiry and nonce). An account at the provider is linked to one Anchor user by its issuer and subject, never by email address or name. A first sign-in creates an account only as far as the sign-up mode allows, and an optional provider group decides who is admin. The provider handles the second factor for these sign-ins; confirming a sensitive action sends you to the provider to sign in again. See [Deployment](deployment.md#single-sign-on-oidc).
+
 **Sessions** last 30 days from the last visit and are listed under Settings → Security, where each can be signed out. Changing or resetting a password signs out every session. Sensitive actions (changing second factors, creating API tokens, admin actions) ask you to confirm your identity again if you haven't in the last 10 minutes.
 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).

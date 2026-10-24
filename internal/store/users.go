@@ -27,6 +27,10 @@ type User struct {
 	TOTPLastStep int64
 }
 
+// HasPassword reports whether the user can sign in with a password. An
+// account made by single sign-on has none until its owner sets one.
+func (u User) HasPassword() bool { return u.PasswordHash != "" }
+
 // Settings are a user's preferences, stored as JSON in users.settings.
 type Settings struct {
 	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first

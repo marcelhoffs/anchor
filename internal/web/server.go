@@ -59,6 +59,7 @@ type Server struct {
 	csrfKey  []byte
 	webauthn *webauthn.WebAuthn // nil when passkeys are unavailable
 	cer      ceremonies
+	oidc     *oidcClient // nil when single sign-on is off
 	hasUsers atomic.Bool
 
 	sessionCookie, csrfCookie string // see the constants
@@ -90,6 +91,10 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher Jo
 		apiToken:  ratelimit.New(600, time.Minute),
 		signupIP:  ratelimit.New(10, time.Hour),
 	}
+	if cfg.OIDC != nil {
+		s.oidc = newOIDCClient(cfg.OIDC, cfg.BaseURL.String())
+		log.Info("single sign-on on", "issuer", cfg.OIDC.Issuer, "redirect_uri", s.oidc.redirect, "only", cfg.OIDC.Only)
+	}
 	s.sessionCookie, s.csrfCookie = sessionCookie, csrfCookie
 	if cfg.SecureCookies() {
 		s.sessionCookie, s.csrfCookie = "__Host-"+sessionCookie, "__Host-"+csrfCookie
@@ -113,6 +118,9 @@ func (s *Server) Run(ctx context.Context) {
 				l.Sweep()
 			}
 			s.cer.sweep()
+			if s.oidc != nil {
+				s.oidc.sweep()
+			}
 		}
 	}
 }
@@ -138,6 +146,8 @@ func (s *Server) Handler() http.Handler {
 		r.Get("/login", s.loginForm)
 		r.Post("/login", s.login)
 		r.Post("/logout", s.logout)
+		r.With(s.requireSSO).Get("/login/oidc", s.oidcLogin)
+		r.With(s.requireSSO).Get("/login/oidc/callback", s.oidcCallback)
 		r.Get("/signup", s.signupForm)
 		r.Post("/signup", s.signup)
 
@@ -193,6 +203,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/reauth/recovery", s.reauthRecovery)
 			r.Post("/reauth/passkey/begin", s.reauthPasskeyBegin)
 			r.Post("/reauth/passkey/finish", s.reauthPasskeyFinish)
+			r.With(s.requireSSO).Post("/reauth/sso", s.oidcReauth)
 
 			// Changing how you sign in, or minting credentials, needs a recent
 			// password or second-factor check.
@@ -205,6 +216,8 @@ func (s *Server) Handler() http.Handler {
 				r.Post("/settings/passkeys/finish", s.passkeyRegisterFinish)
 				r.Post("/settings/passkeys/{id}/delete", s.passkeyDelete)
 				r.Post("/settings/recovery", s.recoveryRegenerate)
+				r.With(s.requireSSO).Post("/settings/sso/link", s.oidcLink)
+				r.With(s.requireSSO).Post("/settings/sso/unlink", s.oidcUnlink)
 				r.Post("/settings/tokens", s.createToken)
 				// Handing a space over, or deleting it with everything in it.
 				r.Post("/spaces/{id}/members/{uid}/owner", s.transferSpace)

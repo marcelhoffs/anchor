@@ -51,6 +51,7 @@
 **Accounts and security**
 - Multiple users, each with a private personal space.
 - Two-factor authentication with an authenticator app, passkeys or recovery codes.
+- Single sign-on through an OpenID Connect provider such as Authentik, Keycloak or Entra ID, optionally as the only way in.
 - Personal API tokens, read-only or read & write.
 - For admins: user management, invite links, open/invite/closed signup and a policy that requires 2FA.
 

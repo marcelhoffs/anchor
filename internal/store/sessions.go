@@ -16,16 +16,17 @@ type Session struct {
 	LastSeenAt time.Time
 	VerifiedAt time.Time // last password, 2FA or re-authentication check
 	SpaceID    int64     // the space being looked at; 0 = the personal one
+	SSO        bool      // signed in through the OpenID Connect provider
 }
 
 const sessionCols = `token_hash, user_id, mfa_passed, coalesce(user_agent, ''), coalesce(ip, ''), created_at, expires_at,
-	last_seen_at, verified_at, coalesce(space_id, 0)`
+	last_seen_at, verified_at, coalesce(space_id, 0), sso`
 
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var ss Session
 	var created, expires, seen, verified int64
 	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen, &verified,
-		&ss.SpaceID)
+		&ss.SpaceID, &ss.SSO)
 	ss.CreatedAt, ss.ExpiresAt, ss.LastSeenAt = fromUnix(created), fromUnix(expires), fromUnix(seen)
 	ss.VerifiedAt = fromUnix(verified)
 	return ss, notFound(err)
@@ -33,10 +34,10 @@ func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 
 func (s *Store) CreateSession(ctx context.Context, ss Session) error {
 	_, err := s.w.ExecContext(ctx,
-		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at, verified_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at, verified_at, sso)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ss.TokenHash, ss.UserID, ss.MFAPassed, ss.UserAgent, ss.IP, unix(ss.CreatedAt), unix(ss.ExpiresAt), unix(ss.LastSeenAt),
-		unix(ss.VerifiedAt))
+		unix(ss.VerifiedAt), ss.SSO)
 	return err
 }
 

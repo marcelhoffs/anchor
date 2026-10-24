@@ -6,6 +6,7 @@ Anchor is one Go binary with an embedded SQLite database. The Docker image holds
 - [The first account](#the-first-account)
 - [Configuration](#configuration)
 - [HTTPS and reverse proxies](#https-and-reverse-proxies)
+- [Single sign-on (OIDC)](#single-sign-on-oidc)
 - [Fetching page details](#fetching-page-details)
 - [Command line](#command-line)
 - [Backups and restores](#backups-and-restores)
@@ -105,6 +106,47 @@ ANCHOR_TRUSTED_PROXIES=172.19.0.1/32
 ```
 
 Anchor then takes the client address from `X-Forwarded-For`, but only for requests that come from those addresses. Keep the range as narrow as you can: anything in it can claim to be any client.
+
+## Single sign-on (OIDC)
+
+Anchor can sign people in through an OpenID Connect provider: Authentik, Keycloak, Pocket ID, Entra ID and others. One provider per instance.
+
+| Variable | Default | |
+|---|---|---|
+| `ANCHOR_OIDC_ISSUER` | empty (off) | The provider's issuer URL, exactly as its discovery document says, trailing slash included. Setting it turns single sign-on on. |
+| `ANCHOR_OIDC_CLIENT_ID` | required with an issuer | The client ID Anchor has at the provider. |
+| `ANCHOR_OIDC_CLIENT_SECRET` | empty | The client secret; leave it empty for a public client (Anchor always uses PKCE). |
+| `ANCHOR_OIDC_NAME` | `SSO` | Shown on the button: "Sign in with Authentik". |
+| `ANCHOR_OIDC_SCOPES` | `openid profile email` | Scopes asked for. Add `groups` if your provider needs that scope for a groups claim. |
+| `ANCHOR_OIDC_ADMIN_GROUP` | empty | Members of this group are admins, everyone else isn't; checked at every sign-in. Empty: admins are managed in Anchor. |
+| `ANCHOR_OIDC_GROUPS_CLAIM` | `groups` | The ID token claim that lists the groups. |
+| `ANCHOR_OIDC_ONLY` | `false` | `true` hides password sign-in and sign-up, so everyone goes through the provider. |
+
+At the provider, the redirect URI is `{ANCHOR_BASE_URL}/login/oidc/callback`, for example `https://anchor.example.com/login/oidc/callback`. Anchor logs it at startup.
+
+**Who gets an account.** An account at the provider is linked to one Anchor user; Anchor never matches accounts by email address or name. The first sign-in of someone without an account follows the sign-up mode: with *open* sign-up the account is created; with *invite only*, only through an invite link (the invite page offers "Sign up with …"); with *closed*, not at all. On a fresh instance, the setup page offers "Set up with …": that account becomes the first admin. Existing users link their account under Settings → Security.
+
+**Two-factor authentication.** A sign-in through the provider counts as complete, so set up multi-factor authentication there. The "require two-factor authentication" policy then only applies to password sign-ins. Sensitive actions, like creating an API token, ask the provider to confirm it's you again.
+
+**Getting back in.** Accounts made through the provider have no password until their owner sets one under Settings → Security. If someone loses their provider account, `anchor user unlink-sso <name>` and `anchor user reset-password <name>` give them a password sign-in again (with `ANCHOR_OIDC_ONLY=true`, switch that off first).
+
+### Authentik
+
+1. **Applications → Providers → Create → OAuth2/OpenID Provider.** Client type *Confidential*; redirect URI `https://anchor.example.com/login/oidc/callback` (strict); any RS256 signing key. Keep the default scope mappings (`openid`, `email`, `profile`): `profile` already includes the user's groups.
+2. **Applications → Applications → Create**, with slug `anchor` and the provider above. Bind a group or policy to choose who may use Anchor.
+3. In `.env`:
+
+   ```sh
+   ANCHOR_OIDC_ISSUER=https://authentik.example.com/application/o/anchor/
+   ANCHOR_OIDC_CLIENT_ID=<client ID>
+   ANCHOR_OIDC_CLIENT_SECRET=<client secret>
+   ANCHOR_OIDC_NAME=Authentik
+   #ANCHOR_OIDC_ADMIN_GROUP=anchor-admins
+   ```
+
+### Entra ID
+
+Register an app with the redirect URI as a *Web* platform, create a client secret, and use `https://login.microsoftonline.com/<tenant ID>/v2.0` as the issuer. For an admin group, add the *groups* claim under Token configuration: Entra sends group object IDs, so `ANCHOR_OIDC_ADMIN_GROUP` is the group's object ID.
 
 ## Fetching page details
 

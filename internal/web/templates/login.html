@@ -5,6 +5,7 @@
   <div class="card">
     <h1>{{t "Welcome back"}}</h1>
     <p class="lead">{{t "Log in to your bookmarks."}}</p>
+    {{if not (and .SSO .SSO.Only)}}
     <form method="post" action="/login">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="next" value="{{.Next}}">
@@ -12,6 +13,11 @@
       <label>{{t "Password"}} <input type="password" name="password" required autocomplete="current-password"></label>
       <button class="btn btn-primary">{{t "Log in"}}</button>
     </form>
+    {{end}}
+    {{with .SSO}}
+    {{if not .Only}}<p class="or"><span>{{t "or"}}</span></p>{{end}}
+    <a class="btn wide{{if .Only}} btn-primary{{end}}" href="/login/oidc?next={{$.Next}}">{{icon "key" "sm"}}{{t "Sign in with %s" .Name}}</a>
+    {{end}}
     {{if .OpenSignup}}<p class="verify-cancel">{{t "New here? %s" (link "/signup" (t "Create an account"))}}</p>{{end}}
   </div>
 </div>

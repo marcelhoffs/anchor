@@ -35,6 +35,24 @@ type Config struct {
 	// (the default) is off. A service learns the bookmarked domain, so it is
 	// opt-in.
 	IconFallback []string
+
+	// OIDC is single sign-on through an OpenID Connect provider; nil = off.
+	OIDC *OIDC
+}
+
+// OIDC configures sign-in through an OpenID Connect provider.
+type OIDC struct {
+	Issuer       string
+	ClientID     string
+	ClientSecret string // "" for a public client (PKCE only)
+	Name         string // the provider's name on the sign-in button
+	// AdminGroup, when set, makes members of that group admins and everyone
+	// else not, on every sign-in through the provider.
+	AdminGroup  string
+	GroupsClaim string   // the ID token claim with the groups
+	Scopes      []string // asked for; always includes openid
+	// Only hides password sign-in and sign-up; the command line still works.
+	Only bool
 }
 
 // Load reads the environment. When requireServe is false, the settings only
@@ -100,6 +118,40 @@ func Load(requireServe bool) (*Config, error) {
 				errs = append(errs, errors.New("ANCHOR_FAVICON_FALLBACK must be off, or duckduckgo and/or google (comma-separated)"))
 			}
 		}
+	}
+
+	if issuer := strings.TrimSpace(os.Getenv("ANCHOR_OIDC_ISSUER")); issuer != "" {
+		c.OIDC = &OIDC{
+			Issuer:       issuer,
+			ClientID:     os.Getenv("ANCHOR_OIDC_CLIENT_ID"),
+			ClientSecret: os.Getenv("ANCHOR_OIDC_CLIENT_SECRET"),
+			Name:         env("ANCHOR_OIDC_NAME", "SSO"),
+			AdminGroup:   os.Getenv("ANCHOR_OIDC_ADMIN_GROUP"),
+			GroupsClaim:  env("ANCHOR_OIDC_GROUPS_CLAIM", "groups"),
+			Scopes:       []string{"openid"},
+		}
+		for _, sc := range strings.FieldsFunc(env("ANCHOR_OIDC_SCOPES", "openid profile email"), func(r rune) bool { return r == ',' || r == ' ' }) {
+			if sc != "openid" {
+				c.OIDC.Scopes = append(c.OIDC.Scopes, sc)
+			}
+		}
+		if u, err := url.Parse(issuer); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			errs = append(errs, errors.New("ANCHOR_OIDC_ISSUER must be the provider's http(s) issuer URL"))
+		}
+		if c.OIDC.ClientID == "" {
+			errs = append(errs, errors.New("ANCHOR_OIDC_CLIENT_ID is required with ANCHOR_OIDC_ISSUER"))
+		}
+	}
+	switch v := strings.ToLower(os.Getenv("ANCHOR_OIDC_ONLY")); v {
+	case "", "false", "0", "no":
+	case "true", "1", "yes":
+		if c.OIDC == nil {
+			errs = append(errs, errors.New("ANCHOR_OIDC_ONLY needs ANCHOR_OIDC_ISSUER"))
+		} else {
+			c.OIDC.Only = true
+		}
+	default:
+		errs = append(errs, errors.New("ANCHOR_OIDC_ONLY must be true or false"))
 	}
 
 	if raw := os.Getenv("ANCHOR_BASE_URL"); raw != "" {

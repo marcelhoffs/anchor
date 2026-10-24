@@ -47,6 +47,12 @@ func newEnv(t *testing.T) *env {
 // 127.0.0.1).
 func newEnvHost(t *testing.T, host string) *env {
 	t.Helper()
+	return newEnvWith(t, host, nil)
+}
+
+// newEnvWith lets configure change the settings before the server starts.
+func newEnvWith(t *testing.T, host string, configure func(*config.Config)) *env {
+	t.Helper()
 	d, err := db.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -62,6 +68,9 @@ func newEnvHost(t *testing.T, host string) *env {
 	_, port, _ := net.SplitHostPort(ts.Listener.Addr().String())
 	base, _ := url.Parse("http://" + host + ":" + port)
 	cfg := &config.Config{BaseURL: base, SecretKey: make([]byte, 32)}
+	if configure != nil {
+		configure(cfg)
+	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	worker := jobs.NewWorker(st, log)
 	// Tests fetch from httptest servers on 127.0.0.1.
