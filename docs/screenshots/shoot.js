@@ -102,7 +102,7 @@ async function appearance(page, accent, theme) {
   await post(page, "/space", { space: "" });
 
   console.log("seeded; waiting for page details and icons");
-  await sleep(75000);
+  await sleep(180000);
 
   // 1. The list, light.
   await appearance(page, "indigo", "light");
