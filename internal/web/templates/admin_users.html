@@ -43,6 +43,7 @@
                 {{if or .TOTPEnabled .Passkeys}}
                 <button type="button" class="danger" popovertarget="reset-2fa-{{.ID}}">{{t "Reset two-factor"}}</button>
                 {{end}}
+                <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{t "Delete account"}}</button>
             </div>
             {{if .IsActive}}
             {{template "confirm" dict "ID" (print "disable-" .ID) "Title" (t "Disable this account?")
@@ -54,6 +55,8 @@
             {{template "confirm" dict "ID" (print "reset-2fa-" .ID) "Title" (t "Reset two-factor?")
               "Text" (t "%s loses every authenticator app, passkey and recovery code, and is signed out everywhere." (strong .Username)) "Action" (print "/admin/users/" .ID "/reset-2fa") "Button" (t "Reset two-factor") "CSRF" $.CSRF}}
             {{end}}
+            {{template "confirm" dict "ID" (print "delete-" .ID) "Title" (t "Delete this account?")
+              "Text" (t "%s and their personal bookmarks are deleted for good. Shared spaces they own become yours; what they added to shared spaces stays." (strong .Username)) "Action" (print "/admin/users/" .ID "/delete") "Button" (t "Delete account") "CSRF" $.CSRF}}
             {{end}}
           </td>
         </tr>

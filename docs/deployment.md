@@ -166,6 +166,7 @@ echo 'a-long-password' | docker compose exec -T anchor /anchor user create bob -
 docker compose exec anchor /anchor user create carol --admin      # an admin account
 docker compose exec anchor /anchor user reset-password alice      # also signs out every session
 docker compose exec anchor /anchor user reset-2fa alice           # lost phone: removes all second factors
+docker compose exec anchor /anchor user delete alice              # for good; shared spaces go to an admin
 docker compose exec anchor /anchor backup /data/backups/anchor.db # a consistent snapshot, while running
 docker compose exec anchor /anchor migrate                        # apply database migrations and exit
 ```

@@ -17,16 +17,18 @@ import (
 const inviteTTL = 7 * 24 * time.Hour
 
 var adminNotices = map[string]i18n.Msg{
-	"disable":      i18n.M("User disabled and signed out everywhere."),
-	"enable":       i18n.M("User enabled."),
-	"make-admin":   i18n.M("User is now an admin."),
-	"remove-admin": i18n.M("Admin rights removed."),
-	"reset-2fa":    i18n.M("Two-factor authentication reset. The user was signed out everywhere."),
-	"invite-off":   i18n.M("Invite revoked."),
-	"settings":     i18n.M("Settings saved."),
-	"space-owner":  i18n.M("The space has a new owner."),
-	"space-delete": i18n.M("Space deleted."),
-	"confirmed":    i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
+	"disable":       i18n.M("User disabled and signed out everywhere."),
+	"enable":        i18n.M("User enabled."),
+	"make-admin":    i18n.M("User is now an admin."),
+	"remove-admin":  i18n.M("Admin rights removed."),
+	"reset-2fa":     i18n.M("Two-factor authentication reset. The user was signed out everywhere."),
+	"delete":        i18n.M("Account deleted."),
+	"delete-spaces": i18n.M("Account deleted. The shared spaces they owned are now yours."),
+	"invite-off":    i18n.M("Invite revoked."),
+	"settings":      i18n.M("Settings saved."),
+	"space-owner":   i18n.M("The space has a new owner."),
+	"space-delete":  i18n.M("Space deleted."),
+	"confirmed":     i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 }
 
 // adminSpaces lists every shared space: names, members and sizes, never
@@ -152,6 +154,11 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 		err = s.store.SetAdmin(r.Context(), id, false)
 	case "reset-2fa":
 		err = s.store.ResetMFA(r.Context(), id)
+	case "delete":
+		var moved int
+		if moved, err = s.store.DeleteUser(r.Context(), id, me.ID); moved > 0 {
+			action = "delete-spaces"
+		}
 	case "reset-password":
 		password := auth.RandomPassword()
 		if err := s.store.SetPassword(r.Context(), id, auth.HashPassword(password), nil); err != nil {
