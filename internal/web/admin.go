@@ -84,9 +84,15 @@ func (s *Server) renderAdminUsers(w http.ResponseWriter, r *http.Request, status
 		s.serverError(w, r, err)
 		return
 	}
+	linked, err := s.store.LinkedUsers(r.Context())
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	d["AdminTab"] = "users"
 	d["Users"] = users
 	d["Stats"] = stats
+	d["Linked"] = linked // users who sign in with single sign-on
 	s.render(w, r, status, "admin_users", d)
 }
 

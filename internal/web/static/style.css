@@ -660,6 +660,9 @@ fieldset[disabled] { opacity: 0.6; }
 .verify-option { margin-bottom: 20px; }
 .verify-option summary { cursor: pointer; color: var(--accent-text); font-size: 14px; margin-bottom: 12px; }
 .btn.wide { width: 100%; }
+/* "or" between a sign-in form and the single sign-on button. */
+.or { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--muted); font-size: 13px; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--border); }
 .verify-cancel { margin-top: 16px; text-align: center; font-size: 14px; color: var(--muted); }
 
 .reveal { padding: 16px; border-radius: var(--radius); background: var(--soft); margin-bottom: 24px; }

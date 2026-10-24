@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/marcelhoffs/anchor/internal/db"
 	"github.com/marcelhoffs/anchor/internal/search"
@@ -447,5 +448,59 @@ func TestAddTag(t *testing.T) {
 	}
 	if _, err := s.AddTag(ctx, personal(s, bob.ID), b.ID, bobTags[0].ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("other space's bookmark: %v", err)
+	}
+}
+
+func TestOIDCIdentities(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	const iss = "https://idp.example"
+	u, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "first", Issuer: iss, Subject: "s1", First: true})
+	if err != nil || !u.IsAdmin || u.HasPassword() {
+		t.Fatalf("first user: %+v %v", u, err)
+	}
+	if _, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "second", Issuer: iss, Subject: "s2", First: true}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second first user: %v", err)
+	}
+	if got, err := s.UserByIdentity(ctx, iss, "s1"); err != nil || got.ID != u.ID {
+		t.Fatalf("by identity: %v", err)
+	}
+	if _, err := s.UserByIdentity(ctx, "https://other.example", "s1"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other issuer: %v", err)
+	}
+	// One identity per user, and one user per identity.
+	bob := newUser(t, s, "bob")
+	if err := s.LinkIdentity(ctx, bob.ID, iss, "s1"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("link a taken identity: %v", err)
+	}
+	if err := s.LinkIdentity(ctx, bob.ID, iss, "bob-sub"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.LinkIdentity(ctx, bob.ID, iss, "bob-2"); !errors.Is(err, ErrConflict) {
+		t.Fatalf("second identity: %v", err)
+	}
+	if sub, err := s.IdentityOf(ctx, bob.ID, iss); err != nil || sub != "bob-sub" {
+		t.Fatalf("identity of bob: %q %v", sub, err)
+	}
+	// Unlinking: refused without a password unless forced.
+	if err := s.UnlinkIdentity(ctx, u.ID, false); !isValidationErr(err) {
+		t.Fatalf("unlink passwordless: %v", err)
+	}
+	if err := s.UnlinkIdentity(ctx, bob.ID, false); err != nil {
+		t.Fatalf("unlink bob: %v", err)
+	}
+	if err := s.UnlinkIdentity(ctx, u.ID, true); err != nil {
+		t.Fatalf("forced unlink: %v", err)
+	}
+	// An invite is consumed with the account.
+	inviteHash := []byte("0123456789abcdef0123456789abcdef")
+	if err := s.CreateInvite(ctx, bob.ID, "", inviteHash, time.Now().Add(time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "invited", Issuer: iss, Subject: "s3", InviteHash: inviteHash}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "again", Issuer: iss, Subject: "s4", InviteHash: inviteHash}); !errors.Is(err, ErrInvalidInvite) {
+		t.Fatalf("invite reused: %v", err)
 	}
 }

@@ -273,7 +273,7 @@ func (s *Server) setupGate(next http.Handler) http.Handler {
 			}
 			if n > 0 {
 				s.hasUsers.Store(true)
-			} else if r.URL.Path != "/setup" {
+			} else if r.URL.Path != "/setup" && !strings.HasPrefix(r.URL.Path, "/login/oidc") {
 				http.Redirect(w, r, "/setup", http.StatusSeeOther)
 				return
 			}
@@ -367,7 +367,8 @@ func (s *Server) enforce2FA(next http.Handler) http.Handler {
 		return false
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if allowed(r.URL.Path) || !s.require2FA(r.Context()) {
+		// A sign-in through the provider had its second factor there.
+		if allowed(r.URL.Path) || currentSession(r).SSO || !s.require2FA(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
 		}

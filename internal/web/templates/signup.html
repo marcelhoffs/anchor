@@ -5,6 +5,7 @@
   <div class="card">
     <h1>{{t "Create your account"}}</h1>
     <p class="lead">{{if .Invite}}{{t "You've been invited to Anchor."}}{{else}}{{t "Start saving your bookmarks."}}{{end}}</p>
+    {{if not (and .SSO .SSO.Only)}}
     <form method="post" action="/signup">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="invite" value="{{.Invite}}">
@@ -14,6 +15,11 @@
       <label>{{t "Confirm password"}} <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
       <button class="btn btn-primary">{{t "Create account"}}</button>
     </form>
+    {{end}}
+    {{with .SSO}}
+    {{if not .Only}}<p class="or"><span>{{t "or"}}</span></p>{{end}}
+    <a class="btn wide{{if .Only}} btn-primary{{end}}" href="/login/oidc?invite={{$.Invite}}">{{icon "key" "sm"}}{{t "Sign up with %s" .Name}}</a>
+    {{end}}
     <p class="verify-cancel">{{t "Already have an account? %s" (link "/login" (t "Log in"))}}</p>
   </div>
 </div>
