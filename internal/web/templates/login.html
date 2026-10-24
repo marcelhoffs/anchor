@@ -1,18 +1,18 @@
-{{define "title"}}Log in{{end}}
+{{define "title"}}{{t "Log in"}}{{end}}
 {{define "content"}}
 <div class="auth">
   {{template "auth-brand" .}}
   <div class="card">
-    <h1>Welcome back</h1>
-    <p class="lead">Log in to your bookmarks.</p>
+    <h1>{{t "Welcome back"}}</h1>
+    <p class="lead">{{t "Log in to your bookmarks."}}</p>
     <form method="post" action="/login">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="next" value="{{.Next}}">
-      <label>Username <input name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
-      <label>Password <input type="password" name="password" required autocomplete="current-password"></label>
-      <button class="btn btn-primary">Log in</button>
+      <label>{{t "Username"}} <input name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
+      <label>{{t "Password"}} <input type="password" name="password" required autocomplete="current-password"></label>
+      <button class="btn btn-primary">{{t "Log in"}}</button>
     </form>
-    {{if .OpenSignup}}<p class="verify-cancel">New here? <a href="/signup">Create an account</a></p>{{end}}
+    {{if .OpenSignup}}<p class="verify-cancel">{{t "New here? %s" (link "/signup" (t "Create an account"))}}</p>{{end}}
   </div>
 </div>
 {{end}}

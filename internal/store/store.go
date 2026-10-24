@@ -23,13 +23,18 @@ var (
 	ErrConflict = errors.New("already exists")
 )
 
-// ValidationError is bad user input; its message is safe to show.
-type ValidationError struct{ msg string }
+// ValidationError is bad user input; its message is safe to show. Format
+// and Args are kept apart so the web interface can translate them.
+type ValidationError struct {
+	Format string
+	Args   []any
+}
 
-func (e ValidationError) Error() string { return e.msg }
+func (e ValidationError) Error() string { return fmt.Sprintf(e.Format, e.Args...) }
 
+// invalid's format must be a string literal: it is a translation key.
 func invalid(format string, args ...any) error {
-	return ValidationError{fmt.Sprintf(format, args...)}
+	return ValidationError{format, args}
 }
 
 type Store struct {

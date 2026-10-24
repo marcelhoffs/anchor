@@ -68,7 +68,7 @@ func TestInvitesAndSignupModes(t *testing.T) {
 	}
 
 	// While signup is closed there is nothing to invite anyone to.
-	if _, body, _ := root.get("/admin/invites"); strings.Contains(body, "Create invite link") || !strings.Contains(body, "Signup is closed") {
+	if _, body, _ := root.get("/admin/invites"); strings.Contains(body, "Create invite link") || !strings.Contains(body, "Sign-up is closed") {
 		t.Fatal("invite form shown while signup is closed")
 	}
 	if code, _, loc := root.post("/admin/invites", url.Values{"note": {"stale tab"}}); code != http.StatusSeeOther || loc != "/admin/invites" {

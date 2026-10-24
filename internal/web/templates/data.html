@@ -1,42 +1,42 @@
-{{define "title"}}Import &amp; export{{end}}
+{{define "title"}}{{t "Import & export"}}{{end}}
 {{define "content"}}
 <div class="card">
-  <h1>Settings</h1>
+  <h1>{{t "Settings"}}</h1>
   {{template "settings-nav" .}}
-  {{if .Nav.Spaces}}<p class="muted intro">Imports and exports use the space you're in: <strong>{{.Nav.Name}}</strong>. Switch spaces in the top bar for another one.</p>{{end}}
+  {{if .Nav.Spaces}}<p class="muted intro">{{t "Imports and exports use the space you're in: %s. Switch spaces in the top bar for another one." (strong (or .Nav.Name (t "Personal")))}}</p>{{end}}
 
   {{if .CanWrite}}
   <section aria-labelledby="import">
-    <h2 id="import">Import</h2>
-    <p class="muted">A bookmark file from Chrome, Firefox, Safari, Edge, linkding, Pocket or Pinboard (HTML), or an Anchor JSON export. Folders become tags. Bookmarks you already have are merged, not duplicated.</p>
+    <h2 id="import">{{t "Import"}}</h2>
+    <p class="muted">{{t "A bookmark file from Chrome, Firefox, Safari, Edge, linkding, Pocket or Pinboard (HTML), or an Anchor JSON export. Folders become tags. Bookmarks you already have are merged, not duplicated."}}</p>
     <form method="post" action="/settings/import" enctype="multipart/form-data" class="file-row">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <label class="visually-hidden" for="file">Bookmark file</label>
+      <label class="visually-hidden" for="file">{{t "Bookmark file"}}</label>
       <input id="file" type="file" name="file" accept=".html,.htm,.json,text/html,application/json" required>
-      <button class="btn btn-primary">{{icon "upload" "sm"}}Import</button>
+      <button class="btn btn-primary">{{icon "upload" "sm"}}{{t "Import"}}</button>
     </form>
   </section>
   {{end}}
 
   {{if .Jobs}}
   <section aria-labelledby="imports">
-    <h2 id="imports">Recent imports</h2>
+    <h2 id="imports">{{t "Recent imports"}}</h2>
     <ul class="plain jobs">
       {{range .Jobs}}
       <li>
         <div class="job-head">
-          <span>Started {{ago .CreatedAt}}</span>
-          {{if eq .Status "done"}}<span class="badge on">Done</span>
-          {{else if eq .Status "failed"}}<span class="badge danger">Failed</span>
-          {{else}}<span class="badge">{{if eq .Status "queued"}}Waiting{{else}}Importing{{end}}</span>{{end}}
+          <span>{{t "Started %s" (ago .CreatedAt)}}</span>
+          {{if eq .Status "done"}}<span class="badge on">{{t "Done"}}</span>
+          {{else if eq .Status "failed"}}<span class="badge danger">{{t "Failed"}}</span>
+          {{else}}<span class="badge">{{if eq .Status "queued"}}{{t "Waiting"}}{{else}}{{t "Importing"}}{{end}}</span>{{end}}
         </div>
         {{if eq .Status "done"}}
-        <p class="muted">{{.Summary.Created}} added, {{.Summary.Merged}} merged with existing bookmarks{{if .Summary.Skipped}}, {{.Summary.Skipped}} skipped (not http or https){{end}}.</p>
+        <p class="muted">{{if .Summary.Skipped}}{{t "%d added, %d merged with existing bookmarks, %d skipped (not http or https)." .Summary.Created .Summary.Merged .Summary.Skipped}}{{else}}{{t "%d added, %d merged with existing bookmarks." .Summary.Created .Summary.Merged}}{{end}}</p>
         {{else if eq .Status "failed"}}
         <p class="muted">{{.LastError}}</p>
         {{else}}
-        <progress max="100" value="{{.Percent}}" aria-label="Import progress">{{.Percent}}%</progress>
-        <p class="muted">{{.Progress}} of {{.Total}} bookmarks</p>
+        <progress max="100" value="{{.Percent}}" aria-label="{{t "Import progress"}}">{{.Percent}}%</progress>
+        <p class="muted">{{t "%d of %d bookmarks" .Progress .Total}}</p>
         {{end}}
       </li>
       {{end}}
@@ -45,8 +45,8 @@
   {{end}}
 
   <section aria-labelledby="export">
-    <h2 id="export">Export</h2>
-    <p class="muted">Download all the bookmarks{{if not .Nav.Spaces}} you have{{end}}. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive.</p>
+    <h2 id="export">{{t "Export"}}</h2>
+    <p class="muted">{{if .Nav.Spaces}}{{t "Download all the bookmarks in this space. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{else}}{{t "Download all the bookmarks you have. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{end}}</p>
     <div class="row-wrap">
       <a class="btn" href="/settings/export?format=html">{{icon "download" "sm"}}HTML</a>
       <a class="btn" href="/settings/export?format=json">{{icon "download" "sm"}}JSON</a>

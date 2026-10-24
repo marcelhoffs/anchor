@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/search"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
@@ -91,24 +92,24 @@ func newPager(page, pages, total int, pageURL func(int) string) pager {
 // listView names the sidebar entry a query corresponds to ("all", "fav",
 // "archive", "#<tag>", "bundle:<id>", or "" for any other search) and the
 // page heading.
-func listView(q string, bundles []store.Bundle) (view, heading string) {
+func listView(q string, bundles []store.Bundle) (view string, heading i18n.Msg) {
 	switch q = strings.TrimSpace(q); {
 	case q == "":
-		return "all", "All bookmarks"
+		return "all", i18n.M("All bookmarks")
 	case q == "!fav":
-		return "fav", "Favourites"
+		return "fav", i18n.M("Favourites")
 	case q == "!archived":
-		return "archive", "Archive"
+		return "archive", i18n.M("Archive")
 	}
 	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
-		return "#" + p.Tags[0], p.Tags[0]
+		return "#" + p.Tags[0], i18n.Raw(p.Tags[0])
 	}
 	for _, b := range bundles {
 		if b.Query == q {
-			return "bundle:" + strconv.FormatInt(b.ID, 10), b.Name
+			return "bundle:" + strconv.FormatInt(b.ID, 10), i18n.Raw(b.Name)
 		}
 	}
-	return "", "Search results"
+	return "", i18n.M("Search results")
 }
 
 func bookmarkForm(r *http.Request) store.BookmarkInput {
@@ -157,25 +158,25 @@ func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, sc store.Sco
 // the user is looking at when they can add to it, else their personal one.
 // A form names its target in "space", so a switch in another tab between
 // showing the form and saving it changes nothing.
-func (s *Server) addTarget(r *http.Request) (store.Scope, string, error) {
+func (s *Server) addTarget(r *http.Request) (store.Scope, i18n.Msg, error) {
 	nav := currentNav(r)
 	if id, err := strconv.ParseInt(r.PostFormValue("space"), 10, 64); err == nil && id > 0 {
 		sc, err := s.store.Access(r.Context(), currentUser(r).ID, id)
 		if err != nil {
-			return store.Scope{}, "", err
+			return store.Scope{}, i18n.Msg{}, err
 		}
 		for _, sp := range nav.Spaces {
 			if sp.ID == id {
-				return sc, sp.Name, nil
+				return sc, i18n.Raw(sp.Name), nil
 			}
 		}
-		return sc, "Personal", nil
+		return sc, i18n.M("Personal"), nil
 	}
 	if nav.Scope.CanWrite() {
-		return nav.Scope, nav.Name, nil
+		return nav.Scope, nav.label(), nil
 	}
 	sc, err := s.store.PersonalScope(r.Context(), currentUser(r).ID)
-	return sc, "Personal", err
+	return sc, i18n.M("Personal"), err
 }
 
 // newBookmark shows the add form, prefilled from ?url=&title=&description=
@@ -213,7 +214,7 @@ func (s *Server) createBookmark(w http.ResponseWriter, r *http.Request) {
 	b, created, err := s.store.CreateBookmark(r.Context(), sc, in)
 	if isValidation(err) {
 		d := formData(in)
-		d["Error"] = err.Error()
+		d["Error"] = errMsg(err)
 		d["Next"] = safeNext(r.PostFormValue("next"))
 		d["Target"], d["TargetName"] = sc.SpaceID(), name
 		s.renderEdit(w, r, sc, http.StatusUnprocessableEntity, d)
@@ -258,8 +259,8 @@ func (s *Server) editBookmark(w http.ResponseWriter, r *http.Request) {
 		d["ShareURL"] = s.shareURL(b)
 	}
 	if r.URL.Query().Get("dup") != "" {
-		d["Notice"] = "You already saved this URL."
-	} else if n := bookmarkNotices[r.URL.Query().Get("done")]; n != "" {
+		d["Notice"] = i18n.M("You already saved this URL.")
+	} else if n := bookmarkNotices[r.URL.Query().Get("done")]; n.Format != "" {
 		d["Notice"] = n
 	}
 	s.renderEdit(w, r, sc, http.StatusOK, d)
@@ -285,9 +286,10 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 		d := formData(in)
 		d["Bookmark"] = b
 		d["Next"] = safeNext(r.PostFormValue("next"))
-		d["Error"] = err.Error()
 		if errors.Is(err, store.ErrConflict) {
-			d["Error"] = "Another bookmark already has this URL."
+			d["Error"] = i18n.M("Another bookmark already has this URL.")
+		} else {
+			d["Error"] = errMsg(err)
 		}
 		s.renderEdit(w, r, sc, http.StatusUnprocessableEntity, d)
 		return
@@ -299,10 +301,10 @@ func (s *Server) updateBookmark(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
 }
 
-var bookmarkNotices = map[string]string{
-	"shared":    "Anyone with the link can now see this bookmark's title, link and description.",
-	"unshared":  "The public link no longer works.",
-	"refetched": "Fetching the page again. Empty fields and the icon are filled in when it's done.",
+var bookmarkNotices = map[string]i18n.Msg{
+	"shared":    i18n.M("Anyone with the link can now see this bookmark's title, link and description."),
+	"unshared":  i18n.M("The public link no longer works."),
+	"refetched": i18n.M("Fetching the page again. Empty fields and the icon are filled in when it's done."),
 }
 
 // shareURL is a shared bookmark's public link.
@@ -412,7 +414,7 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 	switch flag {
 	case store.FlagFavourite, store.FlagArchived:
 	default:
-		http.Error(w, "Unknown flag", http.StatusBadRequest)
+		http.Error(w, langOf(r).T("Unknown flag"), http.StatusBadRequest)
 		return
 	}
 	sc, ok := s.bookmarkScope(w, r, id)
@@ -427,22 +429,22 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) tags(w http.ResponseWriter, r *http.Request) {
-	s.renderTags(w, r, http.StatusOK, "")
+	s.renderTags(w, r, http.StatusOK, i18n.Msg{})
 }
 
-func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
+func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, problem i18n.Msg) {
 	tags, err := s.store.ListTags(r.Context(), currentScope(r))
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, status, "tags", data{"Tags": tags, "Error": errMsg})
+	s.render(w, r, status, "tags", data{"Tags": tags, "Error": problem})
 }
 
 func (s *Server) createTag(w http.ResponseWriter, r *http.Request) {
 	_, err := s.store.CreateTag(r.Context(), currentScope(r), r.PostFormValue("name"))
 	if isValidation(err) {
-		s.renderTags(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderTags(w, r, http.StatusUnprocessableEntity, errMsg(err))
 		return
 	}
 	if !s.storeError(w, r, err) {
@@ -459,7 +461,7 @@ func (s *Server) renameTag(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.store.RenameTag(r.Context(), currentScope(r), id, r.PostFormValue("name"))
 	if isValidation(err) {
-		s.renderTags(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderTags(w, r, http.StatusUnprocessableEntity, errMsg(err))
 		return
 	}
 	if !s.storeError(w, r, err) {

@@ -11,6 +11,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 - [Page details and icons](#page-details-and-icons)
 - [Import and export](#import-and-export)
 - [Accounts and sign-in](#accounts-and-sign-in)
+- [Languages](#languages)
 - [Security measures](#security-measures)
 
 ## Overview
@@ -133,6 +134,12 @@ Admins can require two-factor authentication for everyone. Users without it are 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 
 **Admins** can create, disable and re-enable users, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. They can also change the owner of a shared space or delete it. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
+
+## Languages
+
+The web interface speaks English, Dutch, Spanish and French. It follows the browser's preferred language, falling back to English, unless the user picks one under Settings → Appearance. The API, the command line and the logs stay in English.
+
+Messages are keyed by their English text, so English needs no translation file; each other language has one in `internal/i18n/locales`, with plurals as a `[one, other]` pair. A test finds every message in the templates and the Go code and fails when a language misses one, keeps one nothing uses any more, or changes the `%s` and `%d` placeholders. Adding a language means adding its file, its code to `i18n.Langs` and its month names.
 
 ## Security measures
 

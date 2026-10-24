@@ -1,78 +1,78 @@
-{{define "title"}}{{if .Bookmark}}Edit bookmark{{else}}Add bookmark{{end}}{{end}}
+{{define "title"}}{{if .Bookmark}}{{t "Edit bookmark"}}{{else}}{{t "Add bookmark"}}{{end}}{{end}}
 {{define "content"}}
 <div class="card">
-  <h1>{{if .Bookmark}}Edit bookmark{{else}}Add bookmark{{end}}</h1>
-  {{if and (not .Bookmark) .Nav.Spaces}}<p class="muted intro">Saving to <strong>{{.TargetName}}</strong>. Switch spaces in the top bar to save somewhere else.</p>{{end}}
+  <h1>{{if .Bookmark}}{{t "Edit bookmark"}}{{else}}{{t "Add bookmark"}}{{end}}</h1>
+  {{if and (not .Bookmark) .Nav.Spaces}}<p class="muted intro">{{t "Saving to %s. Switch spaces in the top bar to save somewhere else." (strong .TargetName)}}</p>{{end}}
   <form method="post" action="{{if .Bookmark}}/bookmarks/{{.Bookmark.ID}}{{else}}/bookmarks{{end}}">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     {{if not .Bookmark}}<input type="hidden" name="space" value="{{.Target}}">{{end}}
     <input type="hidden" name="next" value="{{.Next}}">
-    <label>URL <input type="url" name="url" value="{{.URL}}" required{{if not .Bookmark}} autofocus{{end}} inputmode="url" placeholder="https://"></label>
-    <label>Title <input name="title" value="{{.BTitle}}" maxlength="1000"></label>
-    <label>Description <textarea name="description" rows="2" maxlength="10000">{{.Description}}</textarea></label>
+    <label>{{t "URL"}} <input type="url" name="url" value="{{.URL}}" required{{if not .Bookmark}} autofocus{{end}} inputmode="url" placeholder="https://"></label>
+    <label>{{t "Title"}} <input name="title" value="{{.BTitle}}" maxlength="1000"></label>
+    <label>{{t "Description"}} <textarea name="description" rows="2" maxlength="10000">{{.Description}}</textarea></label>
     <div class="field">
-      <label for="tags">Tags</label>
+      <label for="tags">{{t "Tags"}}</label>
       <div class="combo">
-        <input id="tags" name="tags" value="{{.TagText}}" placeholder="home lab, go, reading" autocapitalize="none" spellcheck="false"
+        <input id="tags" name="tags" value="{{.TagText}}" placeholder="{{t "home lab, go, reading"}}" autocapitalize="none" spellcheck="false"
           autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="tag-suggestions"
           aria-describedby="tags-hint" data-tags="{{.TagNames}}">
-        <ul id="tag-suggestions" class="suggestions" role="listbox" aria-label="Matching tags" hidden></ul>
+        <ul id="tag-suggestions" class="suggestions" role="listbox" aria-label="{{t "Matching tags"}}" hidden></ul>
       </div>
-      <span class="hint" id="tags-hint">Separate tags with commas. Only tags you've created can be used; add new ones under <a href="/tags">Tags</a>.</span>
+      <span class="hint" id="tags-hint">{{t "Separate tags with commas. Only tags you've created can be used; add new ones under %s." (link "/tags" (t "Tags"))}}</span>
     </div>
-    <label>Notes <textarea name="notes" rows="5">{{.Notes}}</textarea></label>
-    <label class="check"><input type="checkbox" name="favourite" value="1"{{if .Favourite}} checked{{end}}> Favourite</label>
+    <label>{{t "Notes"}} <textarea name="notes" rows="5">{{.Notes}}</textarea></label>
+    <label class="check"><input type="checkbox" name="favourite" value="1"{{if .Favourite}} checked{{end}}> {{t "Favourite"}}</label>
     <div class="form-actions">
-      <button class="btn btn-primary">Save bookmark</button>
-      <a class="btn" href="{{.Next}}">Cancel</a>
+      <button class="btn btn-primary">{{t "Save bookmark"}}</button>
+      <a class="btn" href="{{.Next}}">{{t "Cancel"}}</a>
     </div>
   </form>
   {{with .Bookmark}}
   <section class="edit-extra" aria-labelledby="sharing">
-    <h2 id="sharing">Sharing</h2>
+    <h2 id="sharing">{{t "Sharing"}}</h2>
     {{if .IsShared}}
-    <p class="muted">Anyone with this link can see the title, link and description. Notes and tags stay private.</p>
-    <input class="mono" readonly value="{{$.ShareURL}}" aria-label="Public link">
+    <p class="muted">{{t "Anyone with this link can see the title, link and description. Notes and tags stay private."}}</p>
+    <input class="mono" readonly value="{{$.ShareURL}}" aria-label="{{t "Public link"}}">
     <form method="post" action="/bookmarks/{{.ID}}/share" class="form-actions">
       <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
       <input type="hidden" name="on" value="0">
-      <a class="btn" href="{{$.ShareURL}}" target="_blank" rel="noopener">{{icon "link" "sm"}}Open public page</a>
-      <button class="btn btn-danger">Stop sharing</button>
+      <a class="btn" href="{{$.ShareURL}}" target="_blank" rel="noopener">{{icon "link" "sm"}}{{t "Open public page"}}</a>
+      <button class="btn btn-danger">{{t "Stop sharing"}}</button>
     </form>
     {{else}}
-    <p class="muted">Make a public link to this bookmark's title, link and description. Notes and tags stay private.</p>
+    <p class="muted">{{t "Make a public link to this bookmark's title, link and description. Notes and tags stay private."}}</p>
     <form method="post" action="/bookmarks/{{.ID}}/share">
       <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
       <input type="hidden" name="on" value="1">
-      <button class="btn">{{icon "link" "sm"}}Create public link</button>
+      <button class="btn">{{icon "link" "sm"}}{{t "Create public link"}}</button>
     </form>
     {{end}}
   </section>
   <section class="edit-extra" aria-labelledby="page-details">
-    <h2 id="page-details">Page details</h2>
+    <h2 id="page-details">{{t "Page details"}}</h2>
     <p class="muted">
-      {{if eq .FetchStatus "pending"}}Fetching the page's title, description and icon. Empty fields are filled in when it's done.
-      {{else if eq .FetchStatus "failed"}}The page couldn't be fetched, so empty fields stay empty.
-      {{else}}Anchor fills in an empty title or description, and the site's icon, from the page itself.{{end}}
+      {{if eq .FetchStatus "pending"}}{{t "Fetching the page's title, description and icon. Empty fields are filled in when it's done."}}
+      {{else if eq .FetchStatus "failed"}}{{t "The page couldn't be fetched, so empty fields stay empty."}}
+      {{else}}{{t "Anchor fills in an empty title or description, and the site's icon, from the page itself."}}{{end}}
     </p>
     {{if ne .FetchStatus "pending"}}
     <form method="post" action="/bookmarks/{{.ID}}/refetch">
       <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Next}}">
-      <button class="btn">{{icon "refresh" "sm"}}Fetch again</button>
+      <button class="btn">{{icon "refresh" "sm"}}{{t "Fetch again"}}</button>
     </form>
     {{end}}
   </section>
   <div class="danger-zone">
-    <button type="button" class="btn btn-danger" popovertarget="delete-bookmark">{{icon "trash" "sm"}}Delete bookmark</button>
+    <button type="button" class="btn btn-danger" popovertarget="delete-bookmark">{{icon "trash" "sm"}}{{t "Delete bookmark"}}</button>
   </div>
   <div id="delete-bookmark" class="confirm" popover role="dialog" aria-labelledby="delete-bookmark-title">
-    <p class="confirm-title" id="delete-bookmark-title">Delete this bookmark?</p>
-    <p class="confirm-text"><strong>{{display .}}</strong> will be deleted permanently. This can't be undone.</p>
+    <p class="confirm-title" id="delete-bookmark-title">{{t "Delete this bookmark?"}}</p>
+    <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong (display .))}}</p>
     <form method="post" action="/bookmarks/{{.ID}}/delete" class="confirm-actions">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
       <input type="hidden" name="next" value="/">
-      <button type="button" class="btn" popovertarget="delete-bookmark" popovertargetaction="hide">Cancel</button>
-      <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
+      <button type="button" class="btn" popovertarget="delete-bookmark" popovertargetaction="hide">{{t "Cancel"}}</button>
+      <button class="btn btn-danger-solid">{{icon "trash" "sm"}}{{t "Delete"}}</button>
     </form>
   </div>
   {{end}}

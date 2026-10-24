@@ -3,7 +3,8 @@
 //   <div data-passkey-scope>
 //     <button data-passkey="register|login" data-begin="/…" data-finish="/…">
 //     <input data-passkey-name>            (register only, optional)
-//     <p data-passkey-status hidden></p>  (error messages)
+//     <p data-passkey-status hidden        (error messages; the page's
+//        data-msg-*="…"></p>               translations of the ones below)
 //   </div>
 (function () {
   "use strict";
@@ -24,6 +25,13 @@
     return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
+  // text is a message in the page's language: data-msg-<key> on the status
+  // box, else the English fallback.
+  function text(scope, key, fallback) {
+    var box = scope.querySelector("[data-passkey-status]");
+    return (box && box.getAttribute("data-msg-" + key)) || fallback;
+  }
+
   function show(scope, msg) {
     var box = scope.querySelector("[data-passkey-status]");
     if (box) {
@@ -32,7 +40,7 @@
     }
   }
 
-  function post(url, body) {
+  function post(scope, url, body) {
     return fetch(url, {
       method: "POST",
       credentials: "same-origin",
@@ -44,7 +52,7 @@
           window.location.href = data.redirect;
           return new Promise(function () {}); // navigating away
         }
-        if (!res.ok) throw new Error(data.error || "Something went wrong. Try again.");
+        if (!res.ok) throw new Error(data.error || text(scope, "failed", "Something went wrong. Try again."));
         return data;
       });
     });
@@ -53,7 +61,7 @@
   function register(button, scope) {
     var nameInput = scope.querySelector("[data-passkey-name]");
     var name = nameInput ? nameInput.value.trim() : "";
-    return post(button.dataset.begin).then(function (opts) {
+    return post(scope, button.dataset.begin).then(function (opts) {
       var pk = opts.publicKey;
       pk.challenge = decode(pk.challenge);
       pk.user.id = decode(pk.user.id);
@@ -61,7 +69,7 @@
       return navigator.credentials.create({ publicKey: pk });
     }).then(function (cred) {
       var r = cred.response;
-      return post(button.dataset.finish + "?name=" + encodeURIComponent(name), {
+      return post(scope, button.dataset.finish + "?name=" + encodeURIComponent(name), {
         id: cred.id,
         rawId: encode(cred.rawId),
         type: cred.type,
@@ -75,15 +83,15 @@
     });
   }
 
-  function login(button) {
-    return post(button.dataset.begin).then(function (opts) {
+  function login(button, scope) {
+    return post(scope, button.dataset.begin).then(function (opts) {
       var pk = opts.publicKey;
       pk.challenge = decode(pk.challenge);
       (pk.allowCredentials || []).forEach(function (c) { c.id = decode(c.id); });
       return navigator.credentials.get({ publicKey: pk });
     }).then(function (cred) {
       var r = cred.response;
-      return post(button.dataset.finish, {
+      return post(scope, button.dataset.finish, {
         id: cred.id,
         rawId: encode(cred.rawId),
         type: cred.type,
@@ -104,21 +112,21 @@
     if (!supported) {
       button.disabled = true;
       show(scope, window.isSecureContext
-        ? "This browser doesn't support passkeys."
-        : "Passkeys need a secure (HTTPS) connection to Anchor.");
+        ? text(scope, "unsupported", "This browser doesn't support passkeys.")
+        : text(scope, "insecure", "Passkeys need a secure (HTTPS) connection to Anchor."));
       return;
     }
     button.addEventListener("click", function (ev) {
       ev.preventDefault();
       show(scope, "");
       button.disabled = true;
-      var run = button.dataset.passkey === "register" ? register(button, scope) : login(button);
+      var run = button.dataset.passkey === "register" ? register(button, scope) : login(button, scope);
       run.catch(function (err) {
         button.disabled = false;
         // NotAllowedError: the user cancelled or the prompt timed out.
         show(scope, err && err.name === "NotAllowedError"
-          ? "Passkey prompt was cancelled. Try again when you're ready."
-          : (err && err.message) || "Something went wrong. Try again.");
+          ? text(scope, "cancelled", "Passkey prompt was cancelled. Try again when you're ready.")
+          : (err && err.message) || text(scope, "failed", "Something went wrong. Try again."));
       });
     });
   });

@@ -1,48 +1,48 @@
-{{define "title"}}Admin · Spaces{{end}}
+{{define "title"}}{{t "Admin"}} · {{t "Spaces"}}{{end}}
 {{define "content"}}
 <div class="card wide-card">
-  <h1>Admin</h1>
+  <h1>{{t "Admin"}}</h1>
   {{template "admin-nav" .}}
 
   <section aria-labelledby="spaces">
-    <h2 id="spaces">Shared spaces</h2>
-    <p class="muted">Who's in each space and how big it is. Admins can't see the bookmarks inside. When an owner can't manage a space any more, for instance because their account is disabled, make another member the owner.</p>
+    <h2 id="spaces">{{t "Shared spaces"}}</h2>
+    <p class="muted">{{t "Who's in each space and how big it is. Admins can't see the bookmarks inside. When an owner can't manage a space any more, for instance because their account is disabled, make another member the owner."}}</p>
     {{if .SpaceList}}
     <div class="table-wrap">
     <table>
-      <thead><tr><th scope="col">Space</th><th scope="col">Owner</th><th scope="col" class="hide-sm">Members</th><th scope="col" class="hide-sm">Bookmarks</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+      <thead><tr><th scope="col">{{t "Space"}}</th><th scope="col">{{t "Owner"}}</th><th scope="col" class="hide-sm">{{t "Members"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th><th scope="col"><span class="visually-hidden">{{t "Actions"}}</span></th></tr></thead>
       <tbody>
       {{range .SpaceList}}
         <tr>
           <td><strong>{{.Name}}</strong></td>
-          <td>{{range .Members}}{{if eq .Role "owner"}}{{.Username}}{{end}}{{end}}{{if not .OwnerActive}} <span class="badge danger">Disabled</span>{{end}}</td>
+          <td>{{range .Members}}{{if eq .Role "owner"}}{{.Username}}{{end}}{{end}}{{if not .OwnerActive}} <span class="badge danger">{{t "Disabled"}}</span>{{end}}</td>
           <td class="num hide-sm">{{len .Members}}</td>
           <td class="num hide-sm">{{.Bookmarks}}</td>
           <td class="actions">
-            <button type="button" class="link-btn" popovertarget="space-menu-{{.ID}}">Manage</button>
+            <button type="button" class="link-btn" popovertarget="space-menu-{{.ID}}">{{t "Manage"}}</button>
             <div id="space-menu-{{.ID}}" class="menu row-menu" popover>
               <p class="menu-title">{{.Name}}</p>
-              {{if gt (len .Members) 1}}<button type="button" popovertarget="space-owner-{{.ID}}">Change owner</button>{{end}}
-              <button type="button" class="danger" popovertarget="space-delete-{{.ID}}">Delete space</button>
+              {{if gt (len .Members) 1}}<button type="button" popovertarget="space-owner-{{.ID}}">{{t "Change owner"}}</button>{{end}}
+              <button type="button" class="danger" popovertarget="space-delete-{{.ID}}">{{t "Delete space"}}</button>
             </div>
             {{if gt (len .Members) 1}}
             <div id="space-owner-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="space-owner-{{.ID}}-title">
-              <p class="confirm-title" id="space-owner-{{.ID}}-title">Change the owner?</p>
-              <p class="confirm-text">The new owner manages <strong>{{.Name}}</strong> and its members. The old owner stays in it and can still edit.</p>
+              <p class="confirm-title" id="space-owner-{{.ID}}-title">{{t "Change the owner?"}}</p>
+              <p class="confirm-text">{{t "The new owner manages %s and its members. The old owner stays in it and can still edit." (strong .Name)}}</p>
               <form method="post" action="/admin/spaces/{{.ID}}/owner" class="confirm-actions">
                 <input type="hidden" name="csrf" value="{{$.CSRF}}">
-                <label class="visually-hidden" for="owner-{{.ID}}">New owner</label>
+                <label class="visually-hidden" for="owner-{{.ID}}">{{t "New owner"}}</label>
                 <select id="owner-{{.ID}}" name="user_id">
                   {{range .Members}}{{if ne .Role "owner"}}<option value="{{.UserID}}">{{.Username}}</option>{{end}}{{end}}
                 </select>
-                <button type="button" class="btn" popovertarget="space-owner-{{.ID}}" popovertargetaction="hide">Cancel</button>
-                <button class="btn btn-primary">Make owner</button>
+                <button type="button" class="btn" popovertarget="space-owner-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
+                <button class="btn btn-primary">{{t "Make owner"}}</button>
               </form>
             </div>
             {{end}}
-            {{template "confirm" dict "ID" (print "space-delete-" .ID) "Title" "Delete this space?" "Name" .Name
-              "Text" (print "is deleted for all " (count (len .Members) "member") ", with its " (count .Bookmarks "bookmark") ", tags and saved searches. This can't be undone.")
-              "Action" (print "/admin/spaces/" .ID "/delete") "Button" "Delete space" "CSRF" $.CSRF}}
+            {{template "confirm" dict "ID" (print "space-delete-" .ID) "Title" (t "Delete this space?")
+              "Text" (t "%s is deleted for all its members (%s), with its bookmarks (%s), tags and saved searches. This can't be undone." (strong .Name) (tn (len .Members) "%d member" "%d members") (tn .Bookmarks "%d bookmark" "%d bookmarks"))
+              "Action" (print "/admin/spaces/" .ID "/delete") "Button" (t "Delete space") "CSRF" $.CSRF}}
           </td>
         </tr>
       {{end}}
@@ -50,7 +50,7 @@
     </table>
     </div>
     {{else}}
-    <p class="muted">Nobody has created a shared space yet.</p>
+    <p class="muted">{{t "Nobody has created a shared space yet."}}</p>
     {{end}}
   </section>
 </div>

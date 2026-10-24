@@ -1,41 +1,41 @@
-{{define "title"}}Admin · Invites{{end}}
+{{define "title"}}{{t "Admin"}} · {{t "Invites"}}{{end}}
 {{define "content"}}
 <div class="card wide-card">
-  <h1>Admin</h1>
+  <h1>{{t "Admin"}}</h1>
   {{template "admin-nav" .}}
 
   {{if eq .SignupMode "closed"}}
-  <p class="error">Signup is closed, so you can't invite anyone and invite links won't work. Allow invites under <a href="/admin/settings">Instance</a>.</p>
+  <p class="error">{{t "Sign-up is closed, so you can't invite anyone and invite links won't work. Allow invites under %s." (link "/admin/settings" (t "Instance"))}}</p>
   {{else}}
   <section aria-labelledby="new-invite">
-    <h2 id="new-invite">Invite someone</h2>
-    <p class="muted">Creates a single-use signup link that expires in 7 days.</p>
+    <h2 id="new-invite">{{t "Invite someone"}}</h2>
+    <p class="muted">{{t "Creates a single-use sign-up link that expires in 7 days."}}</p>
     <form method="post" action="/admin/invites" class="row-wrap">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <label class="visually-hidden" for="note">Note</label>
-      <input id="note" name="note" maxlength="100" placeholder="Who is it for? (optional)">
-      <button class="btn btn-primary">{{icon "plus" "sm"}}Create invite link</button>
+      <label class="visually-hidden" for="note">{{t "Note"}}</label>
+      <input id="note" name="note" maxlength="100" placeholder="{{t "Who is it for? (optional)"}}">
+      <button class="btn btn-primary">{{icon "plus" "sm"}}{{t "Create invite link"}}</button>
     </form>
   </section>
   {{end}}
 
   <section aria-labelledby="invites">
-    <h2 id="invites">Invites</h2>
+    <h2 id="invites">{{t "Invites"}}</h2>
     {{if .Invites}}
     <div class="table-wrap">
     <table>
-      <thead><tr><th scope="col">Note</th><th scope="col">Created</th><th scope="col">Status</th><th scope="col"><span class="visually-hidden">Revoke</span></th></tr></thead>
+      <thead><tr><th scope="col">{{t "Note"}}</th><th scope="col">{{t "Created"}}</th><th scope="col">{{t "Status"}}</th><th scope="col"><span class="visually-hidden">{{t "Revoke"}}</span></th></tr></thead>
       <tbody>
       {{range .Invites}}
         <tr>
-          <td>{{if .Note}}{{.Note}}{{else}}<span class="muted">No note</span>{{end}}</td>
-          <td>{{ago .CreatedAt}}{{if .CreatedBy}} by {{.CreatedBy}}{{end}}</td>
-          <td>{{if not .UsedAt.IsZero}}Used by {{.UsedBy}} {{ago .UsedAt}}{{else if .ExpiresAt.Before $.Now}}<span class="muted">Expired</span>{{else}}<span class="badge on">Open</span> until {{.ExpiresAt.Format "2 Jan"}}{{end}}</td>
+          <td>{{if .Note}}{{.Note}}{{else}}<span class="muted">{{t "No note"}}</span>{{end}}</td>
+          <td>{{if .CreatedBy}}{{t "%s by %s" (ago .CreatedAt) .CreatedBy}}{{else}}{{ago .CreatedAt}}{{end}}</td>
+          <td>{{if not .UsedAt.IsZero}}{{t "Used by %s %s" .UsedBy (ago .UsedAt)}}{{else if .ExpiresAt.Before $.Now}}<span class="muted">{{t "Expired"}}</span>{{else}}<span class="badge on">{{t "Open"}}</span> {{t "until %s" (dayMonth .ExpiresAt)}}{{end}}</td>
           <td class="actions">
             {{if .UsedAt.IsZero}}
-            <button type="button" class="link-btn danger" popovertarget="revoke-invite-{{.ID}}">Revoke</button>
-            {{template "confirm" dict "ID" (print "revoke-invite-" .ID) "Title" "Revoke this invite?" "Text" "Its link stops working. You can create a new invite at any time."
-              "Action" (print "/admin/invites/" .ID "/delete") "Button" "Revoke" "CSRF" $.CSRF}}
+            <button type="button" class="link-btn danger" popovertarget="revoke-invite-{{.ID}}">{{t "Revoke"}}</button>
+            {{template "confirm" dict "ID" (print "revoke-invite-" .ID) "Title" (t "Revoke this invite?") "Text" (t "Its link stops working. You can create a new invite at any time.")
+              "Action" (print "/admin/invites/" .ID "/delete") "Button" (t "Revoke") "CSRF" $.CSRF}}
             {{end}}
           </td>
         </tr>
@@ -44,7 +44,7 @@
     </table>
     </div>
     {{else}}
-    <p class="muted">No invites yet.</p>
+    <p class="muted">{{t "No invites yet."}}</p>
     {{end}}
   </section>
 </div>

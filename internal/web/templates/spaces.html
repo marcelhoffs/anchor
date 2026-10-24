@@ -1,20 +1,20 @@
-{{define "title"}}Spaces{{end}}
+{{define "title"}}{{t "Spaces"}}{{end}}
 {{define "content"}}
 <div class="card wide-card">
-  <h1>Spaces</h1>
-  <p class="muted intro">A shared space has its own bookmarks and tags, for everyone in it. Its owner adds the members and chooses who can edit and who can only read. Your personal bookmarks stay yours.</p>
+  <h1>{{t "Spaces"}}</h1>
+  <p class="muted intro">{{t "A shared space has its own bookmarks and tags, for everyone in it. Its owner adds the members and chooses who can edit and who can only read. Your personal bookmarks stay yours."}}</p>
   {{if .CanCreate}}
   <form method="post" action="/spaces" class="row-wrap new-tag">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <label class="visually-hidden" for="new-space">Name of the new space</label>
-    <input id="new-space" name="name" required maxlength="100" placeholder="New space, e.g. Family or Team">
-    <button class="btn btn-primary">{{icon "plus" "sm"}}Create space</button>
+    <label class="visually-hidden" for="new-space">{{t "Name of the new space"}}</label>
+    <input id="new-space" name="name" required maxlength="100" placeholder="{{t "New space, e.g. Family or Team"}}">
+    <button class="btn btn-primary">{{icon "plus" "sm"}}{{t "Create space"}}</button>
   </form>
   {{end}}
   {{if .Spaces}}
   <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">Space</th><th scope="col">You</th><th scope="col" class="hide-sm">Owner</th><th scope="col" class="hide-sm">Members</th><th scope="col" class="hide-sm">Bookmarks</th></tr></thead>
+    <thead><tr><th scope="col">{{t "Space"}}</th><th scope="col">{{t "You"}}</th><th scope="col" class="hide-sm">{{t "Owner"}}</th><th scope="col" class="hide-sm">{{t "Members"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th></tr></thead>
     <tbody>
     {{range .Spaces}}
       <tr>
@@ -31,8 +31,8 @@
   {{else}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "space"}}</span>
-    <p class="title">No shared spaces yet</p>
-    <p>{{if .CanCreate}}Create one above to share bookmarks with your family or team.{{else}}When someone adds you to a space, it's listed here.{{end}}</p>
+    <p class="title">{{t "No shared spaces yet"}}</p>
+    <p>{{if .CanCreate}}{{t "Create one above to share bookmarks with your family or team."}}{{else}}{{t "When someone adds you to a space, it's listed here."}}{{end}}</p>
   </div>
   {{end}}
 </div>

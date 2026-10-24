@@ -5,19 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"math"
 	"net/http"
 	"strings"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/ratelimit"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-const invalidLogin = "Invalid username or password."
+var invalidLogin = i18n.M("Invalid username or password.")
 
 func (s *Server) setupForm(w http.ResponseWriter, r *http.Request) {
 	if s.hasUsers.Load() {
@@ -33,7 +31,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	username, password, msg := newCredentials(r)
-	if msg != "" {
+	if msg.Format != "" {
 		s.render(w, r, http.StatusUnprocessableEntity, "setup", data{"Error": msg, "Username": username})
 		return
 	}
@@ -52,17 +50,17 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 }
 
 // newCredentials reads and checks a username, password and confirmation;
-// msg is a user-facing problem, or "".
-func newCredentials(r *http.Request) (username, password, msg string) {
+// msg is a user-facing problem, or the zero Msg.
+func newCredentials(r *http.Request) (username, password string, msg i18n.Msg) {
 	username = strings.TrimSpace(r.PostFormValue("username"))
 	password = r.PostFormValue("password")
 	switch {
 	case auth.ValidateUsername(username) != nil:
-		msg = sentence(auth.ValidateUsername(username))
+		msg = errMsg(auth.ValidateUsername(username))
 	case auth.ValidatePassword(password) != nil:
-		msg = sentence(auth.ValidatePassword(password))
+		msg = errMsg(auth.ValidatePassword(password))
 	case password != r.PostFormValue("confirm"):
-		msg = "Passwords do not match."
+		msg = i18n.M("Passwords do not match.")
 	}
 	return username, password, msg
 }
@@ -77,21 +75,13 @@ func (s *Server) loginForm(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func retryText(d time.Duration) string {
-	m := int(math.Ceil(d.Minutes()))
-	if m <= 1 {
-		return "a minute"
-	}
-	return fmt.Sprintf("%d minutes", m)
-}
-
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	password := r.PostFormValue("password")
 	next := r.PostFormValue("next")
 	ip := s.clientIP(r)
 	userKey := ip + "|" + strings.ToLower(username)
-	fail := func(status int, msg string) {
+	fail := func(status int, msg i18n.Msg) {
 		s.render(w, r, status, "login", data{"Error": msg, "Username": username, "Next": next,
 			"OpenSignup": s.signupMode(r.Context()) == "open"})
 	}
@@ -105,7 +95,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	}{{s.loginUser, userKey}, {s.loginIP, ip}} {
 		if ok, retry := l.lim.Allow(l.key); !ok {
 			w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
-			fail(http.StatusTooManyRequests, "Too many failed attempts. Try again in "+retryText(retry)+".")
+			fail(http.StatusTooManyRequests, i18n.M("Too many failed attempts. Try again in %s.", retryText(langOf(r), retry)))
 			return
 		}
 	}
@@ -246,18 +236,18 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 	if allowed, retry := s.signupIP.Allow(s.clientIP(r)); !allowed {
 		w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 		s.render(w, r, http.StatusTooManyRequests, "signup", data{"Invite": token,
-			"Error": "Too many sign-ups from your network. Try again in " + retryText(retry) + "."})
+			"Error": i18n.M("Too many sign-ups from your network. Try again in %s.", retryText(langOf(r), retry))})
 		return
 	}
 	username, password, msg := newCredentials(r)
-	if msg != "" {
+	if msg.Format != "" {
 		s.render(w, r, http.StatusUnprocessableEntity, "signup", data{"Error": msg, "Username": username, "Invite": token})
 		return
 	}
 	u, err := s.store.SignUp(r.Context(), username, auth.HashPassword(password), inviteHash)
 	switch {
 	case errors.Is(err, store.ErrConflict):
-		s.render(w, r, http.StatusUnprocessableEntity, "signup", data{"Error": "That username is taken.", "Username": username, "Invite": token})
+		s.render(w, r, http.StatusUnprocessableEntity, "signup", data{"Error": i18n.M("That username is taken."), "Username": username, "Invite": token})
 		return
 	case errors.Is(err, store.ErrInvalidInvite):
 		s.render(w, r, http.StatusNotFound, "signup_closed", data{"HadInvite": true})
@@ -274,27 +264,28 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	s.renderSettings(w, r, http.StatusOK, data{"Notice": settingsNotices[r.URL.Query().Get("done")]})
 }
 
-var settingsNotices = map[string]string{
-	"revoked":     "Session revoked.",
-	"appearance":  "Settings saved.",
-	"totp-off":    "Authenticator app removed. Your other sessions were signed out.",
-	"passkey":     "Passkey added.",
-	"passkey-off": "Passkey removed. Your other sessions were signed out.",
-	"token-off":   "Token revoked.",
-	"confirmed":   "Thanks, you're confirmed for the next 10 minutes.",
+var settingsNotices = map[string]i18n.Msg{
+	"revoked":     i18n.M("Session revoked."),
+	"appearance":  i18n.M("Settings saved."),
+	"totp-off":    i18n.M("Authenticator app removed. Your other sessions were signed out."),
+	"passkey":     i18n.M("Passkey added."),
+	"passkey-off": i18n.M("Passkey removed. Your other sessions were signed out."),
+	"token-off":   i18n.M("Token revoked."),
+	"confirmed":   i18n.M("Thanks, you're confirmed for the next 10 minutes."),
 }
 
 // accentLabels names each store.Accents value in the appearance picker.
-var accentLabels = map[string]string{
-	"indigo": "Indigo", "terracotta": "Terracotta", "yellow": "Yellow", "emerald": "Emerald",
-	"forest": "Forest", "ocean": "Ocean", "rose": "Rose", "graphite": "Graphite",
+var accentLabels = map[string]i18n.Msg{
+	"indigo": i18n.M("Indigo"), "terracotta": i18n.M("Terracotta"), "yellow": i18n.M("Yellow"),
+	"emerald": i18n.M("Emerald"), "forest": i18n.M("Forest"), "ocean": i18n.M("Ocean"),
+	"rose": i18n.M("Rose"), "graphite": i18n.M("Graphite"),
 }
 
-type choice struct{ Value, Label string }
-
-// fontLabels names each store.Fonts value in the appearance picker.
-var fontLabels = map[string]string{
-	"inter": "Inter", "system": "System", "roboto": "Roboto", "open-sans": "Open Sans", "lato": "Lato",
+// fontLabels names each store.Fonts value in the appearance picker; only
+// System is a word to translate.
+var fontLabels = map[string]i18n.Msg{
+	"inter": {Format: "Inter"}, "system": i18n.M("System"), "roboto": {Format: "Roboto"},
+	"open-sans": {Format: "Open Sans"}, "lato": {Format: "Lato"},
 }
 
 // fontFiles are the files under /static/ each store.Fonts value loads,
@@ -306,25 +297,31 @@ var fontFiles = map[string][]string{
 	"lato":      {"fonts/lato-latin-400.woff2", "fonts/lato-latin-700.woff2"},
 }
 
-func fontChoices() []choice {
-	out := make([]choice, len(store.Fonts))
-	for i, f := range store.Fonts {
-		out[i] = choice{f, fontLabels[f]}
+type choice struct{ Value, Label string }
+
+// choices labels values in l, from labels.
+func choices(l i18n.Lang, values []string, labels map[string]i18n.Msg) []choice {
+	out := make([]choice, len(values))
+	for i, v := range values {
+		out[i] = choice{v, labels[v].In(l)}
 	}
 	return out
 }
 
-func accentChoices() []choice {
-	out := make([]choice, len(store.Accents))
-	for i, a := range store.Accents {
-		out[i] = choice{a, accentLabels[a]}
+// languageChoices names each language in itself, so anyone can find theirs.
+func languageChoices(l i18n.Lang) []choice {
+	out := []choice{{"auto", l.T("Automatic")}}
+	for _, lang := range i18n.Langs {
+		out = append(out, choice{string(lang), lang.Name()})
 	}
 	return out
 }
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status int, d data) {
-	d["Accents"] = accentChoices()
-	d["Fonts"] = fontChoices()
+	l := langOf(r)
+	d["Accents"] = choices(l, store.Accents, accentLabels)
+	d["Fonts"] = choices(l, store.Fonts, fontLabels)
+	d["Languages"] = languageChoices(l)
 	d["Bookmarklet"] = s.bookmarklet()
 	d["Tab"] = "appearance"
 	s.render(w, r, status, "settings", d)
@@ -332,25 +329,25 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 
 func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	u, cur := currentUser(r), currentSession(r)
-	render := func(status int, msg string) { s.renderSecurity(w, r, status, data{"Error": msg}) }
-	fail := func(msg string) { render(http.StatusUnprocessableEntity, msg) }
+	render := func(status int, msg i18n.Msg) { s.renderSecurity(w, r, status, data{"Error": msg}) }
+	fail := func(msg i18n.Msg) { render(http.StatusUnprocessableEntity, msg) }
 	// Wrong current passwords count with failed second factors, so a stolen
 	// session can't be used to guess the password.
 	if s.mfaBlocked(w, r, *u, false, render) {
 		return
 	}
 	if auth.VerifyPassword(u.PasswordHash, r.PostFormValue("current")) != nil {
-		fail("Current password is wrong.")
+		fail(i18n.M("Current password is wrong."))
 		return
 	}
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	password := r.PostFormValue("password")
 	if err := auth.ValidatePassword(password); err != nil {
-		fail(sentence(err))
+		fail(errMsg(err))
 		return
 	}
 	if password != r.PostFormValue("confirm") {
-		fail("New passwords do not match.")
+		fail(i18n.M("New passwords do not match."))
 		return
 	}
 	if err := s.store.SetPassword(r.Context(), u.ID, auth.HashPassword(password), cur.TokenHash); err != nil {
@@ -373,12 +370,13 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		Accent:       keep("accent", u.Settings.Accent),
 		Theme:        keep("theme", u.Settings.Theme),
 		Font:         keep("font", u.Settings.Font),
+		Language:     keep("language", u.Settings.Language),
 		Sidebar:      keep("sidebar", u.Settings.Sidebar),
 		Sort:         keep("sort", u.Settings.Sort),
 		Descriptions: keep("descriptions", u.Settings.Descriptions),
 	})
 	if isValidation(err) {
-		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	if err != nil {
@@ -396,17 +394,6 @@ func (s *Server) bookmarklet() template.URL {
 	base, _ := json.Marshal(s.cfg.BaseURL.String() + "/bookmarks/new?url=")
 	return template.URL("javascript:void(window.open(" + string(base) +
 		"+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)))")
-}
-
-// sentence turns a Go error ("password must be …") into a message for the
-// page ("Password must be ….").
-func sentence(err error) string {
-	msg := err.Error()
-	if msg == "" {
-		return msg
-	}
-	r, size := utf8.DecodeRuneInString(msg)
-	return string(unicode.ToUpper(r)) + strings.TrimSuffix(msg[size:], ".") + "."
 }
 
 func truncate(s string, n int) string {

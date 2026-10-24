@@ -27,7 +27,7 @@ curl -H "Authorization: Bearer $TOKEN" "https://anchor.example.com/api/v1/bookma
 
 ## Errors
 
-Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, with the `application/problem+json` content type:
+Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, with the `application/problem+json` content type. Their messages are always in English, whatever language the web interface uses:
 
 ```json
 {"type": "about:blank", "title": "Not Found", "status": 404, "detail": "Not found."}

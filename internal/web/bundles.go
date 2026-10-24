@@ -4,27 +4,28 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 func (s *Server) bundles(w http.ResponseWriter, r *http.Request) {
-	s.renderBundles(w, r, http.StatusOK, "")
+	s.renderBundles(w, r, http.StatusOK, i18n.Msg{})
 }
 
-func (s *Server) renderBundles(w http.ResponseWriter, r *http.Request, status int, errMsg string) {
+func (s *Server) renderBundles(w http.ResponseWriter, r *http.Request, status int, problem i18n.Msg) {
 	list, err := s.store.ListBundles(r.Context(), currentScope(r))
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, status, "bundles", data{"BundleList": list, "Error": errMsg})
+	s.render(w, r, status, "bundles", data{"BundleList": list, "Error": problem})
 }
 
 // createBundle saves the search on the list page and shows it.
 func (s *Server) createBundle(w http.ResponseWriter, r *http.Request) {
 	b, err := s.store.CreateBundle(r.Context(), currentScope(r), r.PostFormValue("name"), r.PostFormValue("query"))
 	if isValidation(err) {
-		s.renderBundles(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderBundles(w, r, http.StatusUnprocessableEntity, errMsg(err))
 		return
 	}
 	if err != nil {
@@ -42,7 +43,7 @@ func (s *Server) updateBundle(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.store.UpdateBundle(r.Context(), currentScope(r), id, r.PostFormValue("name"), r.PostFormValue("query"))
 	if isValidation(err) {
-		s.renderBundles(w, r, http.StatusUnprocessableEntity, err.Error())
+		s.renderBundles(w, r, http.StatusUnprocessableEntity, errMsg(err))
 		return
 	}
 	if !s.storeError(w, r, err) {

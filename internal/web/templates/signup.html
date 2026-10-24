@@ -1,20 +1,20 @@
-{{define "title"}}Create account{{end}}
+{{define "title"}}{{t "Create account"}}{{end}}
 {{define "content"}}
 <div class="auth">
   {{template "auth-brand" .}}
   <div class="card">
-    <h1>Create your account</h1>
-    <p class="lead">{{if .Invite}}You've been invited to Anchor.{{else}}Start saving your bookmarks.{{end}}</p>
+    <h1>{{t "Create your account"}}</h1>
+    <p class="lead">{{if .Invite}}{{t "You've been invited to Anchor."}}{{else}}{{t "Start saving your bookmarks."}}{{end}}</p>
     <form method="post" action="/signup">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="invite" value="{{.Invite}}">
-      <label>Username <input name="username" value="{{.Username}}" required autocomplete="username" autocapitalize="none" spellcheck="false" autofocus></label>
-      <label>Password <input type="password" name="password" required minlength="10" autocomplete="new-password">
-        <span class="hint">At least 10 characters.</span></label>
-      <label>Confirm password <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
-      <button class="btn btn-primary">Create account</button>
+      <label>{{t "Username"}} <input name="username" value="{{.Username}}" required autocomplete="username" autocapitalize="none" spellcheck="false" autofocus></label>
+      <label>{{t "Password"}} <input type="password" name="password" required minlength="10" autocomplete="new-password">
+        <span class="hint">{{t "At least %d characters." 10}}</span></label>
+      <label>{{t "Confirm password"}} <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
+      <button class="btn btn-primary">{{t "Create account"}}</button>
     </form>
-    <p class="verify-cancel">Already have an account? <a href="/login">Log in</a></p>
+    <p class="verify-cancel">{{t "Already have an account? %s" (link "/login" (t "Log in"))}}</p>
   </div>
 </div>
 {{end}}

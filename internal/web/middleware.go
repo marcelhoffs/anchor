@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
@@ -43,8 +44,16 @@ func currentSession(r *http.Request) *store.Session {
 // top bar's switcher offers (it shows only when there are any).
 type spaceNav struct {
 	Scope  store.Scope
-	Name   string // "Personal", or the shared space's name
+	Name   string // the shared space's name; "" for the personal space
 	Spaces []store.Space
+}
+
+// label is the space's name for a page: Personal is translated.
+func (n *spaceNav) label() i18n.Msg {
+	if n.Name == "" {
+		return i18n.M("Personal")
+	}
+	return i18n.Raw(n.Name)
 }
 
 func currentNav(r *http.Request) *spaceNav {
@@ -73,7 +82,7 @@ func (s *Server) loadScope(next http.Handler) http.Handler {
 			s.serverError(w, r, err)
 			return
 		}
-		nav := &spaceNav{Name: "Personal", Spaces: spaces}
+		nav := &spaceNav{Spaces: spaces}
 		if id := currentSession(r).SpaceID; id != 0 {
 			if sc, err := s.store.Access(ctx, u.ID, id); err == nil {
 				for _, sp := range spaces {
@@ -170,7 +179,7 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 				sent = r.PostFormValue("csrf")
 			}
 			if token == "" || subtle.ConstantTimeCompare([]byte(sent), []byte(token)) != 1 {
-				http.Error(w, "Invalid or missing CSRF token. Reload the page and try again.", http.StatusForbidden)
+				http.Error(w, langOf(r).T("Invalid or missing CSRF token. Reload the page and try again."), http.StatusForbidden)
 				return
 			}
 		}
@@ -277,7 +286,7 @@ func (s *Server) requireUser(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if currentUser(r) == nil {
 			if r.Method != http.MethodGet {
-				http.Error(w, "Not logged in", http.StatusUnauthorized)
+				http.Error(w, langOf(r).T("Not logged in"), http.StatusUnauthorized)
 				return
 			}
 			http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
@@ -393,7 +402,7 @@ func (s *Server) requireRecentAuth(next http.Handler) http.Handler {
 		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Please confirm it's you first.", "redirect": to})
+			json.NewEncoder(w).Encode(map[string]string{"error": langOf(r).T("Please confirm it's you first."), "redirect": to})
 			return
 		}
 		http.Redirect(w, r, to, http.StatusSeeOther)

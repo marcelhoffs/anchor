@@ -7,18 +7,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-var spaceNotices = map[string]string{
-	"created":     "Space created. Add the people you want to share it with.",
-	"renamed":     "Space renamed.",
-	"added":       "Member added.",
-	"updated":     "Role changed.",
-	"removed":     "Member removed.",
-	"transferred": "The space has a new owner. You can still edit it.",
-	"left":        "You left the space.",
-	"deleted":     "Space deleted.",
+var spaceNotices = map[string]i18n.Msg{
+	"created":     i18n.M("Space created. Add the people you want to share it with."),
+	"renamed":     i18n.M("Space renamed."),
+	"added":       i18n.M("Member added."),
+	"updated":     i18n.M("Role changed."),
+	"removed":     i18n.M("Member removed."),
+	"transferred": i18n.M("The space has a new owner. You can still edit it."),
+	"left":        i18n.M("You left the space."),
+	"deleted":     i18n.M("Space deleted."),
 }
 
 // canCreateSpace reports whether the user may create shared spaces: admins
@@ -48,12 +49,12 @@ func (s *Server) renderSpaces(w http.ResponseWriter, r *http.Request, status int
 
 func (s *Server) createSpace(w http.ResponseWriter, r *http.Request) {
 	if !s.canCreateSpace(r) {
-		http.Error(w, "Only admins can create spaces.", http.StatusForbidden)
+		http.Error(w, langOf(r).T("Only admins can create spaces."), http.StatusForbidden)
 		return
 	}
 	sc, err := s.store.CreateSpace(r.Context(), currentUser(r).ID, r.PostFormValue("name"))
 	if isValidation(err) {
-		s.renderSpaces(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderSpaces(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	if !s.storeError(w, r, err) {
@@ -124,7 +125,7 @@ func (s *Server) renderSpace(w http.ResponseWriter, r *http.Request, sc store.Sc
 // or the page again with the problem when the input was refused.
 func (s *Server) spaceDone(w http.ResponseWriter, r *http.Request, sc store.Scope, err error, done string) {
 	if isValidation(err) {
-		s.renderSpace(w, r, sc, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderSpace(w, r, sc, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	if !s.storeError(w, r, err) {

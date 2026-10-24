@@ -54,7 +54,8 @@
 - For admins: user management, invite links, open/invite/closed signup and a policy that requires 2FA.
 
 **Look and feel**
-- Light and dark themes, a choice of accent colours, and the sidebar on either side.
+- Light and dark themes, a choice of accent colours and fonts, and the sidebar on either side.
+- In English, Dutch, Spanish and French: Anchor follows your browser's language, or the one you pick.
 - Works on phones as well as desktops.
 
 <p align="center">

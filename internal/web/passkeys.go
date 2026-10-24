@@ -88,15 +88,13 @@ func (c *ceremonies) sweep() {
 	}
 }
 
-const passkeysUnavailable = "Passkeys aren't available: Anchor must be reached by a domain name, not an IP address."
-
 // passkeysOff answers a passkey call when passkeys are disabled; it reports
 // whether it did.
-func (s *Server) passkeysOff(w http.ResponseWriter) bool {
+func (s *Server) passkeysOff(w http.ResponseWriter, r *http.Request) bool {
 	if s.webauthn != nil {
 		return false
 	}
-	jsonError(w, http.StatusConflict, passkeysUnavailable)
+	jsonError(w, http.StatusConflict, langOf(r).T("Passkeys aren't available: Anchor must be reached by a domain name, not an IP address."))
 	return true
 }
 

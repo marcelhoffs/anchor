@@ -17,6 +17,7 @@ import (
 
 	"github.com/marcelhoffs/anchor/internal/auth"
 	"github.com/marcelhoffs/anchor/internal/config"
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/ratelimit"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
@@ -53,7 +54,7 @@ type Server struct {
 	log      *slog.Logger
 	jobs     JobNotifier
 	fetcher  JobNotifier // told when a bookmark needs its page details
-	pages    map[string]pageTemplate
+	pages    map[i18n.Lang]map[string]pageTemplate
 	keys     auth.Keys
 	csrfKey  []byte
 	webauthn *webauthn.WebAuthn // nil when passkeys are unavailable

@@ -3,7 +3,6 @@ package web
 import (
 	"bytes"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"github.com/go-webauthn/webauthn/webauthn"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
@@ -63,22 +63,22 @@ func (s *Server) checkPasskey(r *http.Request, u store.User, key string) (bool, 
 
 // beginPasskeyLogin starts a WebAuthn login ceremony for u under key.
 func (s *Server) beginPasskeyLogin(w http.ResponseWriter, r *http.Request, u store.User, key string) {
-	if s.passkeysOff(w) {
+	if s.passkeysOff(w, r) {
 		return
 	}
 	wu, err := s.webauthnUser(r, u)
 	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Something went wrong."))
 		return
 	}
 	if len(wu.creds) == 0 {
-		jsonError(w, http.StatusBadRequest, "No passkeys are registered.")
+		jsonError(w, http.StatusBadRequest, langOf(r).T("No passkeys are registered."))
 		return
 	}
 	opts, sd, err := s.webauthn.BeginLogin(wu)
 	if err != nil {
 		s.log.Error("begin passkey login", "err", err)
-		jsonError(w, http.StatusInternalServerError, "Could not start passkey sign-in.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Could not start passkey sign-in."))
 		return
 	}
 	s.cer.put(key, *sd)
@@ -88,15 +88,15 @@ func (s *Server) beginPasskeyLogin(w http.ResponseWriter, r *http.Request, u sto
 // mfaBlocked counts a second-factor attempt before it is checked, and
 // answers it if it is over the limit; it reports whether it did. Passing
 // resets the count.
-func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User, asJSON bool, render func(int, string)) bool {
+func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User, asJSON bool, render func(int, i18n.Msg)) bool {
 	ok, retry := s.mfaUser.Allow(fmt.Sprint(u.ID))
 	if ok {
 		return false
 	}
-	msg := "Too many failed attempts. Try again in " + retryText(retry) + "."
+	msg := i18n.M("Too many failed attempts. Try again in %s.", retryText(langOf(r), retry))
 	w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 	if asJSON {
-		jsonError(w, http.StatusTooManyRequests, msg)
+		jsonError(w, http.StatusTooManyRequests, msg.In(langOf(r)))
 	} else {
 		render(http.StatusTooManyRequests, msg)
 	}
@@ -105,7 +105,7 @@ func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User
 
 // --- Second factor at login ---
 
-func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int, mode string, u store.User, next, errMsg string) {
+func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int, mode string, u store.User, next string, problem i18n.Msg) {
 	m, err := s.store.MFAStatus(r.Context(), u.ID)
 	if err != nil {
 		s.serverError(w, r, err)
@@ -113,7 +113,7 @@ func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int
 	}
 	action := map[string]string{"login": "/login/2fa", "reauth": "/reauth"}[mode]
 	s.render(w, r, status, "verify", data{
-		"Mode": mode, "Next": next, "Error": errMsg, "MFA": m, "Who": u.Username, "Action": action,
+		"Mode": mode, "Next": next, "Error": problem, "MFA": m, "Who": u.Username, "Action": action,
 		"PasskeyFinish": action + "/passkey/finish?next=" + urlQueryEscape(next),
 	})
 }
@@ -124,7 +124,7 @@ func (s *Server) login2FAForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.renderVerify(w, r, http.StatusOK, "login", u, r.URL.Query().Get("next"), "")
+	s.renderVerify(w, r, http.StatusOK, "login", u, r.URL.Query().Get("next"), i18n.Msg{})
 }
 
 func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string, check func(store.User) (bool, error)) {
@@ -134,7 +134,7 @@ func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string,
 		return
 	}
 	next := r.PostFormValue("next")
-	render := func(status int, msg string) { s.renderVerify(w, r, status, "login", u, next, msg) }
+	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, "login", u, next, msg) }
 	if s.mfaBlocked(w, r, u, false, render) {
 		return
 	}
@@ -144,7 +144,7 @@ func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string,
 		return
 	}
 	if !passed {
-		render(http.StatusUnauthorized, "That code didn't work. Check it and try again.")
+		render(http.StatusUnauthorized, i18n.M("That code didn't work. Check it and try again."))
 		return
 	}
 	s.completeLogin(w, r, u, method, next, false)
@@ -161,7 +161,7 @@ func (s *Server) login2FARecovery(w http.ResponseWriter, r *http.Request) {
 func (s *Server) login2FAPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 	ss, u, ok := s.pendingLogin(r)
 	if !ok {
-		jsonError(w, http.StatusUnauthorized, "Your sign-in expired. Start again.")
+		jsonError(w, http.StatusUnauthorized, langOf(r).T("Your sign-in expired. Start again."))
 		return
 	}
 	s.beginPasskeyLogin(w, r, u, ceremonyKey("login", ss.TokenHash))
@@ -170,7 +170,7 @@ func (s *Server) login2FAPasskeyBegin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	ss, u, ok := s.pendingLogin(r)
 	if !ok {
-		jsonError(w, http.StatusUnauthorized, "Your sign-in expired. Start again.")
+		jsonError(w, http.StatusUnauthorized, langOf(r).T("Your sign-in expired. Start again."))
 		return
 	}
 	if s.mfaBlocked(w, r, u, true, nil) {
@@ -179,11 +179,11 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 	passed, err := s.checkPasskey(r, u, ceremonyKey("login", ss.TokenHash))
 	if err != nil {
 		s.log.Error("passkey login", "err", err)
-		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Something went wrong."))
 		return
 	}
 	if !passed {
-		jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
+		jsonError(w, http.StatusUnauthorized, langOf(r).T("That passkey wasn't accepted. Try again."))
 		return
 	}
 	s.completeLogin(w, r, u, "passkey", r.URL.Query().Get("next"), true)
@@ -213,7 +213,7 @@ func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.U
 // --- Re-authentication before sensitive actions ---
 
 func (s *Server) reauthForm(w http.ResponseWriter, r *http.Request) {
-	s.renderVerify(w, r, http.StatusOK, "reauth", *currentUser(r), r.URL.Query().Get("next"), "")
+	s.renderVerify(w, r, http.StatusOK, "reauth", *currentUser(r), r.URL.Query().Get("next"), i18n.Msg{})
 }
 
 func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store.User) (bool, error), asJSON bool) {
@@ -222,7 +222,7 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store
 	if asJSON {
 		next = r.URL.Query().Get("next")
 	}
-	render := func(status int, msg string) { s.renderVerify(w, r, status, "reauth", u, next, msg) }
+	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, "reauth", u, next, msg) }
 	if s.mfaBlocked(w, r, u, asJSON, render) {
 		return
 	}
@@ -233,9 +233,9 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store
 	}
 	if !passed {
 		if asJSON {
-			jsonError(w, http.StatusUnauthorized, "That passkey wasn't accepted. Try again.")
+			jsonError(w, http.StatusUnauthorized, langOf(r).T("That passkey wasn't accepted. Try again."))
 		} else {
-			render(http.StatusUnauthorized, "That didn't work. Check it and try again.")
+			render(http.StatusUnauthorized, i18n.M("That didn't work. Check it and try again."))
 		}
 		return
 	}
@@ -297,15 +297,15 @@ type sessionRow struct {
 	Current bool
 }
 
-var securityNotices = map[string]string{
-	"password":     "Password changed. Your other sessions were signed out.",
-	"revoked":      "Session revoked.",
-	"totp":         "Authenticator app is set up.",
-	"totp-off":     "Authenticator app removed. Your other sessions were signed out.",
-	"passkey":      "Passkey added.",
-	"passkey-off":  "Passkey removed. Your other sessions were signed out.",
-	"confirmed":    "Thanks, you're confirmed for the next 10 minutes. Go ahead.",
-	"recovery-low": "You're running low on recovery codes. Generate new ones below.",
+var securityNotices = map[string]i18n.Msg{
+	"password":     i18n.M("Password changed. Your other sessions were signed out."),
+	"revoked":      i18n.M("Session revoked."),
+	"totp":         i18n.M("Authenticator app is set up."),
+	"totp-off":     i18n.M("Authenticator app removed. Your other sessions were signed out."),
+	"passkey":      i18n.M("Passkey added."),
+	"passkey-off":  i18n.M("Passkey removed. Your other sessions were signed out."),
+	"confirmed":    i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
+	"recovery-low": i18n.M("You're running low on recovery codes. Generate new ones below."),
 }
 
 func (s *Server) security(w http.ResponseWriter, r *http.Request) {
@@ -361,16 +361,16 @@ func (s *Server) revokeSession(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings/security?done=revoked", http.StatusSeeOther)
 }
 
-func (s *Server) renderTOTPSetup(w http.ResponseWriter, r *http.Request, status int, setup auth.TOTPSetup, errMsg string) {
+func (s *Server) renderTOTPSetup(w http.ResponseWriter, r *http.Request, status int, setup auth.TOTPSetup, problem i18n.Msg) {
 	s.render(w, r, status, "totp_setup", data{
-		"Tab": "security", "Secret": setup.Secret, "QR": template.URL(setup.QR), "Error": errMsg,
+		"Tab": "security", "Secret": setup.Secret, "QR": template.URL(setup.QR), "Error": problem,
 	})
 }
 
 func (s *Server) totpStart(w http.ResponseWriter, r *http.Request) {
 	u := currentUser(r)
 	if u.TOTPEnabled {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": "An authenticator app is already set up."})
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": i18n.M("An authenticator app is already set up.")})
 		return
 	}
 	setup, err := auth.NewTOTP(totpIssuer, u.Username)
@@ -387,7 +387,7 @@ func (s *Server) totpStart(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.renderTOTPSetup(w, r, http.StatusOK, setup, "")
+	s.renderTOTPSetup(w, r, http.StatusOK, setup, i18n.Msg{})
 }
 
 func (s *Server) totpEnable(w http.ResponseWriter, r *http.Request) {
@@ -409,7 +409,7 @@ func (s *Server) totpEnable(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.renderTOTPSetup(w, r, http.StatusUnprocessableEntity, setup,
-			"That code didn't match. Check your device's clock and try the newest code.")
+			i18n.M("That code didn't match. Check your device's clock and try the newest code."))
 		return
 	}
 	if err := s.store.EnableTOTP(r.Context(), u.ID, step); err != nil {
@@ -452,20 +452,21 @@ func (s *Server) recoveryRegenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !m.Enabled() {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": "Set up an authenticator app or a passkey first."})
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": i18n.M("Set up an authenticator app or a passkey first.")})
 		return
 	}
 	s.showNewRecoveryCodes(w, r)
 }
 
-// removingFactor checks that removing one factor is allowed, and after the
-// removal cleans up: recovery codes go once no factor is left, and every
-// other session is signed out.
-func (s *Server) removingFactor(r *http.Request, before store.MFAStatus) error {
-	if s.require2FA(r.Context()) && before.Passkeys+boolInt(before.TOTP) <= 1 {
-		return errors.New("two-factor authentication is required here; add another method before removing this one")
-	}
-	return nil
+// Removing a factor: lastRequiredFactor checks it is allowed, and
+// afterFactorRemoved cleans up: recovery codes go once no factor is left,
+// and every other session is signed out.
+var errLastFactor = i18n.M("Two-factor authentication is required here. Add another method before removing this one.")
+
+// lastRequiredFactor reports whether removing one of before's factors would
+// leave none where the instance requires two-factor authentication.
+func (s *Server) lastRequiredFactor(r *http.Request, before store.MFAStatus) bool {
+	return s.require2FA(r.Context()) && before.Passkeys+boolInt(before.TOTP) <= 1
 }
 
 func (s *Server) afterFactorRemoved(r *http.Request) error {
@@ -496,8 +497,8 @@ func (s *Server) totpDisable(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.removingFactor(r, m); err != nil {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": sentence(err)})
+	if s.lastRequiredFactor(r, m) {
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": errLastFactor})
 		return
 	}
 	if err := s.store.DisableTOTP(r.Context(), u.ID); err != nil {
@@ -512,13 +513,13 @@ func (s *Server) totpDisable(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
-	if s.passkeysOff(w) {
+	if s.passkeysOff(w, r) {
 		return
 	}
 	u := currentUser(r)
 	wu, err := s.webauthnUser(r, *u)
 	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Something went wrong."))
 		return
 	}
 	exclude := make([]webauthn.Credential, len(wu.creds))
@@ -526,7 +527,7 @@ func (s *Server) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
 	opts, sd, err := s.webauthn.BeginRegistration(wu, webauthn.WithExclusions(webauthn.Credentials(exclude).CredentialDescriptors()))
 	if err != nil {
 		s.log.Error("begin passkey registration", "err", err)
-		jsonError(w, http.StatusInternalServerError, "Could not start passkey setup.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Could not start passkey setup."))
 		return
 	}
 	s.cer.put(ceremonyKey("register", currentSession(r).TokenHash), *sd)
@@ -534,37 +535,37 @@ func (s *Server) passkeyRegisterBegin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
-	if s.passkeysOff(w) {
+	if s.passkeysOff(w, r) {
 		return
 	}
 	u := currentUser(r)
 	sd, ok := s.cer.take(ceremonyKey("register", currentSession(r).TokenHash))
 	if !ok {
-		jsonError(w, http.StatusBadRequest, "Passkey setup expired. Try again.")
+		jsonError(w, http.StatusBadRequest, langOf(r).T("Passkey setup expired. Try again."))
 		return
 	}
 	wu, err := s.webauthnUser(r, *u)
 	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Something went wrong."))
 		return
 	}
 	cred, err := s.webauthn.FinishRegistration(wu, sd, r)
 	if err != nil {
 		s.log.Info("passkey registration rejected", "user", u.Username, "err", err)
-		jsonError(w, http.StatusBadRequest, "That passkey couldn't be registered. Try again.")
+		jsonError(w, http.StatusBadRequest, langOf(r).T("That passkey couldn't be registered. Try again."))
 		return
 	}
 	name := strings.TrimSpace(r.URL.Query().Get("name"))
 	if name == "" {
-		name = "Passkey"
+		name = langOf(r).T("Passkey")
 	}
 	b, _ := jsonMarshal(cred)
 	if err := s.store.AddPasskey(r.Context(), u.ID, truncate(name, 60), cred.ID, b); err != nil {
 		if isValidation(err) {
-			jsonError(w, http.StatusConflict, err.Error())
+			jsonError(w, http.StatusConflict, errMsg(err).In(langOf(r)))
 			return
 		}
-		jsonError(w, http.StatusInternalServerError, "Something went wrong.")
+		jsonError(w, http.StatusInternalServerError, langOf(r).T("Something went wrong."))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"redirect": "/settings/security?done=passkey"})
@@ -582,8 +583,8 @@ func (s *Server) passkeyDelete(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	if err := s.removingFactor(r, m); err != nil {
-		s.renderSecurity(w, r, http.StatusConflict, data{"Error": sentence(err)})
+	if s.lastRequiredFactor(r, m) {
+		s.renderSecurity(w, r, http.StatusConflict, data{"Error": errLastFactor})
 		return
 	}
 	if !s.storeError(w, r, s.store.DeletePasskey(r.Context(), u.ID, id)) {
