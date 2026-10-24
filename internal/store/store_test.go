@@ -3,6 +3,7 @@ package store
 import (
 	"cmp"
 	"context"
+	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -132,6 +133,8 @@ func TestSearch(t *testing.T) {
 		"site:github.com":          {"Bar repo", "Gist"},
 		"site:hub.com":             nil,
 		"!fav":                     {"Bar repo"},
+		"!untagged":                {"Bar repo"}, // archived ones only with !archived
+		"!untagged !archived":      {"Old kubernetes post"},
 		"k8s":                      {"Kubernetes Ingress"}, // tag names are full-text searchable
 		"after:2000-01-01 ingress": {"Kubernetes Ingress"},
 		"before:2000-01-01":        nil,
@@ -410,4 +413,39 @@ func personal(s *Store, userID int64) Scope {
 		panic(err)
 	}
 	return sc
+}
+
+func TestAddTag(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u := newUser(t, s, "alice")
+	sc := personal(s, u.ID)
+	mustTags(t, s, u.ID, "go")
+	tags, _ := s.ListTags(ctx, sc)
+	b, _, err := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://go.dev", Title: "Go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if added, err := s.AddTag(ctx, sc, b.ID, tags[0].ID); err != nil || !added {
+		t.Fatalf("add: %v %v", added, err)
+	}
+	if added, err := s.AddTag(ctx, sc, b.ID, tags[0].ID); err != nil || added {
+		t.Fatalf("add again: %v %v", added, err)
+	}
+	if got := titles(t, s, u.ID, "#go"); !slices.Equal(got, []string{"Go"}) {
+		t.Fatalf("#go after AddTag: %v", got)
+	}
+	if got := titles(t, s, u.ID, "go"); !slices.Equal(got, []string{"Go"}) {
+		t.Fatalf("full text after AddTag: %v", got) // the tag is in the search index
+	}
+	// Another space's bookmark or tag is out of reach.
+	bob := newUser(t, s, "bob")
+	mustTags(t, s, bob.ID, "go")
+	bobTags, _ := s.ListTags(ctx, personal(s, bob.ID))
+	if _, err := s.AddTag(ctx, sc, b.ID, bobTags[0].ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other space's tag: %v", err)
+	}
+	if _, err := s.AddTag(ctx, personal(s, bob.ID), b.ID, bobTags[0].ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other space's bookmark: %v", err)
+	}
 }

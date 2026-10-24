@@ -100,6 +100,8 @@ func listView(q string, bundles []store.Bundle) (view string, heading i18n.Msg) 
 		return "fav", i18n.M("Favourites")
 	case q == "!archived":
 		return "archive", i18n.M("Archive")
+	case q == "!untagged":
+		return "", i18n.M("Untagged bookmarks")
 	}
 	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
 		return "#" + p.Tags[0], i18n.Raw(p.Tags[0])
@@ -402,6 +404,55 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
+}
+
+// tagURL is the list filtered to one tag.
+func tagURL(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) }
+
+// tagBookmark adds a tag to a bookmark: the list page calls it when a
+// bookmark's icon is dropped on a tag. It answers with the bookmark's tags,
+// to redraw them, and the tag's new count.
+func (s *Server) tagBookmark(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	tagID, err := strconv.ParseInt(r.PostFormValue("tag"), 10, 64)
+	if !ok || err != nil {
+		s.notFound(w, r)
+		return
+	}
+	sc, ok := s.bookmarkScope(w, r, id)
+	if !ok {
+		return
+	}
+	if _, err := s.store.AddTag(r.Context(), sc, id, tagID); !s.storeError(w, r, err) {
+		return
+	}
+	b, err := s.store.GetBookmark(r.Context(), sc, id)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	tags, err := s.store.ListTags(r.Context(), sc)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	type tagLink struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	}
+	out := struct {
+		Tags  []tagLink `json:"tags"`
+		Count int       `json:"count"`
+	}{Tags: []tagLink{}}
+	for _, name := range b.Tags {
+		out.Tags = append(out.Tags, tagLink{name, tagURL(name)})
+	}
+	for _, t := range tags {
+		if t.ID == tagID {
+			out.Count = t.Count
+		}
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {

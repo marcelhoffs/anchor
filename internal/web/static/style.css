@@ -290,6 +290,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px 24px 56px; }
 .side-link .label { flex-grow: 1; overflow-wrap: anywhere; }
 .side-link .count { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .side-link[aria-current="page"] .count { color: var(--soft-text); }
+/* Dragging a bookmark's icon onto a tag tags it (dragtag.js): the tags that
+   take a drop show it while one is dragged, and the one under it lights up. */
+[data-drag-bookmark] { cursor: grab; }
+.dragging-bookmark [data-tag-drop] { outline: 1px dashed var(--border); outline-offset: -1px; }
+.dragging-bookmark [data-tag-drop].drop-over { background: var(--soft); color: var(--soft-text); outline: 2px solid var(--accent); }
+@media (prefers-reduced-motion: no-preference) {
+  .bookmark.just-tagged { animation: just-tagged 900ms ease-out; }
+  @keyframes just-tagged { from { background: var(--soft); } }
+}
 .side-heading { margin: 20px 12px 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .side-heading-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .side-manage { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; }

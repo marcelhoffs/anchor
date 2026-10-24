@@ -22,6 +22,7 @@
 
 **Tags and search**
 - Tags with spaces in their names, managed in one place: create, rename, merge and delete.
+- Tag a bookmark by dragging its icon onto a tag in the sidebar; `!untagged` finds the ones without.
 - Full-text search over titles, descriptions, notes, URLs and tags, with filters for tags, sites, dates, favourites and shared links.
 - Bundles: save a search and it stays in the sidebar, always up to date.
 
