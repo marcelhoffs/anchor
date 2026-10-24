@@ -86,10 +86,10 @@
 
 {{define "admin-nav"}}
 <nav class="tabs" aria-label="{{t "Admin"}}">
-  <a href="/admin/"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>{{t "Users"}}</a>
+  <a href="/admin/"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>{{t "Security"}}</a>
+  <a href="/admin/users"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>{{t "Users"}}</a>
   <a href="/admin/invites"{{if eq .AdminTab "invites"}} aria-current="page"{{end}}>{{t "Invites"}}</a>
   <a href="/admin/spaces"{{if eq .AdminTab "spaces"}} aria-current="page"{{end}}>{{t "Spaces"}}</a>
-  <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>{{t "Instance"}}</a>
 </nav>
 {{end}}
 

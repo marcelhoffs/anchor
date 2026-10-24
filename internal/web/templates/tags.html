@@ -14,24 +14,29 @@
   <p class="muted intro">{{t "The tags in %s. You can read this space, so only its editors change them." (strong .Nav.Name)}}</p>
   {{end}}
   {{if .Tags}}
-  {{if .CanWrite}}<p class="muted intro">{{t "Renaming a tag to one you already have merges the two."}}</p>{{end}}
   <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">{{t "Tag"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th>{{if .CanWrite}}<th scope="col">{{t "Rename or merge"}}</th><th scope="col"><span class="visually-hidden">{{t "Delete"}}</span></th>{{end}}</tr></thead>
+    <thead><tr><th scope="col">{{t "Tag"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th>{{if .CanWrite}}<th scope="col"><span class="visually-hidden">{{t "Actions"}}</span></th>{{end}}</tr></thead>
     <tbody>
     {{range .Tags}}
       <tr>
         <td><a class="tag" href="{{tagURL .Name}}">{{.Name}}</a></td>
         <td class="num hide-sm">{{.Count}}</td>
         {{if $.CanWrite}}
-        <td>
-          <form method="post" action="/tags/{{.ID}}/rename" class="row">
-            <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <input name="name" value="{{.Name}}" aria-label="{{t "New name for %s" .Name}}" required maxlength="64" autocapitalize="none" spellcheck="false">
-            <button class="btn">{{t "Rename"}}</button>
-          </form>
-        </td>
         <td class="actions">
+          <button type="button" class="icon-btn" popovertarget="rename-tag-{{.ID}}" title="{{t "Rename"}}" aria-label="{{t "Rename tag %s" .Name}}">{{icon "pencil"}}</button>
+          <div id="rename-tag-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="rename-tag-{{.ID}}-title">
+            <p class="confirm-title" id="rename-tag-{{.ID}}-title">{{t "Rename tag"}}</p>
+            <p class="confirm-text">{{t "Renaming a tag to one you already have merges the two."}}</p>
+            <form method="post" action="/tags/{{.ID}}/rename">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <label>{{t "New name for %s" .Name}} <input name="name" value="{{.Name}}" required maxlength="64" autocapitalize="none" spellcheck="false"></label>
+              <div class="confirm-actions">
+                <button type="button" class="btn" popovertarget="rename-tag-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
+                <button class="btn btn-primary">{{t "Rename"}}</button>
+              </div>
+            </form>
+          </div>
           <button type="button" class="icon-btn danger" popovertarget="delete-tag-{{.ID}}" aria-label="{{t "Delete tag %s" .Name}}">{{icon "trash"}}</button>
           {{template "confirm" dict "ID" (print "delete-tag-" .ID) "Title" (t "Delete this tag?")
             "Text" (tn .Count "%[2]s is removed from %[1]d bookmark. The bookmarks themselves stay." "%[2]s is removed from %[1]d bookmarks. The bookmarks themselves stay." .Count (strong .Name)) "Action" (print "/tags/" .ID "/delete") "Button" (t "Delete tag") "CSRF" $.CSRF}}

@@ -101,7 +101,7 @@ func TestSpacePages(t *testing.T) {
 
 	// Admins can keep space creation to themselves.
 	root.post("/reauth/password", url.Values{"password": {"root-password"}})
-	root.post("/admin/settings", url.Values{"signup": {"closed"}, "space_creation": {"admins"}})
+	root.post("/admin/spaces", url.Values{"space_creation": {"admins"}})
 	if _, body, _ := bob.get("/spaces"); strings.Contains(body, "Create space") {
 		t.Fatal("create form shown to a non-admin")
 	}

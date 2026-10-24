@@ -18,6 +18,15 @@
   </section>
   {{end}}
 
+  <section aria-labelledby="export">
+    <h2 id="export">{{t "Export"}}</h2>
+    <p class="muted">{{if .Nav.Spaces}}{{t "Download all the bookmarks in this space. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{else}}{{t "Download all the bookmarks you have. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{end}}</p>
+    <div class="row-wrap">
+      <a class="btn" href="/settings/export?format=html">{{icon "download" "sm"}}HTML</a>
+      <a class="btn" href="/settings/export?format=json">{{icon "download" "sm"}}JSON</a>
+    </div>
+  </section>
+
   {{if .Jobs}}
   <section aria-labelledby="imports">
     <h2 id="imports">{{t "Recent imports"}}</h2>
@@ -43,14 +52,5 @@
     </ul>
   </section>
   {{end}}
-
-  <section aria-labelledby="export">
-    <h2 id="export">{{t "Export"}}</h2>
-    <p class="muted">{{if .Nav.Spaces}}{{t "Download all the bookmarks in this space. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{else}}{{t "Download all the bookmarks you have. HTML works with every browser and bookmark manager; JSON also keeps notes, favourites and the archive."}}{{end}}</p>
-    <div class="row-wrap">
-      <a class="btn" href="/settings/export?format=html">{{icon "download" "sm"}}HTML</a>
-      <a class="btn" href="/settings/export?format=json">{{icon "download" "sm"}}JSON</a>
-    </div>
-  </section>
 </div>
 {{end}}

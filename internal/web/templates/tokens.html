@@ -12,35 +12,9 @@
   </section>
   {{end}}
 
-  <section aria-labelledby="tokens">
-    <h2 id="tokens">{{t "API tokens"}}</h2>
-    <p class="muted">{{t "For scripts, the browser extension and shortcuts. The API lives at %s. Tokens don't need your second factor, so creating one asks you to confirm it's you." (code .APIBase)}}</p>
-    {{if .Tokens}}
-    <div class="table-wrap">
-    <table>
-      <thead><tr><th scope="col">{{t "Name"}}</th><th scope="col">{{t "Access"}}</th><th scope="col">{{t "Last used"}}</th><th scope="col">{{t "Expires"}}</th><th scope="col"><span class="visually-hidden">{{t "Revoke"}}</span></th></tr></thead>
-      <tbody>
-      {{range .Tokens}}
-        <tr>
-          <td>{{.Name}}</td>
-          <td>{{if .Can "write"}}{{t "Read & write"}}{{else}}{{t "Read only"}}{{end}}</td>
-          <td>{{if .LastUsedAt.IsZero}}<span class="muted">{{t "Never"}}</span>{{else}}{{ago .LastUsedAt}}{{end}}</td>
-          <td>{{if .ExpiresAt.IsZero}}<span class="muted">{{t "Never"}}</span>{{else}}{{date .ExpiresAt}}{{end}}</td>
-          <td class="actions">
-            <button type="button" class="link-btn danger" popovertarget="revoke-token-{{.ID}}">{{t "Revoke"}}</button>
-            {{template "confirm" dict "ID" (print "revoke-token-" .ID) "Title" (t "Revoke this token?")
-              "Text" (t "%s stops working immediately. Anything using it will need a new token." (strong .Name)) "Action" (print "/settings/tokens/" .ID "/delete") "Button" (t "Revoke") "CSRF" $.CSRF}}
-          </td>
-        </tr>
-      {{end}}
-      </tbody>
-    </table>
-    </div>
-    {{end}}
-  </section>
-
   <section aria-labelledby="create-token">
     <h2 id="create-token">{{t "Create a token"}}</h2>
+    <p class="muted">{{t "For scripts, the browser extension and shortcuts. The API lives at %s. Tokens don't need your second factor, so creating one asks you to confirm it's you." (code .APIBase)}}</p>
     <form method="post" action="/settings/tokens" class="form-narrow">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <label>{{t "Name"}} <input name="name" required maxlength="100" placeholder="{{t "e.g. Firefox extension"}}"></label>
@@ -62,5 +36,31 @@
       <button class="btn btn-primary">{{icon "key" "sm"}}{{t "Create token"}}</button>
     </form>
   </section>
+
+  {{if .Tokens}}
+  <section aria-labelledby="tokens">
+    <h2 id="tokens">{{t "API tokens"}}</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th scope="col">{{t "Name"}}</th><th scope="col">{{t "Access"}}</th><th scope="col">{{t "Last used"}}</th><th scope="col">{{t "Expires"}}</th><th scope="col"><span class="visually-hidden">{{t "Revoke"}}</span></th></tr></thead>
+      <tbody>
+      {{range .Tokens}}
+        <tr>
+          <td>{{.Name}}</td>
+          <td>{{if .Can "write"}}{{t "Read & write"}}{{else}}{{t "Read only"}}{{end}}</td>
+          <td>{{if .LastUsedAt.IsZero}}<span class="muted">{{t "Never"}}</span>{{else}}{{ago .LastUsedAt}}{{end}}</td>
+          <td>{{if .ExpiresAt.IsZero}}<span class="muted">{{t "Never"}}</span>{{else}}{{date .ExpiresAt}}{{end}}</td>
+          <td class="actions">
+            <button type="button" class="link-btn danger" popovertarget="revoke-token-{{.ID}}">{{t "Revoke"}}</button>
+            {{template "confirm" dict "ID" (print "revoke-token-" .ID) "Title" (t "Revoke this token?")
+              "Text" (t "%s stops working immediately. Anything using it will need a new token." (strong .Name)) "Action" (print "/settings/tokens/" .ID "/delete") "Button" (t "Revoke") "CSRF" $.CSRF}}
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {{end}}
 </div>
 {{end}}

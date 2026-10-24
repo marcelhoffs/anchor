@@ -15,25 +15,23 @@ func TestAdmin(t *testing.T) {
 	if code, _, _ := alice.get("/admin/"); code != http.StatusNotFound {
 		t.Fatalf("non-admin reached /admin/: %d", code)
 	}
-	if code, _, _ := alice.post("/admin/users", url.Values{"username": {"evil"}}); code != http.StatusNotFound {
-		t.Fatalf("non-admin created a user: %d", code)
-	}
 
 	root := e.admin()
 	alice.post("/bookmarks", url.Values{"url": {"https://secret.example"}, "title": {"Alice private"}})
-	code, body, _ := root.get("/admin/")
+	code, body, _ := root.get("/admin/users")
 	if code != http.StatusOK || !strings.Contains(body, "alice") || strings.Contains(body, "Alice private") {
 		t.Fatalf("admin users page: %d", code)
 	}
-
-	code, body, _ = root.post("/admin/users", url.Values{"username": {"carol"}})
-	if code != http.StatusOK {
-		t.Fatalf("create user: %d", code)
+	if code, body, _ := root.get("/admin/"); code != http.StatusOK || !strings.Contains(body, `name="signup"`) {
+		t.Fatalf("admin landing page isn't security: %d", code)
 	}
-	pw := find(t, body, `class="secret-field" readonly value="([^"]+)"`)
-	carol := e.client()
-	if code, _, _ := carol.post("/login", url.Values{"username": {"carol"}, "password": {pw}}); code != http.StatusSeeOther {
-		t.Fatalf("carol can't log in with the generated password: %d", code)
+
+	// Users join through invites only.
+	if strings.Contains(body, `action="/admin/users"`) {
+		t.Fatal("add-user form still there")
+	}
+	if code, _, _ := root.post("/admin/users", url.Values{"username": {"carol"}}); code != http.StatusNotFound && code != http.StatusMethodNotAllowed {
+		t.Fatalf("admin created a user directly: %d", code)
 	}
 
 	aliceID := itoa(e.userID("alice"))
@@ -146,7 +144,7 @@ func TestAdminDeleteUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	aliceID := itoa(e.userID("alice"))
-	if _, body, _ := root.get("/admin/"); !strings.Contains(body, `action="/admin/users/`+aliceID+`/delete"`) {
+	if _, body, _ := root.get("/admin/users"); !strings.Contains(body, `action="/admin/users/`+aliceID+`/delete"`) {
 		t.Fatal("no delete confirmation on the users page")
 	}
 	if code, _, _ := alice.post("/admin/users/"+aliceID+"/delete", nil); code != http.StatusNotFound {
@@ -156,7 +154,7 @@ func TestAdminDeleteUser(t *testing.T) {
 		t.Fatalf("admin deleted themselves: %d", code)
 	}
 	code, _, loc := root.post("/admin/users/"+aliceID+"/delete", nil)
-	if code != http.StatusSeeOther || loc != "/admin/?done=delete-spaces" {
+	if code != http.StatusSeeOther || loc != "/admin/users?done=delete-spaces" {
 		t.Fatalf("delete: %d %q", code, loc)
 	}
 	if _, body, _ := root.get(loc); !strings.Contains(body, "now yours") || strings.Contains(body, ">alice<") {

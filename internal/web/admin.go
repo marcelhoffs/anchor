@@ -1,7 +1,6 @@
 package web
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,9 +38,23 @@ func (s *Server) adminSpaces(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
+	creation, _ := s.store.InstanceSetting(r.Context(), store.SettingSpaceCreation, "everyone")
 	s.render(w, r, http.StatusOK, "admin_spaces", data{
-		"AdminTab": "spaces", "SpaceList": list, "Notice": adminNotices[r.URL.Query().Get("done")],
+		"AdminTab": "spaces", "SpaceList": list, "SpaceCreation": creation, "Notice": adminNotices[r.URL.Query().Get("done")],
 	})
+}
+
+// adminSaveSpaceCreation sets who may create shared spaces.
+func (s *Server) adminSaveSpaceCreation(w http.ResponseWriter, r *http.Request) {
+	who := r.PostFormValue("space_creation")
+	if who != "admins" {
+		who = "everyone"
+	}
+	if err := s.store.SetInstanceSetting(r.Context(), store.SettingSpaceCreation, who); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/admin/spaces?done=settings", http.StatusSeeOther)
 }
 
 // adminSpaceOwner hands a shared space to one of its members, for instance
@@ -106,26 +119,6 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request, tab string, 
 	})
 }
 
-func (s *Server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
-	username := strings.TrimSpace(r.PostFormValue("username"))
-	if err := auth.ValidateUsername(username); err != nil {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
-		return
-	}
-	password := auth.RandomPassword()
-	u, err := s.store.CreateUser(r.Context(), username, auth.HashPassword(password), r.PostFormValue("admin") != "")
-	if errors.Is(err, store.ErrConflict) {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": i18n.M("That username is taken.")})
-		return
-	}
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	s.showSecret(w, r, "users", i18n.M("User %s created", u.Username),
-		i18n.M("Give them this password. It is shown only once; they can change it under Settings."), password)
-}
-
 func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 	me := currentUser(r)
 	id, ok := idParam(r)
@@ -182,7 +175,7 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, err) {
 		return
 	}
-	http.Redirect(w, r, "/admin/?done="+action, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/users?done="+action, http.StatusSeeOther)
 }
 
 func (s *Server) adminInvites(w http.ResponseWriter, r *http.Request) {
@@ -241,7 +234,6 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	d["Require2FA"] = s.require2FA(r.Context())
 	d["SignupFromEnv"] = s.cfg.Signup != ""
 	d["Require2FAFromEnv"] = s.cfg.Require2FA != nil
-	d["SpaceCreation"], _ = s.store.InstanceSetting(r.Context(), store.SettingSpaceCreation, "everyone")
 	s.render(w, r, status, "admin_settings", d)
 }
 
@@ -269,13 +261,5 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	who := r.PostFormValue("space_creation")
-	if who != "admins" {
-		who = "everyone"
-	}
-	if err := s.store.SetInstanceSetting(ctx, store.SettingSpaceCreation, who); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	http.Redirect(w, r, "/admin/settings?done=settings", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/?done=settings", http.StatusSeeOther)
 }

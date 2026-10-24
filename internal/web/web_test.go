@@ -374,8 +374,8 @@ func TestAppearancePreference(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	anon := e.client()
-	if _, body, _ := anon.get("/login"); !strings.Contains(body, `data-accent="indigo" data-theme="system"`) {
-		t.Fatal("logged-out pages should use the defaults")
+	if _, body, _ := anon.get("/login"); !strings.Contains(body, `data-accent="ocean" data-theme="system"`) {
+		t.Fatal("logged-out pages should use ocean and the other defaults")
 	}
 	c := e.login("alice")
 	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="indigo" data-theme="system"`) {
@@ -803,7 +803,7 @@ func TestAdminUserMenuIsAPopover(t *testing.T) {
 	root := e.admin()
 	e.user("alice")
 	id := itoa(e.userID("alice"))
-	_, body, _ := root.get("/admin/")
+	_, body, _ := root.get("/admin/users")
 	if !strings.Contains(body, `popovertarget="user-menu-`+id+`"`) || !strings.Contains(body, `id="user-menu-`+id+`" class="menu row-menu" popover`) {
 		t.Fatal("user menu isn't a popover")
 	}
