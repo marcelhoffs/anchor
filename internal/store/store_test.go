@@ -267,23 +267,26 @@ func TestSettings(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
-	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
+	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Font: "inter", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "lato", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Font: "lato", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
 		t.Fatalf("saved = %+v", got.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Font: "inter", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
 		t.Fatalf("unknown accent: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "top", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Sidebar: "top", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
 		t.Fatalf("unknown sidebar: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Sidebar: "left", Sort: "random", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Sidebar: "left", Sort: "random", Descriptions: "show"}); !isValidationErr(err) {
 		t.Fatalf("unknown sort: %v", err)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "papyrus", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+		t.Fatalf("unknown font: %v", err)
 	}
 	// A corrupt value falls back to defaults rather than failing the login.
 	s.w.Exec("UPDATE users SET settings = 'not json' WHERE id = ?", u.ID)

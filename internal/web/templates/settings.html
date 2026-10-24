@@ -33,6 +33,15 @@
         <span class="hint">System follows your device's light or dark setting.</span>
       </fieldset>
       <fieldset>
+        <legend>Font</legend>
+        <div class="choices">
+          {{range .Fonts}}
+          <label class="choice font-sample {{.Value}}"><input type="radio" name="font" value="{{.Value}}"{{if eq $.Prefs.Font .Value}} checked{{end}}>{{.Label}}</label>
+          {{end}}
+        </div>
+        <span class="hint">System uses your device's own font, so nothing extra is downloaded.</span>
+      </fieldset>
+      <fieldset>
         <legend>Sidebar</legend>
         <div class="choices">
           <label class="choice"><input type="radio" name="sidebar" value="left"{{if eq .Prefs.Sidebar "left"}} checked{{end}}><span class="layout-icon left" aria-hidden="true"></span>Left</label>

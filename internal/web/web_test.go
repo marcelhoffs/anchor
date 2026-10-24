@@ -452,6 +452,63 @@ func TestFontPreloadMatchesStylesheet(t *testing.T) {
 	}
 }
 
+func TestFontChoice(t *testing.T) {
+	c := newEnv(t).admin()
+	preloads := func(body string) []string {
+		var out []string
+		for _, m := range regexp.MustCompile(`<link rel="preload" href="/static/([^"]+)"`).FindAllStringSubmatch(body, -1) {
+			out = append(out, m[1])
+		}
+		return out
+	}
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-font="inter"`) || len(preloads(body)) != 1 {
+		t.Fatalf("default font: preloads %v", preloads(body))
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"font": {"lato"}}); code != http.StatusSeeOther {
+		t.Fatalf("save font: %d", code)
+	}
+	_, body, _ := c.get("/")
+	if !strings.Contains(body, `data-font="lato"`) || strings.Join(preloads(body), " ") != "fonts/lato-latin-400.woff2 fonts/lato-latin-700.woff2" {
+		t.Fatalf("lato: preloads %v", preloads(body))
+	}
+	// Saving another setting keeps the font.
+	c.post("/settings/appearance", url.Values{"theme": {"dark"}})
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-font="lato"`) {
+		t.Fatal("font lost when saving the theme")
+	}
+	c.post("/settings/appearance", url.Values{"font": {"system"}})
+	if _, body, _ := c.get("/"); len(preloads(body)) != 0 {
+		t.Fatalf("system font preloads %v", preloads(body))
+	}
+	if code, _, _ := c.post("/settings/appearance", url.Values{"font": {"comic-sans"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown font: %d", code)
+	}
+}
+
+// Every font can be picked, switched to in CSS, and has the files it loads.
+func TestFontsAreComplete(t *testing.T) {
+	css, _ := fs.ReadFile(assets, "static/style.css")
+	for _, f := range store.Fonts {
+		if fontLabels[f] == "" {
+			t.Errorf("%s: no label", f)
+		}
+		if f != store.Fonts[0] && !strings.Contains(string(css), `[data-font="`+f+`"]`) {
+			t.Errorf("%s: no data-font rule", f)
+		}
+		if !strings.Contains(string(css), ".font-sample."+f+" ") {
+			t.Errorf("%s: no sample style", f)
+		}
+		for _, file := range fontFiles[f] {
+			if _, err := fs.Stat(assets, "static/"+file); err != nil {
+				t.Errorf("%s: %v", f, err)
+			}
+			if !strings.Contains(string(css), `url("`+file+`")`) {
+				t.Errorf("%s: %s not in the stylesheet", f, file)
+			}
+		}
+	}
+}
+
 // Delete and archive submit only from inside a confirmation popover.
 func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 	e := newEnv(t)

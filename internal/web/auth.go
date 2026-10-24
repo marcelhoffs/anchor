@@ -292,6 +292,28 @@ var accentLabels = map[string]string{
 
 type choice struct{ Value, Label string }
 
+// fontLabels names each store.Fonts value in the appearance picker.
+var fontLabels = map[string]string{
+	"inter": "Inter", "system": "System", "roboto": "Roboto", "open-sans": "Open Sans", "lato": "Lato",
+}
+
+// fontFiles are the files under /static/ each store.Fonts value loads,
+// which the layout preloads. The system font loads none.
+var fontFiles = map[string][]string{
+	"inter":     {"fonts/inter-latin.woff2"},
+	"roboto":    {"fonts/roboto-latin.woff2"},
+	"open-sans": {"fonts/open-sans-latin.woff2"},
+	"lato":      {"fonts/lato-latin-400.woff2", "fonts/lato-latin-700.woff2"},
+}
+
+func fontChoices() []choice {
+	out := make([]choice, len(store.Fonts))
+	for i, f := range store.Fonts {
+		out[i] = choice{f, fontLabels[f]}
+	}
+	return out
+}
+
 func accentChoices() []choice {
 	out := make([]choice, len(store.Accents))
 	for i, a := range store.Accents {
@@ -302,6 +324,7 @@ func accentChoices() []choice {
 
 func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status int, d data) {
 	d["Accents"] = accentChoices()
+	d["Fonts"] = fontChoices()
 	d["Bookmarklet"] = s.bookmarklet()
 	d["Tab"] = "profile"
 	s.render(w, r, status, "settings", d)
@@ -349,6 +372,7 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 	err := s.store.SaveSettings(r.Context(), u.ID, store.Settings{
 		Accent:       keep("accent", u.Settings.Accent),
 		Theme:        keep("theme", u.Settings.Theme),
+		Font:         keep("font", u.Settings.Font),
 		Sidebar:      keep("sidebar", u.Settings.Sidebar),
 		Sort:         keep("sort", u.Settings.Sort),
 		Descriptions: keep("descriptions", u.Settings.Descriptions),
