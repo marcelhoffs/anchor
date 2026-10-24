@@ -86,7 +86,6 @@ var funcs = template.FuncMap{
 	"link": func(href string, text template.HTML) template.HTML {
 		return template.HTML(`<a href="` + html.EscapeString(href) + `">` + string(text) + `</a>`)
 	},
-	"langs": func() []i18n.Lang { return i18n.Langs },
 }
 
 func humanBytes(n int64) string {
@@ -203,6 +202,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 		d = data{}
 	}
 	// Messages from handlers (notices, errors, headings) are translated now.
+	// Only top-level values: a Msg inside a struct or slice isn't seen.
 	for k, v := range d {
 		if m, ok := v.(i18n.Msg); ok {
 			d[k] = m.In(lang)

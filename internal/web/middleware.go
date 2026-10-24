@@ -331,17 +331,18 @@ func (s *Server) trusted(ip netip.Addr) bool {
 }
 
 // pendingLogin returns the session and user of a login that passed the
-// password check and is waiting for its second factor.
-func (s *Server) pendingLogin(r *http.Request) (store.Session, store.User, bool) {
+// password check and is waiting for its second factor, and r set to answer
+// in that user's language.
+func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, store.User, bool) {
 	c, err := r.Cookie(s.sessionCookie)
 	if err != nil {
-		return store.Session{}, store.User{}, false
+		return r, store.Session{}, store.User{}, false
 	}
 	ss, u, err := s.store.SessionByHash(r.Context(), auth.HashToken(c.Value))
 	if err != nil || ss.MFAPassed {
-		return store.Session{}, store.User{}, false
+		return r, store.Session{}, store.User{}, false
 	}
-	return ss, u, true
+	return withUserLang(r, u), ss, u, true
 }
 
 func (s *Server) requireAdmin(next http.Handler) http.Handler {

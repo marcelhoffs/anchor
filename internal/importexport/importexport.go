@@ -41,7 +41,20 @@ func Parse(data []byte) ([]Item, error) {
 		bytes.Contains(bytes.ToLower(data), []byte("<a ")) {
 		return ParseNetscape(bytes.NewReader(data))
 	}
-	return nil, errors.New("not a bookmark file: expected Netscape bookmark HTML or Anchor JSON")
+	return nil, ErrNotBookmarkFile
+}
+
+// Why Parse refused a file: ErrNotBookmarkFile, ErrNotAnchorJSON (JSON, but
+// not an Anchor export), or a VersionError (an export from a newer Anchor).
+var (
+	ErrNotBookmarkFile = errors.New("not a bookmark file: expected Netscape bookmark HTML or Anchor JSON")
+	ErrNotAnchorJSON   = errors.New("not an Anchor JSON export")
+)
+
+type VersionError struct{ Version int }
+
+func (e VersionError) Error() string {
+	return fmt.Sprintf("unsupported Anchor JSON version %d", e.Version)
 }
 
 // Browsers' built-in root folders; turning them into tags would tag almost
@@ -191,13 +204,13 @@ const jsonFormat = "anchor-bookmarks"
 func ParseJSON(data []byte) ([]Item, error) {
 	var f jsonFile
 	if err := json.Unmarshal(data, &f); err != nil {
-		return nil, fmt.Errorf("invalid JSON: %w", err)
+		return nil, fmt.Errorf("%w: invalid JSON: %v", ErrNotAnchorJSON, err)
 	}
 	if f.Format != jsonFormat {
-		return nil, errors.New("not an Anchor JSON export")
+		return nil, ErrNotAnchorJSON
 	}
 	if f.Version != 1 {
-		return nil, fmt.Errorf("unsupported Anchor JSON version %d", f.Version)
+		return nil, VersionError{f.Version}
 	}
 	return f.Bookmarks, nil
 }

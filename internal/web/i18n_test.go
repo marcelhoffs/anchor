@@ -1,9 +1,12 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"html/template"
 	"io"
 	"io/fs"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -225,5 +228,63 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 		if strings.Contains(string(body), "%!") {
 			t.Errorf("%s /signup: fmt error", lang)
 		}
+	}
+}
+
+// Between the password and the second factor, pages already speak the
+// user's chosen language, not the browser's.
+func TestSecondFactorInUsersLanguage(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	a := e.login("alice")
+	enableTOTP(t, a)
+	a.post("/settings/appearance", url.Values{"language": {"fr"}})
+
+	c := e.passwordStep("alice") // the test client sends no Accept-Language
+	if _, body, _ := c.get("/login/2fa"); !strings.Contains(body, `<html lang="fr"`) {
+		t.Fatal("2FA page not in the user's language")
+	}
+	if _, body, _ := c.post("/login/2fa/totp", url.Values{"code": {"000000"}}); !strings.Contains(body, "Ce code n") {
+		t.Fatal("2FA error not in the user's language")
+	}
+}
+
+// Each kind of refused import gets its own message.
+func TestImportErrorMessages(t *testing.T) {
+	e := newEnv(t)
+	c := e.admin()
+	for file, want := range map[string]string{
+		`{"format":"anchor-bookmarks","version":9,"bookmarks":[]}`: "newer version of Anchor",
+		`{"format":"something-else"}`:                              "isn&#39;t a valid Anchor JSON export",
+		`{not json`:                                                "isn&#39;t a valid Anchor JSON export",
+		"just some text":                                           "Export your bookmarks from a browser as HTML",
+	} {
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		mw.WriteField("csrf", c.csrf())
+		fw, _ := mw.CreateFormFile("file", "bookmarks")
+		fw.Write([]byte(file))
+		mw.Close()
+		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/settings/import", &buf)
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		res, err := c.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(res.Body)
+		res.Body.Close()
+		if res.StatusCode != http.StatusUnprocessableEntity || !strings.Contains(string(body), want) {
+			t.Errorf("%s: %d, want %q", file, res.StatusCode, want)
+		}
+	}
+}
+
+// t escapes every value that isn't HTML or a count, whatever its type.
+func TestTranslateEscapesValues(t *testing.T) {
+	type name string
+	tf := langFuncs(i18n.English)["t"].(func(string, ...any) template.HTML)
+	got := tf("%s, %s, %s, %d", name("<b>"), "<i>", strong("<u>"), 3)
+	if want := template.HTML("&lt;b&gt;, &lt;i&gt;, <strong>&lt;u&gt;</strong>, 3"); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }

@@ -24,7 +24,9 @@ var (
 )
 
 // ValidationError is bad user input; its message is safe to show. Format
-// and Args are kept apart so the web interface can translate them.
+// and Args are kept apart so the web interface can translate them. Args
+// makes it uncomparable: test for one with errors.As, never == or
+// errors.Is (ErrInvalidURL included).
 type ValidationError struct {
 	Format string
 	Args   []any

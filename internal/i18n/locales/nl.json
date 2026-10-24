@@ -464,8 +464,11 @@
  "Fetching the page again. Empty fields and the icon are filled in when it's done.": "De pagina wordt opnieuw opgehaald. Lege velden en het icoon worden ingevuld zodra dat klaar is.",
  "Unknown flag": "Onbekende markering",
  "Choose a bookmark file to import.": "Kies een bladwijzerbestand om te importeren.",
- "Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.": "Dat bestand kon niet worden geïmporteerd. Exporteer je bladwijzers als HTML uit een browser, of als JSON uit Anchor.",
+ "Couldn't read that file. Try uploading it again.": "Dat bestand kon niet worden gelezen. Probeer het opnieuw te uploaden.",
  "Couldn't import that file: it's larger than %d MB.": "Dat bestand kon niet worden geïmporteerd: het is groter dan %d MB.",
+ "That export comes from a newer version of Anchor. Update this Anchor to import it.": "Die export komt uit een nieuwere versie van Anchor. Werk deze Anchor bij om hem te importeren.",
+ "That file isn't a valid Anchor JSON export. Export it from Anchor again.": "Dat bestand is geen geldige JSON-export van Anchor. Exporteer het opnieuw uit Anchor.",
+ "Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.": "Dat bestand kon niet worden geïmporteerd. Exporteer je bladwijzers als HTML uit een browser, of als JSON uit Anchor.",
  "a minute": "een minuut",
  "just now": "zojuist",
  "%d minute|%d minutes": [
