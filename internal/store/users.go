@@ -29,6 +29,8 @@ type Settings struct {
 	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first
 	Theme  string `json:"theme,omitempty"`  // one of Themes; "" = the first
 	Font   string `json:"font,omitempty"`   // one of Fonts; "" = the first
+	// Language is the interface language; "auto" follows the browser.
+	Language string `json:"language,omitempty"` // one of Languages; "" = the first
 	// Sidebar is where the views and tags sit next to the bookmark list.
 	Sidebar string `json:"sidebar,omitempty"` // one of Sidebars; "" = the first
 	// Sort is the bookmark list order: newest first or by title.
@@ -37,12 +39,13 @@ type Settings struct {
 	Descriptions string `json:"descriptions,omitempty"` // one of DescriptionModes; "" = the first
 }
 
-// Accents, Themes, Fonts, Sidebars, Sorts and DescriptionModes list the allowed
+// Accents, Themes, Fonts, Languages, Sidebars, Sorts and DescriptionModes list the allowed
 // values, the default first.
 var (
 	Accents          = []string{"indigo", "terracotta", "yellow", "emerald", "forest", "ocean", "rose", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
 	Fonts            = []string{"inter", "system", "roboto", "open-sans", "lato"}
+	Languages        = []string{"auto", "en", "nl", "es", "fr"}
 	Sidebars         = []string{"left", "right"}
 	Sorts            = []string{SortNewest, SortTitle}
 	DescriptionModes = []string{"show", "hide"}
@@ -60,7 +63,8 @@ func (st Settings) Normalized() Settings {
 	}
 	return Settings{
 		Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Font: pick(st.Font, Fonts),
-		Sidebar: pick(st.Sidebar, Sidebars), Sort: pick(st.Sort, Sorts), Descriptions: pick(st.Descriptions, DescriptionModes),
+		Language: pick(st.Language, Languages),
+		Sidebar:  pick(st.Sidebar, Sidebars), Sort: pick(st.Sort, Sorts), Descriptions: pick(st.Descriptions, DescriptionModes),
 	}
 }
 

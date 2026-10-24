@@ -1,23 +1,23 @@
-{{define "title"}}Tags{{end}}
+{{define "title"}}{{t "Tags"}}{{end}}
 {{define "content"}}
 <div class="card">
-  <h1>Tags</h1>
+  <h1>{{t "Tags"}}</h1>
   {{if .CanWrite}}
-  <p class="muted intro">Create a tag here before you add it to bookmarks{{if .Nav.Spaces}} in <strong>{{.Nav.Name}}</strong>{{end}}. Names can have spaces, but not commas.</p>
+  <p class="muted intro">{{if .Nav.Spaces}}{{t "Create a tag here before you add it to bookmarks in %s. Names can have spaces, but not commas." (strong (or .Nav.Name (t "Personal")))}}{{else}}{{t "Create a tag here before you add it to bookmarks. Names can have spaces, but not commas."}}{{end}}</p>
   <form method="post" action="/tags" class="row-wrap new-tag">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <label class="visually-hidden" for="new-tag">New tag name</label>
-    <input id="new-tag" name="name" required maxlength="64" placeholder="New tag, e.g. home lab" autocapitalize="none" spellcheck="false">
-    <button class="btn btn-primary">{{icon "plus" "sm"}}Create tag</button>
+    <label class="visually-hidden" for="new-tag">{{t "New tag name"}}</label>
+    <input id="new-tag" name="name" required maxlength="64" placeholder="{{t "New tag, e.g. home lab"}}" autocapitalize="none" spellcheck="false">
+    <button class="btn btn-primary">{{icon "plus" "sm"}}{{t "Create tag"}}</button>
   </form>
   {{else}}
-  <p class="muted intro">The tags in <strong>{{.Nav.Name}}</strong>. You can read this space, so only its editors change them.</p>
+  <p class="muted intro">{{t "The tags in %s. You can read this space, so only its editors change them." (strong .Nav.Name)}}</p>
   {{end}}
   {{if .Tags}}
-  {{if .CanWrite}}<p class="muted intro">Renaming a tag to one you already have merges the two.</p>{{end}}
+  {{if .CanWrite}}<p class="muted intro">{{t "Renaming a tag to one you already have merges the two."}}</p>{{end}}
   <div class="table-wrap">
   <table>
-    <thead><tr><th scope="col">Tag</th><th scope="col" class="hide-sm">Bookmarks</th>{{if .CanWrite}}<th scope="col">Rename or merge</th><th scope="col"><span class="visually-hidden">Delete</span></th>{{end}}</tr></thead>
+    <thead><tr><th scope="col">{{t "Tag"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th>{{if .CanWrite}}<th scope="col">{{t "Rename or merge"}}</th><th scope="col"><span class="visually-hidden">{{t "Delete"}}</span></th>{{end}}</tr></thead>
     <tbody>
     {{range .Tags}}
       <tr>
@@ -27,14 +27,14 @@
         <td>
           <form method="post" action="/tags/{{.ID}}/rename" class="row">
             <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <input name="name" value="{{.Name}}" aria-label="New name for {{.Name}}" required maxlength="64" autocapitalize="none" spellcheck="false">
-            <button class="btn">Rename</button>
+            <input name="name" value="{{.Name}}" aria-label="{{t "New name for %s" .Name}}" required maxlength="64" autocapitalize="none" spellcheck="false">
+            <button class="btn">{{t "Rename"}}</button>
           </form>
         </td>
         <td class="actions">
-          <button type="button" class="icon-btn danger" popovertarget="delete-tag-{{.ID}}" aria-label="Delete tag {{.Name}}">{{icon "trash"}}</button>
-          {{template "confirm" dict "ID" (print "delete-tag-" .ID) "Title" "Delete this tag?" "Name" (print "#" .Name)
-            "Text" (print "is removed from " (count .Count "bookmark") ". The bookmarks themselves stay.") "Action" (print "/tags/" .ID "/delete") "Button" "Delete tag" "CSRF" $.CSRF}}
+          <button type="button" class="icon-btn danger" popovertarget="delete-tag-{{.ID}}" aria-label="{{t "Delete tag %s" .Name}}">{{icon "trash"}}</button>
+          {{template "confirm" dict "ID" (print "delete-tag-" .ID) "Title" (t "Delete this tag?")
+            "Text" (tn .Count "%[2]s is removed from %[1]d bookmark. The bookmarks themselves stay." "%[2]s is removed from %[1]d bookmarks. The bookmarks themselves stay." .Count (strong .Name)) "Action" (print "/tags/" .ID "/delete") "Button" (t "Delete tag") "CSRF" $.CSRF}}
         </td>
         {{end}}
       </tr>
@@ -45,8 +45,8 @@
   {{else}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "tag"}}</span>
-    <p class="title">No tags yet</p>
-    <p>Create your first tag above, then add it to bookmarks when you save or edit them.</p>
+    <p class="title">{{t "No tags yet"}}</p>
+    <p>{{t "Create your first tag above, then add it to bookmarks when you save or edit them."}}</p>
   </div>
   {{end}}
 </div>

@@ -42,7 +42,7 @@ func (s *Server) createToken(w http.ResponseWriter, r *http.Request) {
 	token := apiTokenPrefix + raw
 	t, err := s.store.CreateAPIToken(r.Context(), u.ID, r.PostFormValue("name"), auth.HashToken(token), scopes, expires)
 	if isValidation(err) {
-		s.renderTokens(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderTokens(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	if err != nil {

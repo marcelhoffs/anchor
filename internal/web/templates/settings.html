@@ -1,16 +1,30 @@
-{{define "title"}}Settings{{end}}
+{{define "title"}}{{t "Settings"}}{{end}}
 {{define "content"}}
 <div class="card">
-  <h1>Settings</h1>
+  <h1>{{t "Settings"}}</h1>
   {{template "settings-nav" .}}
 
   <section aria-labelledby="appearance">
-    <h2 id="appearance">Appearance</h2>
-    <p class="muted">Applies to every device you sign in on.</p>
+    <h2 id="appearance">{{t "Appearance"}}</h2>
+    <p class="muted">{{t "Applies to every device you sign in on."}}</p>
     <form method="post" action="/settings/appearance">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
-        <legend>Accent colour</legend>
+        <legend>{{t "Language"}}</legend>
+        {{/* Each language is named in itself, so anyone can find theirs. */}}
+        <button type="button" class="btn picker" popovertarget="language-menu">
+          {{range .Languages}}{{if eq $.Prefs.Language .Value}}<span class="picker-current">{{.Label}}</span>{{end}}{{end}}
+          {{icon "chevron-down" "sm"}}
+        </button>
+        <div id="language-menu" class="menu row-menu picker-menu" popover>
+          {{range .Languages}}
+          <label class="picker-option"><input type="radio" name="language" value="{{.Value}}"{{if eq $.Prefs.Language .Value}} checked{{end}}>{{.Label}}</label>
+          {{end}}
+        </div>
+        <span class="hint">{{t "Automatic follows your browser's language."}}</span>
+      </fieldset>
+      <fieldset>
+        <legend>{{t "Accent colour"}}</legend>
         {{/* A dropdown of radios, so each option can show its swatch.
            picker.js shows the new choice on the button. */}}
         <button type="button" class="btn picker" popovertarget="accent-menu">
@@ -24,16 +38,16 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>Theme</legend>
+        <legend>{{t "Theme"}}</legend>
         <div class="choices">
-          <label class="choice"><input type="radio" name="theme" value="system"{{if eq .Prefs.Theme "system"}} checked{{end}}>System</label>
-          <label class="choice"><input type="radio" name="theme" value="light"{{if eq .Prefs.Theme "light"}} checked{{end}}>Light</label>
-          <label class="choice"><input type="radio" name="theme" value="dark"{{if eq .Prefs.Theme "dark"}} checked{{end}}>Dark</label>
+          <label class="choice"><input type="radio" name="theme" value="system"{{if eq .Prefs.Theme "system"}} checked{{end}}>{{t "System"}}</label>
+          <label class="choice"><input type="radio" name="theme" value="light"{{if eq .Prefs.Theme "light"}} checked{{end}}>{{t "Light"}}</label>
+          <label class="choice"><input type="radio" name="theme" value="dark"{{if eq .Prefs.Theme "dark"}} checked{{end}}>{{t "Dark"}}</label>
         </div>
-        <span class="hint">System follows your device's light or dark setting.</span>
+        <span class="hint">{{t "System follows your device's light or dark setting."}}</span>
       </fieldset>
       <fieldset>
-        <legend>Font</legend>
+        <legend>{{t "Font"}}</legend>
         {{/* Like the accent: each option, and the button, in its own font. */}}
         <button type="button" class="btn picker" popovertarget="font-menu">
           {{range .Fonts}}{{if eq $.Prefs.Font .Value}}<span class="picker-current"><span class="font-sample {{.Value}}">{{.Label}}</span></span>{{end}}{{end}}
@@ -44,49 +58,49 @@
           <label class="picker-option"><input type="radio" name="font" value="{{.Value}}"{{if eq $.Prefs.Font .Value}} checked{{end}}><span class="font-sample {{.Value}}">{{.Label}}</span></label>
           {{end}}
         </div>
-        <span class="hint">System uses your device's own font, so nothing extra is downloaded.</span>
+        <span class="hint">{{t "System uses your device's own font, so nothing extra is downloaded."}}</span>
       </fieldset>
       <fieldset>
-        <legend>Sidebar</legend>
+        <legend>{{t "Sidebar"}}</legend>
         <div class="choices">
-          <label class="choice"><input type="radio" name="sidebar" value="left"{{if eq .Prefs.Sidebar "left"}} checked{{end}}><span class="layout-icon left" aria-hidden="true"></span>Left</label>
-          <label class="choice"><input type="radio" name="sidebar" value="right"{{if eq .Prefs.Sidebar "right"}} checked{{end}}><span class="layout-icon right" aria-hidden="true"></span>Right</label>
+          <label class="choice"><input type="radio" name="sidebar" value="left"{{if eq .Prefs.Sidebar "left"}} checked{{end}}><span class="layout-icon left" aria-hidden="true"></span>{{t "Left"}}</label>
+          <label class="choice"><input type="radio" name="sidebar" value="right"{{if eq .Prefs.Sidebar "right"}} checked{{end}}><span class="layout-icon right" aria-hidden="true"></span>{{t "Right"}}</label>
         </div>
-        <span class="hint">Where views and tags sit next to your bookmarks. On phones, views stay below the list and tags open from the Tags button.</span>
+        <span class="hint">{{t "Where views and tags sit next to your bookmarks. On phones, views sit above the search box and tags open from the Tags button."}}</span>
       </fieldset>
-      <button class="btn btn-primary">Save appearance</button>
+      <button class="btn btn-primary">{{t "Save appearance"}}</button>
     </form>
   </section>
 
   <section aria-labelledby="list-settings">
-    <h2 id="list-settings">Bookmark list</h2>
-    <p class="muted">How your bookmarks are listed.</p>
+    <h2 id="list-settings">{{t "Bookmark list"}}</h2>
+    <p class="muted">{{t "How your bookmarks are listed."}}</p>
     <form method="post" action="/settings/appearance">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
-        <legend>Sort by</legend>
+        <legend>{{t "Sort by"}}</legend>
         <div class="choices">
-          <label class="choice"><input type="radio" name="sort" value="newest"{{if eq .Prefs.Sort "newest"}} checked{{end}}>Newest first</label>
-          <label class="choice"><input type="radio" name="sort" value="title"{{if eq .Prefs.Sort "title"}} checked{{end}}>Title, A–Z</label>
+          <label class="choice"><input type="radio" name="sort" value="newest"{{if eq .Prefs.Sort "newest"}} checked{{end}}>{{t "Newest first"}}</label>
+          <label class="choice"><input type="radio" name="sort" value="title"{{if eq .Prefs.Sort "title"}} checked{{end}}>{{t "Title, A–Z"}}</label>
         </div>
-        <span class="hint">Searches for words still show the best matches first.</span>
+        <span class="hint">{{t "Searches for words still show the best matches first."}}</span>
       </fieldset>
       <fieldset>
-        <legend>Descriptions</legend>
+        <legend>{{t "Descriptions"}}</legend>
         <div class="choices">
-          <label class="choice"><input type="radio" name="descriptions" value="show"{{if eq .Prefs.Descriptions "show"}} checked{{end}}>Show</label>
-          <label class="choice"><input type="radio" name="descriptions" value="hide"{{if eq .Prefs.Descriptions "hide"}} checked{{end}}>Hide</label>
+          <label class="choice"><input type="radio" name="descriptions" value="show"{{if eq .Prefs.Descriptions "show"}} checked{{end}}>{{t "Show"}}</label>
+          <label class="choice"><input type="radio" name="descriptions" value="hide"{{if eq .Prefs.Descriptions "hide"}} checked{{end}}>{{t "Hide"}}</label>
         </div>
-        <span class="hint">Hiding them makes the list more compact.</span>
+        <span class="hint">{{t "Hiding them makes the list more compact."}}</span>
       </fieldset>
-      <button class="btn btn-primary">Save list settings</button>
+      <button class="btn btn-primary">{{t "Save list settings"}}</button>
     </form>
   </section>
 
   <section aria-labelledby="bookmarklet">
-    <h2 id="bookmarklet">Bookmarklet</h2>
-    <p class="muted">Drag it to your bookmarks bar, then click it on any page to save that page.</p>
-    <a class="bookmarklet" href="{{.Bookmarklet}}">{{icon "plus" "sm"}}Save to Anchor</a>
+    <h2 id="bookmarklet">{{t "Bookmarklet"}}</h2>
+    <p class="muted">{{t "Drag it to your bookmarks bar, then click it on any page to save that page."}}</p>
+    <a class="bookmarklet" href="{{.Bookmarklet}}">{{icon "plus" "sm"}}{{t "Save to Anchor"}}</a>
   </section>
 </div>
 {{end}}

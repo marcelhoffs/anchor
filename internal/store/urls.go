@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-var ErrInvalidURL = ValidationError{"Enter a valid http or https URL."}
+var ErrInvalidURL = invalid("Enter a valid http or https URL.")
 
 // NormalizeURL cleans up a user-supplied URL so equivalent spellings dedupe to
 // the same hash, and returns it together with its lower-cased host. Only http

@@ -47,9 +47,9 @@ var dummyHash = HashPassword("anchor-dummy-password")
 func ValidatePassword(p string) error {
 	switch n := utf8.RuneCountInString(p); {
 	case n < MinPasswordLen:
-		return fmt.Errorf("password must be at least %d characters", MinPasswordLen)
+		return inputError("Password must be at least %d characters.", MinPasswordLen)
 	case n > maxPasswordLen:
-		return fmt.Errorf("password must be at most %d characters", maxPasswordLen)
+		return inputError("Password must be at most %d characters.", maxPasswordLen)
 	}
 	return nil
 }

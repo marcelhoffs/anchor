@@ -188,7 +188,7 @@ func TestLoginLogoutAndCSRF(t *testing.T) {
 	if code, _, loc := c.get("/tags"); code != http.StatusSeeOther || loc != "/login?next=%2Ftags" {
 		t.Fatalf("anonymous /tags: %d %q", code, loc)
 	}
-	if code, body, _ := c.post("/login", url.Values{"username": {"alice"}, "password": {"wrong"}}); code != http.StatusUnauthorized || !strings.Contains(body, invalidLogin) {
+	if code, body, _ := c.post("/login", url.Values{"username": {"alice"}, "password": {"wrong"}}); code != http.StatusUnauthorized || !strings.Contains(body, invalidLogin.Format) {
 		t.Fatalf("bad password: %d", code)
 	}
 	if code, _, _ := c.post("/login", url.Values{"username": {"nobody"}, "password": {"wrong"}}); code != http.StatusUnauthorized {
@@ -489,7 +489,7 @@ func TestFontChoice(t *testing.T) {
 func TestFontsAreComplete(t *testing.T) {
 	css, _ := fs.ReadFile(assets, "static/style.css")
 	for _, f := range store.Fonts {
-		if fontLabels[f] == "" {
+		if fontLabels[f].Format == "" {
 			t.Errorf("%s: no label", f)
 		}
 		if f != store.Fonts[0] && !strings.Contains(string(css), `[data-font="`+f+`"]`) {
@@ -570,7 +570,7 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, a := range store.Accents {
-		if accentLabels[a] == "" {
+		if accentLabels[a].Format == "" {
 			t.Errorf("accent %q has no label", a)
 		}
 		if a != store.Accents[0] && !strings.Contains(string(css), `:root[data-accent="`+a+`"]`) {

@@ -1,11 +1,11 @@
-{{define "title"}}Not found{{end}}
+{{define "title"}}{{t "Not found"}}{{end}}
 {{define "content"}}
 <div class="auth">
   <div class="empty-state">
     <span class="badge-icon">{{icon "search"}}</span>
-    <p class="title">Page not found</p>
-    <p>That page doesn't exist, or it isn't yours.</p>
-    <a class="btn btn-primary" href="/">Back to your bookmarks</a>
+    <p class="title">{{t "Page not found"}}</p>
+    <p>{{t "That page doesn't exist, or it isn't yours."}}</p>
+    <a class="btn btn-primary" href="/">{{t "Back to your bookmarks"}}</a>
   </div>
 </div>
 {{end}}

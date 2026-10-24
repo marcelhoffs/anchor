@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/importexport"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
@@ -51,7 +52,7 @@ func readImport(r io.Reader) ([]byte, error) {
 	b, err := io.ReadAll(r)
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {
-		return nil, fmt.Errorf("the file is larger than %d MB", maxImportBody>>20)
+		return nil, fmt.Errorf("the file is larger than %d MB: %w", maxImportBody>>20, err)
 	}
 	if err != nil {
 		return nil, err
@@ -74,13 +75,17 @@ func (s *Server) queueImport(ctx context.Context, sc store.Scope, file []byte) (
 func (s *Server) importFile(w http.ResponseWriter, r *http.Request) {
 	f, _, err := r.FormFile("file")
 	if err != nil {
-		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": "Choose a bookmark file to import."})
+		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": i18n.M("Choose a bookmark file to import.")})
 		return
 	}
 	defer f.Close()
 	b, err := readImport(f)
 	if err != nil {
-		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": "Couldn't import that file: " + err.Error() + "."})
+		msg := i18n.M("Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.")
+		if tooBig := (*http.MaxBytesError)(nil); errors.As(err, &tooBig) {
+			msg = i18n.M("Couldn't import that file: it's larger than %d MB.", maxImportBody>>20)
+		}
+		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": msg})
 		return
 	}
 	if _, err := s.queueImport(r.Context(), currentScope(r), b); !s.storeError(w, r, err) {

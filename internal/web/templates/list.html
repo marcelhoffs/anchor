@@ -2,15 +2,15 @@
 {{define "content"}}
 <div class="columns">
 <aside class="sidebar">
-  <nav class="side-views" aria-label="Views">
-    <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">All bookmarks</span><span class="count">{{.Counts.All}}</span></a>
-    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star"}}<span class="label">Favourites</span><span class="count">{{.Counts.Favourites}}</span></a>
-    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive"}}<span class="label">Archive</span><span class="count">{{.Counts.Archived}}</span></a>
+  <nav class="side-views" aria-label="{{t "Views"}}">
+    <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
+    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
+    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
   {{if .Bundles}}
   <div class="side-bundles">
-  <h2 class="side-heading side-heading-row">Bundles<a href="/bundles" class="side-manage">Manage</a></h2>
-  <nav aria-label="Bundles">
+  <h2 class="side-heading side-heading-row">{{t "Bundles"}}<a href="/bundles" class="side-manage">{{t "Manage"}}</a></h2>
+  <nav aria-label="{{t "Bundles"}}">
     {{range .Bundles}}
     <a class="side-link" href="{{bundleURL .}}"{{if eq $.View (print "bundle:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
     {{end}}
@@ -18,53 +18,53 @@
   </div>
   {{end}}
   <div class="side-tags">
-    <h2 class="side-heading">Tags</h2>
+    <h2 class="side-heading">{{t "Tags"}}</h2>
     {{template "tag-links" .}}
   </div>
 </aside>
 
 <div class="content">
   {{/* Without room for the sidebar, the views sit above the search box. */}}
-  <nav class="view-bar" aria-label="Views">
-    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}All bookmarks</a>
-    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}Favourites</a>
-    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive" "sm"}}Archive</a>
+  <nav class="view-bar" aria-label="{{t "Views"}}">
+    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}{{t "All bookmarks"}}</a>
+    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}{{t "Favourites"}}</a>
+    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive" "sm"}}{{t "Archive"}}</a>
   </nav>
   <div class="search-row">
     <form class="search" method="get" action="/" role="search">
       {{icon "search"}}
-      <label class="visually-hidden" for="q">Search bookmarks</label>
-      <input id="q" type="search" name="q" value="{{.Query}}" placeholder="Search titles, notes, URLs and tags">
-      {{if ne .View "all"}}<a class="icon-btn search-clear" href="/" aria-label="Clear filters">{{icon "x"}}</a>{{end}}
+      <label class="visually-hidden" for="q">{{t "Search bookmarks"}}</label>
+      <input id="q" type="search" name="q" value="{{.Query}}" placeholder="{{t "Search titles, notes, URLs and tags"}}">
+      {{if ne .View "all"}}<a class="icon-btn search-clear" href="/" aria-label="{{t "Clear filters"}}">{{icon "x"}}</a>{{end}}
       <div class="search-help">
-        <button type="button" class="icon-btn" aria-label="Search syntax" aria-describedby="search-tips">{{icon "help"}}</button>
+        <button type="button" class="icon-btn" aria-label="{{t "Search syntax"}}" aria-describedby="search-tips">{{icon "help"}}</button>
         <div id="search-tips" class="tooltip" role="tooltip">
-          <p class="tooltip-title">Search syntax</p>
+          <p class="tooltip-title">{{t "Search syntax"}}</p>
           <dl>
-            <dt><code>kubernetes ingress</code></dt><dd>All of these words</dd>
-            <dt><code>"exact phrase"</code></dt><dd>This exact phrase</dd>
-            <dt><code>#homelab</code></dt><dd>Has the tag</dd>
-            <dt><code>-#homelab</code></dt><dd>Doesn't have the tag</dd>
-            <dt><code>#"home lab"</code></dt><dd>A tag with spaces</dd>
-            <dt><code>site:github.com</code></dt><dd>On this site, including subdomains</dd>
-            <dt><code>!fav</code></dt><dd>Favourites</dd>
-            <dt><code>!shared</code></dt><dd>Shared with a public link</dd>
-            <dt><code>!archived</code></dt><dd>Search the archive instead</dd>
-            <dt><code>after:2026-01-01</code></dt><dd>Saved on or after a date</dd>
-            <dt><code>before:2026-06-01</code></dt><dd>Saved before a date</dd>
+            <dt><code>kubernetes ingress</code></dt><dd>{{t "All of these words"}}</dd>
+            <dt><code>"exact phrase"</code></dt><dd>{{t "This exact phrase"}}</dd>
+            <dt><code>#homelab</code></dt><dd>{{t "Has the tag"}}</dd>
+            <dt><code>-#homelab</code></dt><dd>{{t "Doesn't have the tag"}}</dd>
+            <dt><code>#"home lab"</code></dt><dd>{{t "A tag with spaces"}}</dd>
+            <dt><code>site:github.com</code></dt><dd>{{t "On this site, including subdomains"}}</dd>
+            <dt><code>!fav</code></dt><dd>{{t "Favourites"}}</dd>
+            <dt><code>!shared</code></dt><dd>{{t "Shared with a public link"}}</dd>
+            <dt><code>!archived</code></dt><dd>{{t "Search the archive instead"}}</dd>
+            <dt><code>after:2026-01-01</code></dt><dd>{{t "Saved on or after a date"}}</dd>
+            <dt><code>before:2026-06-01</code></dt><dd>{{t "Saved before a date"}}</dd>
           </dl>
-          <p class="tooltip-foot">Combine them, for example <code>#go site:github.com</code>.</p>
+          <p class="tooltip-foot">{{t "Combine them, for example %s." (code "#go site:github.com")}}</p>
         </div>
       </div>
-      <button class="btn btn-primary search-btn">{{icon "search" "sm"}}<span class="label-sm">Search</span></button>
+      <button class="btn btn-primary search-btn">{{icon "search" "sm"}}<span class="label-sm">{{t "Search"}}</span></button>
     </form>
-    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}Tags</button>
+    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}{{t "Tags"}}</button>
   </div>
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
     <div class="drawer-head">
-      <h2 class="side-heading" id="tag-drawer-title">Tags</h2>
-      <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="Close tags">{{icon "x"}}</button>
+      <h2 class="side-heading" id="tag-drawer-title">{{t "Tags"}}</h2>
+      <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="{{t "Close tags"}}">{{icon "x"}}</button>
     </div>
     {{template "tag-links" .}}
   </div>
@@ -72,21 +72,21 @@
   <div class="list-head">
     <h1>{{.Heading}}</h1>
     <div class="list-actions">
-      {{if and .Query (eq .View "")}}<button class="btn" popovertarget="save-bundle">{{icon "layers" "sm"}}<span class="label-sm">Save search</span></button>{{end}}
+      {{if and .Query (eq .View "")}}<button class="btn" popovertarget="save-bundle">{{icon "layers" "sm"}}<span class="label-sm">{{t "Save search"}}</span></button>{{end}}
       {{template "pager" .}}
     </div>
   </div>
 
   {{if and .Query (eq .View "")}}
   <div id="save-bundle" class="confirm" popover role="dialog" aria-labelledby="save-bundle-title">
-    <p class="confirm-title" id="save-bundle-title">Save this search</p>
-    <p class="confirm-text">It's listed in the sidebar as a bundle and stays up to date as you add bookmarks.</p>
+    <p class="confirm-title" id="save-bundle-title">{{t "Save this search"}}</p>
+    <p class="confirm-text">{{t "It's listed in the sidebar as a bundle and stays up to date as you add bookmarks."}}</p>
     <form method="post" action="/bundles">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="query" value="{{.Query}}">
-      <label>Name <input name="name" required maxlength="100" autofocus></label>
+      <label>{{t "Name"}} <input name="name" required maxlength="100" autofocus></label>
       <div class="confirm-actions">
-        <button type="button" class="btn" popovertarget="save-bundle" popovertargetaction="hide">Cancel</button>
-        <button class="btn btn-primary">Save</button>
+        <button type="button" class="btn" popovertarget="save-bundle" popovertargetaction="hide">{{t "Cancel"}}</button>
+        <button class="btn btn-primary">{{t "Save"}}</button>
       </div>
     </form>
   </div>
@@ -101,8 +101,8 @@
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
         <div class="bm-meta">
           <span class="domain">{{.Domain}}</span>
-          {{if .IsArchived}}<span class="badge">Archived</span>{{end}}
-          {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}Shared</a>{{end}}
+          {{if .IsArchived}}<span class="badge">{{t "Archived"}}</span>{{end}}
+          {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}{{t "Shared"}}</a>{{end}}
           {{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}
         </div>
       </div>
@@ -112,67 +112,67 @@
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
-          <button class="icon-btn" title="Unarchive" aria-label="Unarchive {{display .}}">{{icon "archive"}}</button>
+          <button class="icon-btn" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive %s" (display .)}}">{{icon "archive"}}</button>
         </form>
         {{else}}
-        <button class="icon-btn" popovertarget="archive-{{.ID}}" title="Archive" aria-label="Archive {{display .}}">{{icon "archive"}}</button>
+        <button class="icon-btn" popovertarget="archive-{{.ID}}" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}</button>
         {{end}}
-        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="Edit" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
-        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" title="Delete" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
+        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="{{t "Edit"}}" aria-label="{{t "Edit %s" (display .)}}">{{icon "pencil"}}</a>
+        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" title="{{t "Delete"}}" aria-label="{{t "Delete %s" (display .)}}">{{icon "trash"}}</button>
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
           {{if .IsFavourite}}
-          <button class="icon-btn on" title="Remove from favourites" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
+          <button class="icon-btn on" title="{{t "Remove from favourites"}}" aria-label="{{t "Remove %s from favourites" (display .)}}" aria-pressed="true">{{icon "star" "filled"}}</button>
           {{else}}
-          <button class="icon-btn" title="Add to favourites" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
+          <button class="icon-btn" title="{{t "Add to favourites"}}" aria-label="{{t "Add %s to favourites" (display .)}}" aria-pressed="false">{{icon "star"}}</button>
           {{end}}
         </form>
       </div>
       {{/* On phones the actions fold into this menu, beside the title. */}}
-      <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="Actions for {{display .}}">{{icon "more"}}</button>
+      <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="{{t "Actions for %s" (display .)}}">{{icon "more"}}</button>
       <div id="actions-{{.ID}}" class="menu row-menu" popover>
         <form method="post" action="/bookmarks/{{.ID}}/flag">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}Remove from favourites{{else}}{{icon "star" "sm"}}Add to favourites{{end}}</button>
+          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}{{t "Remove from favourites"}}{{else}}{{icon "star" "sm"}}{{t "Add to favourites"}}{{end}}</button>
         </form>
         {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
-          <button>{{icon "archive" "sm"}}Unarchive</button>
+          <button>{{icon "archive" "sm"}}{{t "Unarchive"}}</button>
         </form>
         {{else}}
-        <button type="button" popovertarget="archive-{{.ID}}">{{icon "archive" "sm"}}Archive</button>
+        <button type="button" popovertarget="archive-{{.ID}}">{{icon "archive" "sm"}}{{t "Archive"}}</button>
         {{end}}
-        <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">{{icon "pencil" "sm"}}Edit</a>
-        <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{icon "trash" "sm"}}Delete</button>
+        <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">{{icon "pencil" "sm"}}{{t "Edit"}}</a>
+        <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{icon "trash" "sm"}}{{t "Delete"}}</button>
       </div>
 
       {{if not .IsArchived}}
       <div id="archive-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="archive-{{.ID}}-title">
-        <p class="confirm-title" id="archive-{{.ID}}-title">Archive this bookmark?</p>
-        <p class="confirm-text"><strong>{{display .}}</strong> moves to the Archive. You can restore it from there.</p>
+        <p class="confirm-title" id="archive-{{.ID}}-title">{{t "Archive this bookmark?"}}</p>
+        <p class="confirm-text">{{t "%s moves to the Archive. You can restore it from there." (strong (display .))}}</p>
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="confirm-actions">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="1">
-          <button type="button" class="btn" popovertarget="archive-{{.ID}}" popovertargetaction="hide">Cancel</button>
-          <button class="btn btn-primary">{{icon "archive" "sm"}}Archive</button>
+          <button type="button" class="btn" popovertarget="archive-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
+          <button class="btn btn-primary">{{icon "archive" "sm"}}{{t "Archive"}}</button>
         </form>
       </div>
       {{end}}
       <div id="delete-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="delete-{{.ID}}-title">
-        <p class="confirm-title" id="delete-{{.ID}}-title">Delete this bookmark?</p>
-        <p class="confirm-text"><strong>{{display .}}</strong> will be deleted permanently. This can't be undone.</p>
+        <p class="confirm-title" id="delete-{{.ID}}-title">{{t "Delete this bookmark?"}}</p>
+        <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong (display .))}}</p>
         <form method="post" action="/bookmarks/{{.ID}}/delete" class="confirm-actions">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <button type="button" class="btn" popovertarget="delete-{{.ID}}" popovertargetaction="hide">Cancel</button>
-          <button class="btn btn-danger-solid">{{icon "trash" "sm"}}Delete</button>
+          <button type="button" class="btn" popovertarget="delete-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
+          <button class="btn btn-danger-solid">{{icon "trash" "sm"}}{{t "Delete"}}</button>
         </form>
       </div>
       {{else if .IsFavourite}}
-      <div class="bm-actions"><span class="icon-btn on" role="img" aria-label="Favourite">{{icon "star" "filled"}}</span></div>
+      <div class="bm-actions"><span class="icon-btn on" role="img" aria-label="{{t "Favourite"}}">{{icon "star" "filled"}}</span></div>
       {{end}}
     </li>
   {{end}}
@@ -180,19 +180,19 @@
   {{else if .Query}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "search"}}</span>
-    <p class="title">Nothing matches</p>
-    <p>No bookmarks match <strong>{{.Query}}</strong>. Try another search, or clear the filters to see everything.</p>
-    <a class="btn btn-primary" href="/">Clear filters</a>
+    <p class="title">{{t "Nothing matches"}}</p>
+    <p>{{t "No bookmarks match %s. Try another search, or clear the filters to see everything." (strong .Query)}}</p>
+    <a class="btn btn-primary" href="/">{{t "Clear filters"}}</a>
   </div>
   {{else}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "bookmark"}}</span>
-    <p class="title">No bookmarks yet</p>
+    <p class="title">{{t "No bookmarks yet"}}</p>
     {{if .CanWrite}}
-    <p>Save your first link, or add the bookmarklet from Settings to save pages with one click.</p>
-    <a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}Add bookmark</a>
+    <p>{{t "Save your first link, or add the bookmarklet from Settings to save pages with one click."}}</p>
+    <a class="btn btn-primary" href="/bookmarks/new">{{icon "plus" "sm"}}{{t "Add bookmark"}}</a>
     {{else}}
-    <p>Nobody has added anything to {{.Nav.Name}} yet.</p>
+    <p>{{t "Nobody has added anything to %s yet." .Nav.Name}}</p>
     {{end}}
   </div>
   {{end}}
@@ -203,22 +203,22 @@
 {{end}}
 
 {{define "tag-links"}}
-<nav aria-label="Tags">
+<nav aria-label="{{t "Tags"}}">
   {{range .Tags}}
   <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}>{{icon "tag"}}<span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
   {{else}}
-  <p class="side-empty">No tags yet</p>
+  <p class="side-empty">{{t "No tags yet"}}</p>
   {{end}}
 </nav>
 {{end}}
 
 {{define "pager"}}
 {{with .Pager}}
-<nav class="pager" aria-label="Pages">
-  <span class="pager-range">{{.From}}–{{.To}} of {{.Total}}</span>
+<nav class="pager" aria-label="{{t "Pages"}}">
+  <span class="pager-range">{{t "%d–%d of %d" .From .To .Total}}</span>
   <div class="pager-links">
-    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="Previous page">{{icon "chevron-left"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-left"}}</span>{{end}}
-    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="Next page">{{icon "chevron-right"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-right"}}</span>{{end}}
+    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="{{t "Previous page"}}">{{icon "chevron-left"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-left"}}</span>{{end}}
+    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="{{t "Next page"}}">{{icon "chevron-right"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-right"}}</span>{{end}}
   </div>
 </nav>
 {{end}}

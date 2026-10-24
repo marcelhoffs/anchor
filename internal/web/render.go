@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"html"
 	"html/template"
 	"io/fs"
 	"net/http"
@@ -15,12 +16,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/search"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
@@ -53,8 +54,16 @@ var funcs = template.FuncMap{
 	"sourceURL":  func() string { return sourceURL },
 	"version":    func() string { return Version },
 	"releaseURL": releaseURL,
-	"ago":        ago,
-	"count":      count,
+	// The footer's links, as values for its translated sentence.
+	"versionLink": func() template.HTML {
+		if u := releaseURL(); u != "" {
+			return template.HTML(`<a href="` + html.EscapeString(u) + `">` + html.EscapeString(Version) + `</a>`)
+		}
+		return template.HTML(html.EscapeString(Version))
+	},
+	"licenseLink": func() template.HTML {
+		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" rel="license">AGPL-3.0</a>`)
+	},
 	"tagURL":     func(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) },
 	"bundleURL":  bundleURL,
 	"dict":       dict,
@@ -68,18 +77,16 @@ var funcs = template.FuncMap{
 	"icon":       icon,
 	"initial":    initial,
 	"bytes":      humanBytes,
-	"roleLabel":  roleLabel,
-}
-
-// roleLabel names a space role for people.
-func roleLabel(r store.Role) string {
-	switch r {
-	case store.RoleOwner:
-		return "Owner"
-	case store.RoleWrite:
-		return "Can edit"
-	}
-	return "Read only"
+	"strong":     strong,
+	"code":       code,
+	"secretCode": func(s string) template.HTML {
+		return template.HTML(`<code class="secret">` + html.EscapeString(s) + `</code>`)
+	},
+	// link is an <a> for t: (link "/tags" (t "Tags")).
+	"link": func(href string, text template.HTML) template.HTML {
+		return template.HTML(`<a href="` + html.EscapeString(href) + `">` + string(text) + `</a>`)
+	},
+	"langs": func() []i18n.Lang { return i18n.Langs },
 }
 
 func humanBytes(n int64) string {
@@ -147,25 +154,35 @@ func initial(s string) string {
 	return "?"
 }
 
-// loadTemplates parses each page together with the shared layout.
-func loadTemplates() (map[string]pageTemplate, error) {
+// loadTemplates parses each page together with the shared layout, then
+// clones it for each language with that language's functions.
+func loadTemplates() (map[i18n.Lang]map[string]pageTemplate, error) {
 	files, err := fs.Glob(assets, "templates/*.html")
 	if err != nil {
 		return nil, err
 	}
-	pages := map[string]pageTemplate{}
+	out := map[i18n.Lang]map[string]pageTemplate{}
+	for _, l := range i18n.Langs {
+		out[l] = map[string]pageTemplate{}
+	}
 	for _, f := range files {
 		name := path.Base(f)
 		if name == "layout.html" {
 			continue
 		}
-		t, err := template.New(name).Funcs(funcs).ParseFS(assets, "templates/layout.html", f)
+		t, err := template.New(name).Funcs(funcs).Funcs(langFuncs(i18n.English)).ParseFS(assets, "templates/layout.html", f)
 		if err != nil {
 			return nil, err
 		}
-		pages[strings.TrimSuffix(name, ".html")] = t
+		for _, l := range i18n.Langs {
+			c, err := t.Clone()
+			if err != nil {
+				return nil, err
+			}
+			out[l][strings.TrimSuffix(name, ".html")] = c.Funcs(langFuncs(l))
+		}
 	}
-	return pages, nil
+	return out, nil
 }
 
 // authPages show no top bar to a signed-out visitor, only the app's mark
@@ -176,13 +193,20 @@ var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "s
 type data map[string]any
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page string, d data) {
-	t, ok := s.pages[page]
+	lang := langOf(r)
+	t, ok := s.pages[lang][page]
 	if !ok {
 		s.serverError(w, r, fmt.Errorf("no template %q", page))
 		return
 	}
 	if d == nil {
 		d = data{}
+	}
+	// Messages from handlers (notices, errors, headings) are translated now.
+	for k, v := range d {
+		if m, ok := v.(i18n.Msg); ok {
+			d[k] = m.In(lang)
+		}
 	}
 	u := currentUser(r)
 	d["User"] = u
@@ -212,7 +236,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
 	s.log.Error("request failed", "method", r.Method, "path", r.URL.Path, "err", err)
-	http.Error(w, "Internal server error", http.StatusInternalServerError)
+	http.Error(w, langOf(r).T("Internal server error"), http.StatusInternalServerError)
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
@@ -227,7 +251,7 @@ func (s *Server) storeError(w http.ResponseWriter, r *http.Request, err error) b
 	case errors.Is(err, store.ErrNotFound):
 		s.notFound(w, r)
 	case errors.Is(err, store.ErrForbidden):
-		http.Error(w, "You can read these bookmarks but not change them.", http.StatusForbidden)
+		http.Error(w, langOf(r).T("You can read these bookmarks but not change them."), http.StatusForbidden)
 	default:
 		s.serverError(w, r, err)
 	}
@@ -264,32 +288,4 @@ func dict(kv ...any) map[string]any {
 		m[kv[i].(string)] = kv[i+1]
 	}
 	return m
-}
-
-func ago(t time.Time) string {
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		return plural(int(d.Minutes()), "minute")
-	case d < 24*time.Hour:
-		return plural(int(d.Hours()), "hour")
-	case d < 30*24*time.Hour:
-		return plural(int(d.Hours()/24), "day")
-	case d < 365*24*time.Hour:
-		return plural(int(d.Hours()/24/30), "month")
-	default:
-		return plural(int(d.Hours()/24/365), "year")
-	}
-}
-
-func plural(n int, unit string) string { return count(n, unit) + " ago" }
-
-// count is "1 bookmark", "2 bookmarks".
-func count(n int, unit string) string {
-	if n == 1 {
-		return "1 " + unit
-	}
-	return strconv.Itoa(n) + " " + unit + "s"
 }

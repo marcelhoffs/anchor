@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/marcelhoffs/anchor/internal/auth"
 	"github.com/marcelhoffs/anchor/internal/config"
 )
 
@@ -84,15 +85,11 @@ func TestChangePasswordIsRateLimited(t *testing.T) {
 	if code != http.StatusTooManyRequests || !strings.Contains(body, "Too many failed attempts") {
 		t.Fatalf("after 10 wrong passwords: %d", code)
 	}
-	// Validation messages read as sentences.
-	if !strings.Contains(sentence(errString("password must be at least 10 characters")), "Password must be at least 10 characters.") {
-		t.Fatal("sentence")
+	// Validation errors from auth are translated sentences on the page.
+	if got := errMsg(auth.ValidatePassword("short")).In("nl"); got != "Wachtwoord moet minstens 10 tekens zijn." {
+		t.Fatalf("password error in Dutch: %q", got)
 	}
 }
-
-type errString string
-
-func (e errString) Error() string { return string(e) }
 
 func TestDestructiveActionsAreConfirmed(t *testing.T) {
 	e := newEnv(t)

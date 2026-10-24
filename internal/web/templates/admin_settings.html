@@ -1,45 +1,45 @@
-{{define "title"}}Admin · Instance{{end}}
+{{define "title"}}{{t "Admin"}} · {{t "Instance"}}{{end}}
 {{define "content"}}
 <div class="card wide-card">
-  <h1>Admin</h1>
+  <h1>{{t "Admin"}}</h1>
   {{template "admin-nav" .}}
 
   <form method="post" action="/admin/settings">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <section aria-labelledby="signup">
-      <h2 id="signup">Sign-up</h2>
-      {{if .SignupFromEnv}}<p class="muted">Set to <strong>{{.SignupMode}}</strong> by <code>ANCHOR_SIGNUP</code>; change it there.</p>{{end}}
+      <h2 id="signup">{{t "Sign-up"}}</h2>
+      {{if .SignupFromEnv}}<p class="muted">{{t "Set to %s by %s; change it there." (strong .SignupMode) (code "ANCHOR_SIGNUP")}}</p>{{end}}
       <fieldset{{if .SignupFromEnv}} disabled{{end}}>
-        <legend class="visually-hidden">Who can create an account</legend>
+        <legend class="visually-hidden">{{t "Who can create an account"}}</legend>
         <label class="option"><input type="radio" name="signup" value="closed"{{if eq .SignupMode "closed"}} checked{{end}}>
-          <span><strong>Closed</strong><span class="hint">Only admins add users.</span></span></label>
+          <span><strong>{{t "Closed"}}</strong><span class="hint">{{t "Only admins add users."}}</span></span></label>
         <label class="option"><input type="radio" name="signup" value="invite"{{if eq .SignupMode "invite"}} checked{{end}}>
-          <span><strong>Invite only</strong><span class="hint">People sign up with a single-use invite link.</span></span></label>
+          <span><strong>{{t "Invite only"}}</strong><span class="hint">{{t "People sign up with a single-use invite link."}}</span></span></label>
         <label class="option"><input type="radio" name="signup" value="open"{{if eq .SignupMode "open"}} checked{{end}}>
-          <span><strong>Open</strong><span class="hint">Anyone who can reach this Anchor can create an account.</span></span></label>
+          <span><strong>{{t "Open"}}</strong><span class="hint">{{t "Anyone who can reach this Anchor can create an account."}}</span></span></label>
       </fieldset>
     </section>
 
     <section aria-labelledby="policy">
-      <h2 id="policy">Two-factor authentication</h2>
-      {{if .Require2FAFromEnv}}<p class="muted">Set by <code>ANCHOR_REQUIRE_2FA</code>; change it there.</p>{{end}}
+      <h2 id="policy">{{t "Two-factor authentication"}}</h2>
+      {{if .Require2FAFromEnv}}<p class="muted">{{t "Set by %s; change it there." (code "ANCHOR_REQUIRE_2FA")}}</p>{{end}}
       <label class="check"><input type="checkbox" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
-        Require every user to set up two-factor authentication</label>
-      <span class="hint">Users without it are sent to set it up the next time they use Anchor.</span>
+        {{t "Require every user to set up two-factor authentication"}}</label>
+      <span class="hint">{{t "Users without it are sent to set it up the next time they use Anchor."}}</span>
     </section>
 
     <section aria-labelledby="spaces">
-      <h2 id="spaces">Spaces</h2>
+      <h2 id="spaces">{{t "Spaces"}}</h2>
       <fieldset>
-        <legend class="visually-hidden">Who can create shared spaces</legend>
+        <legend class="visually-hidden">{{t "Who can create shared spaces"}}</legend>
         <label class="option"><input type="radio" name="space_creation" value="everyone"{{if ne .SpaceCreation "admins"}} checked{{end}}>
-          <span><strong>Everyone</strong><span class="hint">Any user can create a shared space and add others to it.</span></span></label>
+          <span><strong>{{t "Everyone"}}</strong><span class="hint">{{t "Any user can create a shared space and add others to it."}}</span></span></label>
         <label class="option"><input type="radio" name="space_creation" value="admins"{{if eq .SpaceCreation "admins"}} checked{{end}}>
-          <span><strong>Admins only</strong><span class="hint">Only admins create spaces; they can then make someone else the owner.</span></span></label>
+          <span><strong>{{t "Admins only"}}</strong><span class="hint">{{t "Only admins create spaces; they can then make someone else the owner."}}</span></span></label>
       </fieldset>
     </section>
 
-    <div class="form-actions"><button class="btn btn-primary">Save</button></div>
+    <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
   </form>
 </div>
 {{end}}

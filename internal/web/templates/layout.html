@@ -1,5 +1,5 @@
 {{define "layout"}}<!doctype html>
-<html lang="en" data-accent="{{.Prefs.Accent}}" data-theme="{{.Prefs.Theme}}" data-font="{{.Prefs.Font}}" data-sidebar="{{.Prefs.Sidebar}}">
+<html lang="{{lang}}" data-accent="{{.Prefs.Accent}}" data-theme="{{.Prefs.Theme}}" data-font="{{.Prefs.Font}}" data-sidebar="{{.Prefs.Sidebar}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,42 +18,42 @@
 <header class="top">
   <a class="brand" href="/">{{brandMark}}Anchor</a>
   {{if .User}}
-  <nav aria-label="Main">
+  <nav aria-label="{{t "Main"}}">
     {{/* Every control is a .top-ctl: one height, shape and hover; on phones
        an icon-only square, its label kept for screen readers. */}}
     {{/* Always there: in a space you only read, it saves to your personal one. */}}
-    <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">Add bookmark</span></a>
-    <a class="top-ctl" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>{{icon "tag" "sm"}}<span class="label-sm">Tags</span></a>
+    <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">{{t "Add bookmark"}}</span></a>
+    <a class="top-ctl" href="/tags"{{if eq .Path "/tags"}} aria-current="page"{{end}}>{{icon "tag" "sm"}}<span class="label-sm">{{t "Tags"}}</span></a>
     {{with .Nav}}{{if .Spaces}}
     <details class="top-menu space-menu">
-      <summary class="top-ctl" aria-label="Space: {{.Name}}">{{icon "space" "sm"}}<span class="label-sm space-name">{{.Name}}</span>{{icon "chevron-down" "sm chev"}}</summary>
+      <summary class="top-ctl" aria-label="{{t "Space: %s" (or .Name (t "Personal"))}}">{{icon "space" "sm"}}<span class="label-sm space-name">{{or .Name (t "Personal")}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
-        <p class="menu-title">Spaces</p>
+        <p class="menu-title">{{t "Spaces"}}</p>
         <form method="post" action="/space">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <button{{if .Scope.IsPersonal}} aria-current="true"{{end}}>{{icon "user" "sm"}}<span class="space-option">Personal</span>{{if .Scope.IsPersonal}}{{icon "check" "sm"}}{{end}}</button>
+          <button{{if .Scope.IsPersonal}} aria-current="true"{{end}}>{{icon "user" "sm"}}<span class="space-option">{{t "Personal"}}</span>{{if .Scope.IsPersonal}}{{icon "check" "sm"}}{{end}}</button>
         </form>
         {{range .Spaces}}
         <form method="post" action="/space">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="space" value="{{.ID}}">
-          <button{{if eq .ID $.Nav.Scope.SpaceID}} aria-current="true"{{end}}>{{icon "space" "sm"}}<span class="space-option">{{.Name}}{{if eq .Role "read"}} <span class="muted">· read only</span>{{end}}</span>{{if eq .ID $.Nav.Scope.SpaceID}}{{icon "check" "sm"}}{{end}}</button>
+          <button{{if eq .ID $.Nav.Scope.SpaceID}} aria-current="true"{{end}}>{{icon "space" "sm"}}<span class="space-option">{{.Name}}{{if eq .Role "read"}} <span class="muted">· {{t "read only"}}</span>{{end}}</span>{{if eq .ID $.Nav.Scope.SpaceID}}{{icon "check" "sm"}}{{end}}</button>
         </form>
         {{end}}
-        <a href="/spaces" class="menu-sep">{{icon "settings" "sm"}}Manage spaces</a>
+        <a href="/spaces" class="menu-sep">{{icon "settings" "sm"}}{{t "Manage spaces"}}</a>
       </div>
     </details>
     {{end}}{{end}}
     <details class="top-menu">
-      <summary class="top-ctl" aria-label="Account: {{.User.Username}}"><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span>{{icon "chevron-down" "sm chev"}}</summary>
+      <summary class="top-ctl" aria-label="{{t "Account: %s" .User.Username}}"><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
         <p class="menu-title">{{.User.Username}}</p>
-        <a href="/settings">{{icon "settings" "sm"}}Settings</a>
-        <a href="/settings/security">{{icon "shield" "sm"}}Security</a>
-        <a href="/spaces">{{icon "space" "sm"}}Spaces</a>
-        {{if .User.IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}Admin</a>{{end}}
+        <a href="/settings">{{icon "settings" "sm"}}{{t "Settings"}}</a>
+        <a href="/settings/security">{{icon "shield" "sm"}}{{t "Security"}}</a>
+        <a href="/spaces">{{icon "space" "sm"}}{{t "Spaces"}}</a>
+        {{if .User.IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}{{t "Admin"}}</a>{{end}}
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
-          <button>{{icon "log-out" "sm"}}Log out</button>
+          <button>{{icon "log-out" "sm"}}{{t "Log out"}}</button>
         </form>
       </div>
     </details>
@@ -67,7 +67,7 @@
 {{template "content" .}}
 </main>
 <footer class="foot">
-  Anchor {{with releaseURL}}<a href="{{.}}">{{version}}</a>{{else}}{{version}}{{end}} is free software under the <a href="{{sourceURL}}/blob/main/LICENSE" rel="license">AGPL-3.0</a> · <a href="{{sourceURL}}">Source code</a>
+  {{t "Anchor %s is free software under the %s" (versionLink) (licenseLink)}} · <a href="{{sourceURL}}">{{t "Source code"}}</a>
 </footer>
 <script src="{{asset "menus.js"}}"></script>
 {{block "scripts" .}}{{end}}
@@ -76,36 +76,44 @@
 {{end}}
 
 {{define "settings-nav"}}
-<nav class="tabs" aria-label="Settings">
-  <a href="/settings"{{if eq .Tab "appearance"}} aria-current="page"{{end}}>Appearance</a>
-  <a href="/settings/security"{{if eq .Tab "security"}} aria-current="page"{{end}}>Security</a>
-  <a href="/settings/tokens"{{if eq .Tab "tokens"}} aria-current="page"{{end}}>API tokens</a>
-  <a href="/settings/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>Import &amp; export</a>
+<nav class="tabs" aria-label="{{t "Settings"}}">
+  <a href="/settings"{{if eq .Tab "appearance"}} aria-current="page"{{end}}>{{t "Appearance"}}</a>
+  <a href="/settings/security"{{if eq .Tab "security"}} aria-current="page"{{end}}>{{t "Security"}}</a>
+  <a href="/settings/tokens"{{if eq .Tab "tokens"}} aria-current="page"{{end}}>{{t "API tokens"}}</a>
+  <a href="/settings/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>{{t "Import & export"}}</a>
 </nav>
 {{end}}
 
 {{define "admin-nav"}}
-<nav class="tabs" aria-label="Admin">
-  <a href="/admin/"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>Users</a>
-  <a href="/admin/invites"{{if eq .AdminTab "invites"}} aria-current="page"{{end}}>Invites</a>
-  <a href="/admin/spaces"{{if eq .AdminTab "spaces"}} aria-current="page"{{end}}>Spaces</a>
-  <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>Instance</a>
+<nav class="tabs" aria-label="{{t "Admin"}}">
+  <a href="/admin/"{{if eq .AdminTab "users"}} aria-current="page"{{end}}>{{t "Users"}}</a>
+  <a href="/admin/invites"{{if eq .AdminTab "invites"}} aria-current="page"{{end}}>{{t "Invites"}}</a>
+  <a href="/admin/spaces"{{if eq .AdminTab "spaces"}} aria-current="page"{{end}}>{{t "Spaces"}}</a>
+  <a href="/admin/settings"{{if eq .AdminTab "settings"}} aria-current="page"{{end}}>{{t "Instance"}}</a>
 </nav>
 {{end}}
 
 {{/* A confirmation for an action that can't be undone. The page opens it with
-   popovertarget="<ID>". Keys: ID, Title, Name (shown bold, optional), Text,
-   Action, Button, CSRF. */}}
+   popovertarget="<ID>". Keys: ID, Title, Text, Action, Button, CSRF; the
+   page translates Title, Text and Button, and makes any name in Text bold
+   with strong. */}}
 {{define "confirm"}}
 <div id="{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="{{.ID}}-title">
   <p class="confirm-title" id="{{.ID}}-title">{{.Title}}</p>
-  <p class="confirm-text">{{with .Name}}<strong>{{.}}</strong> {{end}}{{.Text}}</p>
+  <p class="confirm-text">{{.Text}}</p>
   <form method="post" action="{{.Action}}" class="confirm-actions">
     <input type="hidden" name="csrf" value="{{.CSRF}}">
-    <button type="button" class="btn" popovertarget="{{.ID}}" popovertargetaction="hide">Cancel</button>
+    <button type="button" class="btn" popovertarget="{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
     <button class="btn btn-danger-solid">{{.Button}}</button>
   </form>
 </div>
 {{end}}
+
+{{/* The error box for passkeys.js, with its messages in the page's language. */}}
+{{define "passkey-status"}}<p class="error" data-passkey-status hidden
+  data-msg-unsupported="{{t "This browser doesn't support passkeys."}}"
+  data-msg-insecure="{{t "Passkeys need a secure (HTTPS) connection to Anchor."}}"
+  data-msg-cancelled="{{t "Passkey prompt was cancelled. Try again when you're ready."}}"
+  data-msg-failed="{{t "Something went wrong. Try again."}}"></p>{{end}}
 
 {{define "auth-brand"}}{{if .Bare}}<div class="auth-brand">{{brandMark}}<span>Anchor</span></div>{{end}}{{end}}

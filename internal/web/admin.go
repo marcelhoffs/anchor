@@ -10,22 +10,23 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
+	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 const inviteTTL = 7 * 24 * time.Hour
 
-var adminNotices = map[string]string{
-	"disable":      "User disabled and signed out everywhere.",
-	"enable":       "User enabled.",
-	"make-admin":   "User is now an admin.",
-	"remove-admin": "Admin rights removed.",
-	"reset-2fa":    "Two-factor authentication reset. The user was signed out everywhere.",
-	"invite-off":   "Invite revoked.",
-	"settings":     "Settings saved.",
-	"space-owner":  "The space has a new owner.",
-	"space-delete": "Space deleted.",
-	"confirmed":    "Thanks, you're confirmed for the next 10 minutes. Go ahead.",
+var adminNotices = map[string]i18n.Msg{
+	"disable":      i18n.M("User disabled and signed out everywhere."),
+	"enable":       i18n.M("User enabled."),
+	"make-admin":   i18n.M("User is now an admin."),
+	"remove-admin": i18n.M("Admin rights removed."),
+	"reset-2fa":    i18n.M("Two-factor authentication reset. The user was signed out everywhere."),
+	"invite-off":   i18n.M("Invite revoked."),
+	"settings":     i18n.M("Settings saved."),
+	"space-owner":  i18n.M("The space has a new owner."),
+	"space-delete": i18n.M("Space deleted."),
+	"confirmed":    i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 }
 
 // adminSpaces lists every shared space: names, members and sizes, never
@@ -91,7 +92,7 @@ func (s *Server) renderAdminUsers(w http.ResponseWriter, r *http.Request, status
 
 // showSecret renders a value that is shown exactly once (a generated
 // password or an invite link).
-func (s *Server) showSecret(w http.ResponseWriter, r *http.Request, tab, title, message, value string) {
+func (s *Server) showSecret(w http.ResponseWriter, r *http.Request, tab string, title, message i18n.Msg, value string) {
 	s.render(w, r, http.StatusOK, "admin_secret", data{
 		"AdminTab": tab, "SecretTitle": title, "Message": message, "Value": value,
 	})
@@ -100,21 +101,21 @@ func (s *Server) showSecret(w http.ResponseWriter, r *http.Request, tab, title, 
 func (s *Server) adminCreateUser(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	if err := auth.ValidateUsername(username); err != nil {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": sentence(err)})
+		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	password := auth.RandomPassword()
 	u, err := s.store.CreateUser(r.Context(), username, auth.HashPassword(password), r.PostFormValue("admin") != "")
 	if errors.Is(err, store.ErrConflict) {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": "That username is taken."})
+		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": i18n.M("That username is taken.")})
 		return
 	}
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	s.showSecret(w, r, "users", "User "+u.Username+" created",
-		"Give them this password. It is shown only once; they can change it under Settings.", password)
+	s.showSecret(w, r, "users", i18n.M("User %s created", u.Username),
+		i18n.M("Give them this password. It is shown only once; they can change it under Settings."), password)
 }
 
 func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +132,7 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 	action := chi.URLParam(r, "action")
 	if id == me.ID && action != "reset-password" {
 		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity,
-			data{"Error": "Use Settings to change your own account."})
+			data{"Error": i18n.M("Use Settings to change your own account.")})
 		return
 	}
 	switch action {
@@ -154,15 +155,15 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 		if id == me.ID {
 			s.clearSessionCookie(w)
 		}
-		s.showSecret(w, r, "users", "New password for "+target.Username,
-			"They were signed out everywhere. Give them this password; it is shown only once.", password)
+		s.showSecret(w, r, "users", i18n.M("New password for %s", target.Username),
+			i18n.M("They were signed out everywhere. Give them this password; it is shown only once."), password)
 		return
 	default:
 		s.notFound(w, r)
 		return
 	}
 	if isValidation(err) {
-		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": err.Error()})
+		s.renderAdminUsers(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
 	}
 	if !s.storeError(w, r, err) {
@@ -200,8 +201,8 @@ func (s *Server) adminCreateInvite(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	s.showSecret(w, r, "invites", "Invite link created",
-		"Send this link to the person you're inviting. It works once and expires in 7 days. It is shown only once.",
+	s.showSecret(w, r, "invites", i18n.M("Invite link created"),
+		i18n.M("Send this link to the person you're inviting. It works once and expires in 7 days. It is shown only once."),
 		s.cfg.BaseURL.String()+"/signup?invite="+token)
 }
 
@@ -240,7 +241,7 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 			valid = valid || m == mode
 		}
 		if !valid {
-			s.renderAdminSettings(w, r, http.StatusUnprocessableEntity, data{"Error": "Unknown signup mode."})
+			s.renderAdminSettings(w, r, http.StatusUnprocessableEntity, data{"Error": i18n.M("Unknown signup mode.")})
 			return
 		}
 		if err := s.store.SetInstanceSetting(ctx, store.SettingSignup, mode); err != nil {
