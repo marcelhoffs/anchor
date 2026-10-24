@@ -441,6 +441,17 @@ func TestVersionedAssets(t *testing.T) {
 	}
 }
 
+// A preload is only used when its URL is the one the stylesheet asks for.
+func TestFontPreloadMatchesStylesheet(t *testing.T) {
+	c := newEnv(t).admin()
+	_, body, _ := c.get("/")
+	css, _ := fs.ReadFile(assets, "static/style.css")
+	src := regexp.MustCompile(`url\("([^"]+\.woff2)"\)`).FindStringSubmatch(string(css))
+	if src == nil || !strings.Contains(body, `<link rel="preload" href="/static/`+src[1]+`"`) {
+		t.Fatalf("no preload for the stylesheet's font %v", src)
+	}
+}
+
 // Delete and archive submit only from inside a confirmation popover.
 func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 	e := newEnv(t)
