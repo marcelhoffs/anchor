@@ -8,7 +8,6 @@
 CREATE TABLE users (
   id             INTEGER PRIMARY KEY,
   username       TEXT NOT NULL UNIQUE COLLATE NOCASE,
-  email          TEXT UNIQUE COLLATE NOCASE,          -- unused, kept for a later feature
   password_hash  TEXT NOT NULL,                       -- argon2id encoded
   is_admin       INTEGER NOT NULL DEFAULT 0,
   is_active      INTEGER NOT NULL DEFAULT 1,
@@ -25,9 +24,7 @@ CREATE TABLE webauthn_credentials (
   id            INTEGER PRIMARY KEY,
   user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   credential_id BLOB NOT NULL UNIQUE,
-  public_key    BLOB NOT NULL,
-  sign_count    INTEGER NOT NULL DEFAULT 0,
-  credential    TEXT NOT NULL DEFAULT '{}',           -- the full go-webauthn credential, JSON
+  credential    TEXT NOT NULL,                        -- the full go-webauthn credential, JSON
   name          TEXT NOT NULL,
   created_at    INTEGER NOT NULL,
   last_used_at  INTEGER
@@ -172,8 +169,7 @@ CREATE TABLE bundles (
   space_id INTEGER NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
   user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name     TEXT NOT NULL,
-  query    TEXT NOT NULL,
-  position INTEGER NOT NULL DEFAULT 0
+  query    TEXT NOT NULL
 );
 CREATE INDEX bundles_space_user ON bundles(space_id, user_id);
 
@@ -191,7 +187,7 @@ CREATE TABLE jobs (
   total       INTEGER NOT NULL DEFAULT 0,
   result      TEXT NOT NULL DEFAULT '',               -- JSON summary when done
   last_error  TEXT,
-  created_at  INTEGER NOT NULL DEFAULT 0,
+  created_at  INTEGER NOT NULL,
   finished_at INTEGER
 );
 CREATE INDEX jobs_queue ON jobs(status, run_after);

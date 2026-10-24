@@ -53,8 +53,8 @@ func TestTOTPAndRecoveryCodes(t *testing.T) {
 		t.Fatalf("status = %+v", m)
 	}
 
-	s.AddPasskey(ctx, u.ID, "Laptop", []byte("cred-1"), []byte("pk"), 0, "{}")
-	if err := s.AddPasskey(ctx, other.ID, "Copy", []byte("cred-1"), []byte("pk"), 0, "{}"); err == nil {
+	s.AddPasskey(ctx, u.ID, "Laptop", []byte("cred-1"), "{}")
+	if err := s.AddPasskey(ctx, other.ID, "Copy", []byte("cred-1"), "{}"); err == nil {
 		t.Fatal("same credential registered twice")
 	}
 	keys, _ := s.ListPasskeys(ctx, u.ID)

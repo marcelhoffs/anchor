@@ -115,10 +115,10 @@ type Passkey struct {
 	LastUsedAt   time.Time // zero if never
 }
 
-func (s *Store) AddPasskey(ctx context.Context, userID int64, name string, credentialID, publicKey []byte, signCount uint32, credJSON string) error {
+func (s *Store) AddPasskey(ctx context.Context, userID int64, name string, credentialID []byte, credJSON string) error {
 	_, err := s.w.ExecContext(ctx,
-		`INSERT INTO webauthn_credentials (user_id, credential_id, public_key, sign_count, name, credential, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`, userID, credentialID, publicKey, signCount, name, credJSON, unix(s.now()))
+		`INSERT INTO webauthn_credentials (user_id, credential_id, name, credential, created_at)
+		 VALUES (?, ?, ?, ?, ?)`, userID, credentialID, name, credJSON, unix(s.now()))
 	if isUniqueViolation(err) {
 		return invalid("This passkey is already registered.")
 	}
@@ -151,10 +151,10 @@ func (s *Store) ListPasskeys(ctx context.Context, userID int64) ([]Passkey, erro
 
 // UpdatePasskeyUse stores the credential's new state (sign count, flags)
 // after a successful login with it.
-func (s *Store) UpdatePasskeyUse(ctx context.Context, userID int64, credentialID []byte, signCount uint32, credJSON string) error {
+func (s *Store) UpdatePasskeyUse(ctx context.Context, userID int64, credentialID []byte, credJSON string) error {
 	_, err := s.w.ExecContext(ctx,
-		`UPDATE webauthn_credentials SET sign_count = ?, credential = ?, last_used_at = ?
-		 WHERE user_id = ? AND credential_id = ?`, signCount, credJSON, unix(s.now()), userID, credentialID)
+		`UPDATE webauthn_credentials SET credential = ?, last_used_at = ?
+		 WHERE user_id = ? AND credential_id = ?`, credJSON, unix(s.now()), userID, credentialID)
 	return err
 }
 
