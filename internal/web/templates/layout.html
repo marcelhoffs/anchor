@@ -6,7 +6,8 @@
 <meta name="csrf-token" content="{{.CSRF}}">
 {{if .Refresh}}<meta http-equiv="refresh" content="2">{{end}}
 <title>{{template "title" .}} · Anchor</title>
-<link rel="preload" href="{{asset "fonts/inter-latin.woff2"}}" as="font" type="font/woff2" crossorigin>
+{{/* The stylesheet asks for the font unversioned; a preload is only used if the URL matches. */}}
+<link rel="preload" href="/static/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{{asset "style.css"}}">
 <link rel="icon" href="{{appIconURL .Prefs.Accent}}" type="image/svg+xml">
 </head>
