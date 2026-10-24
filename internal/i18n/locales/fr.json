@@ -586,5 +586,10 @@
  "Anchor needs an active admin to take over this user's shared spaces.": "Anchor a besoin d'un admin actif pour reprendre les espaces partagés de cet utilisateur.",
  "Password must be at least %d characters.": "Le mot de passe doit faire au moins %d caractères.",
  "Password must be at most %d characters.": "Le mot de passe doit faire au plus %d caractères.",
- "Username must be 1–64 characters: letters, digits, '.', '_' or '-'.": "Le nom d'utilisateur doit faire 1–64 caractères : lettres, chiffres, '.', '_' ou '-'."
+ "Username must be 1–64 characters: letters, digits, '.', '_' or '-'.": "Le nom d'utilisateur doit faire 1–64 caractères : lettres, chiffres, '.', '_' ou '-'.",
+ "Offline": "Hors ligne",
+ "You're offline": "Tu es hors ligne",
+ "Anchor needs a connection to show your bookmarks.": "Anchor a besoin d'une connexion pour afficher tes signets.",
+ "Try again": "Réessayer",
+ "Your bookmarks, with tags, search and shared spaces.": "Tes signets, avec étiquettes, recherche et espaces partagés."
 }

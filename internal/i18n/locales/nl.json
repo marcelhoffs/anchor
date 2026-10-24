@@ -586,5 +586,10 @@
  "Anchor needs an active admin to take over this user's shared spaces.": "Anchor heeft een actieve admin nodig om de gedeelde ruimtes van deze gebruiker over te nemen.",
  "Password must be at least %d characters.": "Wachtwoord moet minstens %d tekens zijn.",
  "Password must be at most %d characters.": "Wachtwoord mag hoogstens %d tekens zijn.",
- "Username must be 1–64 characters: letters, digits, '.', '_' or '-'.": "Gebruikersnaam moet 1–64 tekens zijn: letters, cijfers, '.', '_' of '-'."
+ "Username must be 1–64 characters: letters, digits, '.', '_' or '-'.": "Gebruikersnaam moet 1–64 tekens zijn: letters, cijfers, '.', '_' of '-'.",
+ "Offline": "Offline",
+ "You're offline": "Je bent offline",
+ "Anchor needs a connection to show your bookmarks.": "Anchor heeft een verbinding nodig om je bladwijzers te tonen.",
+ "Try again": "Opnieuw proberen",
+ "Your bookmarks, with tags, search and shared spaces.": "Je bladwijzers, met tags, zoeken en gedeelde ruimtes."
 }

@@ -2,12 +2,18 @@
 // and a click outside or Escape closes them. Without this script each menu
 // still opens and closes from its own button.
 //
-// Also: iOS shows :active (the pressed look, see style.css) on touch only
+// Also: registers the service worker; and iOS shows :active (the pressed look, see style.css) on touch only
 // when something listens for touchstart.
 (function () {
   "use strict";
 
   document.addEventListener("touchstart", function () {}, { passive: true });
+
+  // Installed as an app, the service worker (sw.js) shows an offline page
+  // instead of the browser's error.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  }
 
   var menus = document.querySelectorAll(".top-menu");
 

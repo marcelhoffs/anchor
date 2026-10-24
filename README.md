@@ -58,7 +58,7 @@
 **Look and feel**
 - Light and dark themes, a choice of accent colours and fonts, and the sidebar on either side.
 - In English, Dutch, Spanish and French: Anchor follows your browser's language, or the one you pick.
-- Works on phones as well as desktops.
+- Works on phones as well as desktops. Install it as an app on your phone or desktop, and share links to it.
 
 <p align="center">
   <img src="docs/screenshots/phone.png" width="300" alt="The bookmark list on a phone, with icon-only top bar buttons">

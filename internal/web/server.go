@@ -136,6 +136,9 @@ func (s *Server) Handler() http.Handler {
 		Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
 	r.Get("/healthz", s.healthz)
 	r.Get("/icon/{file}", s.appIcon)
+	r.Get("/app.webmanifest", s.manifest)
+	r.Get("/sw.js", s.serviceWorker)
+	r.Get("/offline", s.offline)
 	r.Route("/api/v1", s.apiRoutes)
 
 	r.Group(func(r chi.Router) {

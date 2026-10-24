@@ -216,16 +216,19 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 				t.Errorf("%s POST %s: fmt error", lang, f.path)
 			}
 		}
-		req, _ := http.NewRequest(http.MethodGet, e.srv.URL+"/signup", nil)
-		req.Header.Set("Accept-Language", string(lang))
-		res, err := anon.http.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		body, _ := io.ReadAll(res.Body)
-		res.Body.Close()
-		if strings.Contains(string(body), "%!") {
-			t.Errorf("%s /signup: fmt error", lang)
+		// Pages without a session follow the browser.
+		for _, p := range []string{"/signup", "/offline"} {
+			req, _ := http.NewRequest(http.MethodGet, e.srv.URL+p, nil)
+			req.Header.Set("Accept-Language", string(lang))
+			res, err := anon.http.Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			body, _ := io.ReadAll(res.Body)
+			res.Body.Close()
+			if strings.Contains(string(body), "%!") || !strings.Contains(string(body), `<html lang="`+string(lang)+`"`) {
+				t.Errorf("%s %s: bad page", lang, p)
+			}
 		}
 	}
 }
