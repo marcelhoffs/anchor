@@ -63,6 +63,7 @@ var funcs = template.FuncMap{
 	"join":       strings.Join,
 	"display":    func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
 	"asset":      assetURL,
+	"fontFiles":  func(font string) []string { return fontFiles[font] },
 	"iconSprite": func() template.HTML { return iconSprite },
 	"icon":       icon,
 	"initial":    initial,
