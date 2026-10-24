@@ -1,8 +1,10 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -876,4 +878,36 @@ func TestLoginPageHasNoTopBar(t *testing.T) {
 	if _, body, _ := e.login("alice").get("/"); !strings.Contains(body, `<header class="top">`) || strings.Contains(body, "auth-brand") {
 		t.Fatal("signed-in page lost its top bar")
 	}
+}
+
+func (c *client) postJSON(path string, body []byte) (int, map[string]any) {
+	c.e.t.Helper()
+	req, _ := http.NewRequest(http.MethodPost, c.e.srv.URL+path, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", c.csrf())
+	res, err := c.http.Do(req)
+	if err != nil {
+		c.e.t.Fatal(err)
+	}
+	defer res.Body.Close()
+	var out map[string]any
+	json.NewDecoder(res.Body).Decode(&out)
+	return res.StatusCode, out
+}
+
+func find(t *testing.T, body, pattern string) string {
+	t.Helper()
+	m := regexp.MustCompile(pattern).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatalf("pattern %q not found in page", pattern)
+	}
+	return m[1]
+}
+
+func (e *env) admin() *client {
+	e.t.Helper()
+	if _, err := e.store.CreateUser(context.Background(), "root", auth.HashPassword("root-password"), true); err != nil {
+		e.t.Fatal(err)
+	}
+	return e.login("root")
 }

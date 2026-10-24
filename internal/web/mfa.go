@@ -58,7 +58,7 @@ func (s *Server) checkPasskey(r *http.Request, u store.User, key string) (bool, 
 		return false, nil
 	}
 	b, _ := jsonMarshal(cred)
-	return true, s.store.UpdatePasskeyUse(r.Context(), u.ID, cred.ID, cred.Authenticator.SignCount, b)
+	return true, s.store.UpdatePasskeyUse(r.Context(), u.ID, cred.ID, b)
 }
 
 // beginPasskeyLogin starts a WebAuthn login ceremony for u under key.
@@ -559,7 +559,7 @@ func (s *Server) passkeyRegisterFinish(w http.ResponseWriter, r *http.Request) {
 		name = "Passkey"
 	}
 	b, _ := jsonMarshal(cred)
-	if err := s.store.AddPasskey(r.Context(), u.ID, truncate(name, 60), cred.ID, cred.PublicKey, cred.Authenticator.SignCount, b); err != nil {
+	if err := s.store.AddPasskey(r.Context(), u.ID, truncate(name, 60), cred.ID, b); err != nil {
 		if isValidation(err) {
 			jsonError(w, http.StatusConflict, err.Error())
 			return

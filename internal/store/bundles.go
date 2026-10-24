@@ -38,7 +38,7 @@ func cleanBundle(name, query string) (string, string, error) {
 
 func (s *Store) ListBundles(ctx context.Context, sc Scope) ([]Bundle, error) {
 	rows, err := s.r.QueryContext(ctx,
-		"SELECT id, name, query FROM bundles WHERE space_id = ? AND user_id = ? ORDER BY position, name COLLATE NOCASE, id",
+		"SELECT id, name, query FROM bundles WHERE space_id = ? AND user_id = ? ORDER BY name COLLATE NOCASE, id",
 		sc.spaceID, sc.userID)
 	if err != nil {
 		return nil, err
