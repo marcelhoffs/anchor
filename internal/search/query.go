@@ -6,6 +6,7 @@
 //	#"home lab"            a tag with spaces (also -#"home lab")
 //	site:github.com        domain (and subdomains)
 //	!fav !shared           flags; !archived searches the archive instead
+//	!untagged              bookmarks without any tag
 //	after:2026-01-01       saved on or after; before: saved before
 package search
 
@@ -24,6 +25,7 @@ type Query struct {
 	Fav      bool
 	Shared   bool
 	Archived bool
+	Untagged bool
 	After    time.Time // zero = unset
 	Before   time.Time // zero = unset
 }
@@ -50,6 +52,8 @@ func Parse(s string) Query {
 			q.Shared = true
 		case lower == "!archived":
 			q.Archived = true
+		case lower == "!untagged":
+			q.Untagged = true
 		case strings.HasPrefix(lower, "site:") && len(t) > 5:
 			if site := cleanSite(lower[5:]); site != "" {
 				q.Sites = append(q.Sites, site)

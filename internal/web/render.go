@@ -22,7 +22,6 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/marcelhoffs/anchor/internal/i18n"
-	"github.com/marcelhoffs/anchor/internal/search"
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
@@ -64,7 +63,7 @@ var funcs = template.FuncMap{
 	"licenseLink": func() template.HTML {
 		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" rel="license">AGPL-3.0</a>`)
 	},
-	"tagURL":     func(name string) string { return "/?q=" + url.QueryEscape(search.TagQuery(name)) },
+	"tagURL":     tagURL,
 	"bundleURL":  bundleURL,
 	"dict":       dict,
 	"brandMark":  brandMark,

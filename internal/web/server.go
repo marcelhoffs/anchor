@@ -164,6 +164,7 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/bookmarks/{id}", s.updateBookmark)
 			r.Post("/bookmarks/{id}/delete", s.deleteBookmark)
 			r.Post("/bookmarks/{id}/flag", s.flagBookmark)
+			r.Post("/bookmarks/{id}/tags", s.tagBookmark)
 			r.Post("/bookmarks/{id}/share", s.shareBookmark)
 			r.Post("/bookmarks/{id}/refetch", s.refetchBookmark)
 			r.Get("/bundles", s.bundles)

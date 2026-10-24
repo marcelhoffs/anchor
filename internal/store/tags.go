@@ -107,6 +107,34 @@ func setTags(ctx context.Context, tx *sql.Tx, spaceID, bookmarkID int64, tags []
 	return nil
 }
 
+// AddTag puts an existing tag on a bookmark, both in sc's space. It reports
+// whether the bookmark didn't have the tag yet.
+func (s *Store) AddTag(ctx context.Context, sc Scope, bookmarkID, tagID int64) (bool, error) {
+	if err := sc.mustWrite(); err != nil {
+		return false, err
+	}
+	var added bool
+	err := s.tx(ctx, func(tx *sql.Tx) error {
+		var ok bool
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM bookmarks WHERE space_id = ? AND id = ?", sc.spaceID, bookmarkID).Scan(&ok); err != nil {
+			return notFound(err)
+		}
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, tagID).Scan(&ok); err != nil {
+			return notFound(err)
+		}
+		res, err := tx.ExecContext(ctx, "INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)", bookmarkID, tagID)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 1 {
+			added = true
+			_, err = tx.ExecContext(ctx, "UPDATE bookmarks SET updated_at = ? WHERE id = ?", unix(s.now()), bookmarkID)
+		}
+		return err
+	})
+	return added, err
+}
+
 // CreateTag adds a tag, ready to be put on bookmarks.
 func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, error) {
 	if err := sc.mustWrite(); err != nil {

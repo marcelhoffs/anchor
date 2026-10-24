@@ -50,6 +50,7 @@
             <dt><code>!fav</code></dt><dd>{{t "Favourites"}}</dd>
             <dt><code>!shared</code></dt><dd>{{t "Shared with a public link"}}</dd>
             <dt><code>!archived</code></dt><dd>{{t "Search the archive instead"}}</dd>
+            <dt><code>!untagged</code></dt><dd>{{t "Has no tags"}}</dd>
             <dt><code>after:2026-01-01</code></dt><dd>{{t "Saved on or after a date"}}</dd>
             <dt><code>before:2026-06-01</code></dt><dd>{{t "Saved before a date"}}</dd>
           </dl>
@@ -95,7 +96,8 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
-      {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar" aria-hidden="true">{{initial .Domain}}</span>{{end}}
+      {{/* With edit rights, the icon can be dropped on a tag (dragtag.js). */}}
+      {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{else}}<span class="avatar" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
@@ -205,12 +207,16 @@
 {{define "tag-links"}}
 <nav aria-label="{{t "Tags"}}">
   {{range .Tags}}
-  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}>{{icon "tag"}}<span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
+  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}{{if $.CanWrite}} data-tag-drop="{{.ID}}"{{end}}>{{icon "tag"}}<span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
   {{else}}
   <p class="side-empty">{{t "No tags yet"}}</p>
   {{end}}
 </nav>
 {{end}}
+
+{{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
+
+{{define "scripts"}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}

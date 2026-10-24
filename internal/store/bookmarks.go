@@ -274,6 +274,9 @@ func (s *Store) Search(ctx context.Context, sc Scope, q search.Query, sort strin
 	if q.Shared {
 		where = append(where, "b.share_token IS NOT NULL")
 	}
+	if q.Untagged {
+		where = append(where, "NOT EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id)")
+	}
 	if !q.After.IsZero() {
 		where = append(where, "b.created_at >= ?")
 		args = append(args, unix(q.After))

@@ -2,9 +2,11 @@ package web
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -234,5 +236,58 @@ func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
 	// what comes back must still be an image.
 	if _, img, err := fetch.New(true).Icon(context.Background(), site.URL+"/old-icon.ico"); err != nil || string(img) != consentIcon {
 		t.Fatalf("icon redirect: %v", err)
+	}
+}
+
+// Dropping a bookmark's icon on a tag tags it; readers get neither the
+// draggable icons nor the endpoint.
+func TestDragToTag(t *testing.T) {
+	e := newEnv(t)
+	c := e.admin()
+	e.tags("root", "go", "home lab")
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}})
+	_, body, _ := c.get("/")
+	if !strings.Contains(body, `draggable="true" data-drag-bookmark="1"`) || !strings.Contains(body, `data-tag-drop="2"`) ||
+		!strings.Contains(body, "dragtag.js") {
+		t.Fatal("list page lacks the drag and drop hooks")
+	}
+	tagJSON := func(c *client, bookmark, tag string) (int, string) {
+		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/bookmarks/"+bookmark+"/tags", strings.NewReader("tag="+tag))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", c.csrf())
+		res, err := c.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b)
+	}
+	code, out := tagJSON(c, "1", "2") // "home lab"
+	if code != http.StatusOK || out != `{"tags":[{"name":"home lab","url":"/?q=%23%22home+lab%22"}],"count":1}`+"\n" {
+		t.Fatalf("tag: %d %s", code, out)
+	}
+	if _, body, _ := c.get("/?q=%21untagged"); strings.Contains(body, ">Go</a>") || !strings.Contains(body, "Untagged bookmarks") {
+		t.Fatal("tagged bookmark still listed as untagged")
+	}
+	if code, _ := tagJSON(c, "1", "999"); code != http.StatusNotFound {
+		t.Fatalf("unknown tag: %d", code)
+	}
+
+	// A reader of a shared space sees no drag hooks and can't tag.
+	e.user("alice")
+	ctx := context.Background()
+	space, _ := e.store.CreateSpace(ctx, e.userID("root"), "Team")
+	e.store.CreateTag(ctx, space, "news")
+	b, _, _ := e.store.CreateBookmark(ctx, space, store.BookmarkInput{URL: "https://news.example", Title: "News"})
+	e.store.AddMember(ctx, space, "alice", store.RoleRead)
+	alice := e.login("alice")
+	alice.post("/space", url.Values{"space": {strconv.FormatInt(space.SpaceID(), 10)}})
+	if _, body, _ := alice.get("/"); strings.Contains(body, "data-drag-bookmark") || strings.Contains(body, "data-tag-drop") {
+		t.Fatal("reader gets drag and drop")
+	}
+	tags, _ := e.store.ListTags(ctx, space)
+	if code, _ := tagJSON(alice, strconv.FormatInt(b.ID, 10), strconv.FormatInt(tags[0].ID, 10)); code != http.StatusForbidden {
+		t.Fatalf("reader tagged: %d", code)
 	}
 }

@@ -7,15 +7,16 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	q := Parse(`kubernetes "exact phrase" #homelab -#archive site:https://www.GitHub.com/x !fav after:2026-01-01 before:nope foo:bar - `)
+	q := Parse(`kubernetes "exact phrase" #homelab -#archive site:https://www.GitHub.com/x !fav !Untagged after:2026-01-01 before:nope foo:bar - `)
 	want := Query{
-		Terms:   []string{"kubernetes", "before:nope", "foo:bar"},
-		Phrases: []string{"exact phrase"},
-		Tags:    []string{"homelab"},
-		NotTags: []string{"archive"},
-		Sites:   []string{"github.com"},
-		Fav:     true,
-		After:   time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		Terms:    []string{"kubernetes", "before:nope", "foo:bar"},
+		Phrases:  []string{"exact phrase"},
+		Tags:     []string{"homelab"},
+		NotTags:  []string{"archive"},
+		Sites:    []string{"github.com"},
+		Fav:      true,
+		Untagged: true,
+		After:    time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 	if !reflect.DeepEqual(q, want) {
 		t.Fatalf("got  %+v\nwant %+v", q, want)

@@ -56,6 +56,8 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 Each space has its own tags. They are created on the Tags page before bookmarks can use them, which keeps typos from turning into new tags. Names may contain spaces but not commas or double quotes.
 
+To tag a bookmark from the list, drag its icon onto a tag in the sidebar. With `!untagged` in the search box you find the bookmarks that still need one.
+
 Renaming a tag to a name you already have merges the two: every bookmark gets the surviving tag. Deleting a tag removes it from its bookmarks and leaves the bookmarks themselves alone.
 
 Imports are the exception to "create first": an import creates the tags it brings with it.
@@ -75,6 +77,7 @@ The search box understands a small query language. Terms combine: every conditio
 | `!fav` | Favourites |
 | `!shared` | Bookmarks with a public link |
 | `!archived` | Search the archive instead of the main list |
+| `!untagged` | Bookmarks without any tag |
 | `after:2026-01-01` | Saved on or after this date (UTC) |
 | `before:2026-06-01` | Saved before this date (UTC) |
 
