@@ -39,7 +39,8 @@
 
 :root {
   /* Slate neutrals */
-  --bg: light-dark(#f8fafc, #0c0d11);
+  /* The page background: the neutral with a hint of the accent. */
+  --bg: light-dark(#f5f9ff, #0a0b1d);
   --surface: light-dark(#ffffff, #14161c);
   --raised: light-dark(#f1f5f9, #1b1e27);
   --text: light-dark(#0f172a, #e7e9ee);
@@ -66,7 +67,7 @@
 }
 :root[data-accent="terracotta"] {
   /* Stone neutrals */
-  --bg: light-dark(#fafaf9, #100f0e);
+  --bg: light-dark(#fff7f2, #1b0a03);
   --surface: light-dark(#ffffff, #1a1816);
   --raised: light-dark(#f5f5f4, #24211e);
   --text: light-dark(#1c1917, #eceae7);
@@ -84,6 +85,7 @@
 /* Yellow is too light for text or white labels in light mode: it gets dark
    labels and a dark gold for text. */
 :root[data-accent="yellow"] {
+  --bg: light-dark(#fcfaf2, #120d02);
   --accent: light-dark(#eab308, #facc15);
   --accent-hover: light-dark(#ca8a04, #fde047);
   --on-accent: light-dark(#1c1917, #0c0d11);
@@ -93,30 +95,35 @@
   --accent-text-hover: light-dark(#713f12, #fde047);
 }
 :root[data-accent="emerald"] {
+  --bg: light-dark(#f3fcfb, #00110d);
   --accent: light-dark(#047857, #34d399);
   --accent-hover: light-dark(#065f46, #6ee7b7);
   --soft: light-dark(#ecfdf5, #0f2e25);
   --soft-text: light-dark(#065f46, #a7f3d0);
 }
 :root[data-accent="ocean"] {
+  --bg: light-dark(#f3fbff, #010f1a);
   --accent: light-dark(#0369a1, #38bdf8);
   --accent-hover: light-dark(#075985, #7dd3fc);
   --soft: light-dark(#f0f9ff, #0c2a3d);
   --soft-text: light-dark(#075985, #bae6fd);
 }
 :root[data-accent="forest"] {
+  --bg: light-dark(#f5fbfb, #070f0e);
   --accent: light-dark(#2d6a4f, #95c9a8);
   --accent-hover: light-dark(#1b4332, #b7dcc5);
   --soft: light-dark(#edf5f0, #16271e);
   --soft-text: light-dark(#1b4332, #c4e3d0);
 }
 :root[data-accent="rose"] {
+  --bg: light-dark(#fff6f8, #19070c);
   --accent: light-dark(#be123c, #fb7185);
   --accent-hover: light-dark(#9f1239, #fda4af);
   --soft: light-dark(#fff1f2, #3a1520);
   --soft-text: light-dark(#9f1239, #fecdd3);
 }
 :root[data-accent="graphite"] {
+  --bg: light-dark(#f7fafe, #0c0d11);
   --accent: light-dark(#1e293b, #e2e8f0);
   --accent-hover: light-dark(#0f172a, #f8fafc);
   --soft: light-dark(#e2e8f0, #262b36);

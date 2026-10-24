@@ -592,6 +592,10 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		if c, ok := iconColours[a]; !ok || !strings.Contains(string(css), "--accent: light-dark("+c[0]+",") {
 			t.Errorf("accent %q has no favicon colours matching its CSS", a)
 		}
+		// Android's system bars use the accent's page background.
+		if c, ok := pageBackgrounds[a]; !ok || !strings.Contains(string(css), "--bg: light-dark("+c[0]+", "+c[1]+")") {
+			t.Errorf("accent %q has no page background matching its CSS", a)
+		}
 	}
 	e := newEnv(t)
 	e.user("alice")

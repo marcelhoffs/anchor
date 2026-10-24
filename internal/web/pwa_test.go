@@ -38,7 +38,7 @@ func TestManifest(t *testing.T) {
 				t.Fatalf("%s %s: %v\n%s", accent, lang, err, body)
 			}
 			if m.ID != "/" || m.StartURL != "/" || m.Scope != "/" || m.Display != "standalone" || m.Name != "Anchor" ||
-				m.ShortName == "" || m.Description == "" || m.ThemeColor != pageBackground(accent)[0] {
+				m.ShortName == "" || m.Description == "" || m.ThemeColor != pageBackgrounds[accent][0] {
 				t.Fatalf("%s %s: %+v", accent, lang, m)
 			}
 			if m.ShareTarget.Action != "/bookmarks/new" || m.ShareTarget.Method != "GET" {
@@ -61,12 +61,12 @@ func TestManifest(t *testing.T) {
 		}
 	}
 	// The dark theme gets the dark background for Android's system bars.
-	if _, body, _ := anon.get("/app.webmanifest?accent=terracotta&theme=dark"); !strings.Contains(body, `"theme_color":"#100f0e"`) ||
-		!strings.Contains(body, `"background_color":"#100f0e"`) {
+	if _, body, _ := anon.get("/app.webmanifest?accent=terracotta&theme=dark"); !strings.Contains(body, `"theme_color":"#1b0a03"`) ||
+		!strings.Contains(body, `"background_color":"#1b0a03"`) {
 		t.Fatalf("dark manifest:\n%s", body)
 	}
 	// System gets the dark background too: the bar can't follow the phone.
-	if _, body, _ := anon.get("/app.webmanifest?accent=ocean&theme=system"); !strings.Contains(body, `"theme_color":"#0c0d11"`) {
+	if _, body, _ := anon.get("/app.webmanifest?accent=ocean&theme=system"); !strings.Contains(body, `"theme_color":"#010f1a"`) {
 		t.Fatalf("system manifest isn't dark:\n%s", body)
 	}
 	// It's built in Go, so a deploy can change it without a new asset version.
@@ -137,8 +137,8 @@ func TestHeadTags(t *testing.T) {
 	for _, want := range []string{
 		`<link rel="manifest" href="/app.webmanifest?accent=indigo&amp;lang=en&amp;theme=system">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-indigo.png?v=`,
-		`<meta name="theme-color" content="#f8fafc" media="(prefers-color-scheme: light)">`,
-		`<meta name="theme-color" content="#0c0d11" media="(prefers-color-scheme: dark)">`,
+		`<meta name="theme-color" content="#f5f9ff" media="(prefers-color-scheme: light)">`,
+		`<meta name="theme-color" content="#0a0b1d" media="(prefers-color-scheme: dark)">`,
 		`viewport-fit=cover`,
 	} {
 		if !strings.Contains(body, want) {
@@ -146,7 +146,7 @@ func TestHeadTags(t *testing.T) {
 		}
 	}
 	c.post("/settings/appearance", url.Values{"accent": {"rose"}, "theme": {"dark"}})
-	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="#0c0d11">`) {
+	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="#19070c">`) {
 		t.Error("dark theme should have one dark theme colour")
 	}
 }
