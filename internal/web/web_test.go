@@ -344,7 +344,7 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 		t.Fatal("password form is not on the Security tab")
 	}
 	if _, body, _ := laptop.get("/settings"); strings.Contains(body, `action="/settings/password"`) {
-		t.Fatal("password form is still on the Profile tab")
+		t.Fatal("password form is still on the Appearance tab")
 	}
 	if code, _, loc := laptop.post("/settings/password", url.Values{"current": {"alice-password"}, "password": {"new password 1"}, "confirm": {"new password 1"}}); code != http.StatusSeeOther || loc != "/settings/security?done=password" {
 		t.Fatalf("change password: %d", code)
@@ -505,6 +505,20 @@ func TestFontsAreComplete(t *testing.T) {
 			if !strings.Contains(string(css), `url("`+file+`")`) {
 				t.Errorf("%s: %s not in the stylesheet", f, file)
 			}
+		}
+	}
+}
+
+// Icon-only row actions show what they do on hover.
+func TestRowActionTooltips(t *testing.T) {
+	c := newEnv(t).admin()
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev/"}, "title": {"Go"}})
+	_, body, _ := c.get("/")
+	row := body[strings.Index(body, `class="bm-actions"`):]
+	row = row[:strings.Index(row, `class="icon-btn bm-more"`)]
+	for _, tip := range []string{"Archive", "Edit", "Delete", "Add to favourites"} {
+		if !strings.Contains(row, `title="`+tip+`"`) {
+			t.Errorf("no %q tooltip", tip)
 		}
 	}
 }

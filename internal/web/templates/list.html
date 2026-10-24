@@ -112,20 +112,20 @@
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
-          <button class="icon-btn" aria-label="Unarchive {{display .}}">{{icon "archive"}}</button>
+          <button class="icon-btn" title="Unarchive" aria-label="Unarchive {{display .}}">{{icon "archive"}}</button>
         </form>
         {{else}}
-        <button class="icon-btn" popovertarget="archive-{{.ID}}" aria-label="Archive {{display .}}">{{icon "archive"}}</button>
+        <button class="icon-btn" popovertarget="archive-{{.ID}}" title="Archive" aria-label="Archive {{display .}}">{{icon "archive"}}</button>
         {{end}}
-        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
-        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
+        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="Edit" aria-label="Edit {{display .}}">{{icon "pencil"}}</a>
+        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" title="Delete" aria-label="Delete {{display .}}">{{icon "trash"}}</button>
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
           <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
           {{if .IsFavourite}}
-          <button class="icon-btn on" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
+          <button class="icon-btn on" title="Remove from favourites" aria-label="Remove {{display .}} from favourites" aria-pressed="true">{{icon "star" "filled"}}</button>
           {{else}}
-          <button class="icon-btn" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
+          <button class="icon-btn" title="Add to favourites" aria-label="Add {{display .}} to favourites" aria-pressed="false">{{icon "star"}}</button>
           {{end}}
         </form>
       </div>

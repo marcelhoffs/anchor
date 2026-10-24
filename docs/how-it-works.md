@@ -49,7 +49,7 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 **Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`.
 
-**Saving from anywhere.** Besides the add form there is a bookmarklet (Settings → Profile): a browser bookmark that opens Anchor's add form with the current page's address and title filled in. The [REST API](api.md) can save bookmarks too.
+**Saving from anywhere.** Besides the add form there is a bookmarklet (Settings → Appearance): a browser bookmark that opens Anchor's add form with the current page's address and title filled in. The [REST API](api.md) can save bookmarks too.
 
 ## Tags
 

@@ -326,7 +326,7 @@ func (s *Server) renderSettings(w http.ResponseWriter, r *http.Request, status i
 	d["Accents"] = accentChoices()
 	d["Fonts"] = fontChoices()
 	d["Bookmarklet"] = s.bookmarklet()
-	d["Tab"] = "profile"
+	d["Tab"] = "appearance"
 	s.render(w, r, status, "settings", d)
 }
 
