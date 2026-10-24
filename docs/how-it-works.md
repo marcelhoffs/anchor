@@ -11,6 +11,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 - [Page details and icons](#page-details-and-icons)
 - [Import and export](#import-and-export)
 - [Accounts and sign-in](#accounts-and-sign-in)
+- [Installing as an app](#installing-as-an-app)
 - [Languages](#languages)
 - [Security measures](#security-measures)
 
@@ -139,6 +140,16 @@ Admins can require two-factor authentication for everyone. Users without it are 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 
 **Admins** invite users (accounts aren't created directly in the web interface), and can disable, re-enable and delete them, make them admins or not, reset a password (which shows a new one once) and reset two-factor authentication for someone who lost their device. Deleting an account removes it with its personal space for good; the shared spaces it owned go to the admin who deleted it, and what it added to shared spaces stays. They can also change the owner of a shared space or delete it. The same resets are available on the [command line](deployment.md#command-line), for when no admin can sign in.
+
+## Installing as an app
+
+Anchor is a progressive web app: Chrome, Edge and Android offer to install it, and on iOS it's *Share → Add to Home Screen*. It then opens in its own window with Anchor's icon in your accent colour. Bookmarks open in your normal browser, so the app keeps your list.
+
+On Android, the installed app shows up in the share sheet: sharing a link from another app opens Anchor's add form with the link, title and text filled in. Many apps send the link inside the text; Anchor takes the first `http` or `https` link from it, and the rest becomes the description. A link you already saved opens its bookmark instead. Signed out, you sign in first and land on the filled-in form.
+
+A service worker caches only static files (the stylesheet, scripts, fonts and icons) and an offline page, all without any user data. Pages always come from the server, so nothing with your bookmarks is stored on the device; without a connection, the app shows "You're offline" instead of the browser's error. Each deploy changes the worker, so browsers fetch the new files and drop the old ones.
+
+iOS keeps an installed app's cookies apart from Safari's, so you sign in once more in the app.
 
 ## Languages
 

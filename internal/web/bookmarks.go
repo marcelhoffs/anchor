@@ -182,15 +182,17 @@ func (s *Server) addTarget(r *http.Request) (store.Scope, i18n.Msg, error) {
 }
 
 // newBookmark shows the add form, prefilled from ?url=&title=&description=
-// (which is how the bookmarklet calls it). An already-saved URL goes
-// straight to its edit page.
+// (which is how the bookmarklet calls it), or from Android's share sheet,
+// which adds &text= (see sharedLink). An already-saved URL goes straight to
+// its edit page.
 func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 	sc, name, err := s.addTarget(r)
 	if !s.storeError(w, r, err) {
 		return
 	}
 	q := r.URL.Query()
-	if raw := q.Get("url"); raw != "" {
+	raw, description := sharedLink(q.Get("url"), q.Get("title"), q.Get("description"), q.Get("text"))
+	if raw != "" {
 		b, err := s.store.FindBookmarkByURL(r.Context(), sc, raw)
 		if err == nil {
 			http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(b.ID, 10)+"/edit?dup=1", http.StatusSeeOther)
@@ -201,7 +203,7 @@ func (s *Server) newBookmark(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	d := formData(store.BookmarkInput{URL: q.Get("url"), Title: q.Get("title"), Description: q.Get("description")})
+	d := formData(store.BookmarkInput{URL: raw, Title: q.Get("title"), Description: description})
 	d["Next"] = safeNext(q.Get("next"))
 	d["Target"], d["TargetName"] = sc.SpaceID(), name
 	s.renderEdit(w, r, sc, http.StatusOK, d)

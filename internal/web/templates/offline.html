@@ -1,0 +1,15 @@
+{{define "title"}}{{t "Offline"}}{{end}}
+{{define "content"}}
+{{/* Cached by the service worker (static/sw.js) and shown for any page
+   while the network is gone, so it holds nobody's data. An empty href
+   reloads the page that was asked for. */}}
+<div class="auth">
+  {{template "auth-brand" .}}
+  <div class="empty-state">
+    <span class="badge-icon">{{icon "refresh"}}</span>
+    <p class="title">{{t "You're offline"}}</p>
+    <p>{{t "Anchor needs a connection to show your bookmarks."}}</p>
+    <a class="btn btn-primary" href="">{{t "Try again"}}</a>
+  </div>
+</div>
+{{end}}

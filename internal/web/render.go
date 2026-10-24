@@ -63,21 +63,24 @@ var funcs = template.FuncMap{
 	"licenseLink": func() template.HTML {
 		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" rel="license">AGPL-3.0</a>`)
 	},
-	"tagURL":     tagURL,
-	"bundleURL":  bundleURL,
-	"dict":       dict,
-	"brandMark":  brandMark,
-	"appIconURL": appIconURL,
-	"join":       strings.Join,
-	"display":    func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
-	"asset":      assetURL,
-	"fontFiles":  func(font string) []string { return fontFiles[font] },
-	"iconSprite": func() template.HTML { return iconSprite },
-	"icon":       icon,
-	"initial":    initial,
-	"bytes":      humanBytes,
-	"strong":     strong,
-	"code":       code,
+	"tagURL":            tagURL,
+	"bundleURL":         bundleURL,
+	"dict":              dict,
+	"brandMark":         brandMark,
+	"appIconURL":        appIconURL,
+	"manifestURL":       manifestURL,
+	"appleTouchIconURL": appleTouchIconURL,
+	"themeColors":       themeColors,
+	"join":              strings.Join,
+	"display":           func(b store.Bookmark) string { return cmp.Or(b.Title, b.URL) },
+	"asset":             assetURL,
+	"fontFiles":         func(font string) []string { return fontFiles[font] },
+	"iconSprite":        func() template.HTML { return iconSprite },
+	"icon":              icon,
+	"initial":           initial,
+	"bytes":             humanBytes,
+	"strong":            strong,
+	"code":              code,
 	"secretCode": func(s string) template.HTML {
 		return template.HTML(`<code class="secret">` + html.EscapeString(s) + `</code>`)
 	},
@@ -185,7 +188,7 @@ func loadTemplates() (map[i18n.Lang]map[string]pageTemplate, error) {
 
 // authPages show no top bar to a signed-out visitor, only the app's mark
 // above their card: there is nothing to navigate to yet.
-var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "signup_closed": true, "verify": true}
+var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "signup_closed": true, "verify": true, "offline": true}
 
 // data is what every page template receives; handlers add their own keys.
 type data map[string]any
