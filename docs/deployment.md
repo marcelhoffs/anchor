@@ -113,12 +113,12 @@ Anchor can sign people in through an OpenID Connect provider: Authentik, Keycloa
 
 | Variable | Default | |
 |---|---|---|
-| `ANCHOR_OIDC_ISSUER` | empty (off) | The provider's issuer URL, exactly as its discovery document says, trailing slash included. Setting it turns single sign-on on. |
+| `ANCHOR_OIDC_ISSUER` | empty (off) | The provider's issuer URL, exactly as its discovery document says, trailing slash included. Setting it turns single sign-on on. Use https: over http, Anchor warns at startup (unless the provider is on localhost). |
 | `ANCHOR_OIDC_CLIENT_ID` | required with an issuer | The client ID Anchor has at the provider. |
 | `ANCHOR_OIDC_CLIENT_SECRET` | empty | The client secret; leave it empty for a public client (Anchor always uses PKCE). |
 | `ANCHOR_OIDC_NAME` | `SSO` | Shown on the button: "Sign in with Authentik". |
 | `ANCHOR_OIDC_SCOPES` | `openid profile email` | Scopes asked for. Add `groups` if your provider needs that scope for a groups claim. |
-| `ANCHOR_OIDC_ADMIN_GROUP` | empty | Members of this group are admins, everyone else isn't; checked at every sign-in. Empty: admins are managed in Anchor. |
+| `ANCHOR_OIDC_ADMIN_GROUP` | empty | Members of this group are admins, everyone else isn't (see [Admins from a group](#admins-from-a-group)). Empty: admins are managed in Anchor. |
 | `ANCHOR_OIDC_GROUPS_CLAIM` | `groups` | The ID token claim that lists the groups. |
 | `ANCHOR_OIDC_ONLY` | `false` | `true` hides password sign-in and sign-up, so everyone goes through the provider. |
 
@@ -126,7 +126,9 @@ At the provider, the redirect URI is `{ANCHOR_BASE_URL}/login/oidc/callback`, fo
 
 **Who gets an account.** An account at the provider is linked to one Anchor user; Anchor never matches accounts by email address or name. The first sign-in of someone without an account follows the sign-up mode: with *open* sign-up the account is created; with *invite only*, only through an invite link (the invite page offers "Sign up with …"); with *closed*, not at all. On a fresh instance, the setup page offers "Set up with …": that account becomes the first admin. Existing users link their account under Settings → Security.
 
-**Two-factor authentication.** A sign-in through the provider counts as complete, so set up multi-factor authentication there. The "require two-factor authentication" policy then only applies to password sign-ins. Sensitive actions, like creating an API token, ask the provider to confirm it's you again.
+**Two-factor authentication.** A sign-in through the provider counts as complete, so set up multi-factor authentication there. The "require two-factor authentication" policy then only applies to password sign-ins. Sensitive actions, like creating an API token, ask the provider to confirm it's you again. Anchor checks that it really did, from the ID token's `auth_time` claim: a sign-in counts as confirming it's you only if it happened in the last five minutes, not when the provider just reused its session. A provider must therefore send `auth_time` (Authentik and Keycloak do; for Entra ID, add it as an optional claim).
+
+**Admins from a group.** With `ANCHOR_OIDC_ADMIN_GROUP`, the group alone decides who is admin. Admin rights hold only in a session signed in through the provider, for an account still linked to it; a password sign-in has none, and *Make admin* and *Remove admin* are gone from the admin pages. The group is read at every sign-in, link and reauth through the provider, and is applied even to the last admin. An hour after the last check, the admin pages ask the provider to confirm it's you again, which checks the group again; in those sessions, confirming works only through the provider. Someone who leaves the group therefore loses admin rights within the hour.
 
 **Getting back in.** Accounts made through the provider have no password until their owner sets one under Settings → Security. If someone loses their provider account, `anchor user unlink-sso <name>` and `anchor user reset-password <name>` give them a password sign-in again (with `ANCHOR_OIDC_ONLY=true`, switch that off first).
 

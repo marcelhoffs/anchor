@@ -345,10 +345,21 @@ func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, st
 	return withUserLang(r, u), ss, u, true
 }
 
+// requireAdmin lets only admins in (see isAdmin). With an admin group, one
+// whose group check is over adminGroupCheck old confirms through the
+// provider first, which checks it again.
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !currentUser(r).IsAdmin {
+		if !s.isAdmin(r) {
 			s.notFound(w, r)
+			return
+		}
+		if s.groupStale(r) {
+			back := "/admin/"
+			if r.Method == http.MethodGet {
+				back = safeNext(r.URL.RequestURI())
+			}
+			http.Redirect(w, r, "/reauth?next="+url.QueryEscape(back), http.StatusSeeOther)
 			return
 		}
 		next.ServeHTTP(w, r)

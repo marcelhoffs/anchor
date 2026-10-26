@@ -268,6 +268,13 @@ func (s *Store) SetAdmin(ctx context.Context, userID int64, admin bool) error {
 	})
 }
 
+// SyncAdmin sets the admin role as the OpenID Connect provider's group says.
+// Unlike SetAdmin it can take the role from the last admin: the group, not
+// Anchor, decides.
+func (s *Store) SyncAdmin(ctx context.Context, userID int64, admin bool) error {
+	return affected(s.w.ExecContext(ctx, "UPDATE users SET is_admin = ?, updated_at = ? WHERE id = ?", admin, unix(s.now()), userID))
+}
+
 // DeleteUser deletes an account for good, with its personal space and
 // everything in it. Shared spaces it owned go to heirID, an active admin
 // (0 = the longest-standing one); bookmarks it added to shared spaces stay.

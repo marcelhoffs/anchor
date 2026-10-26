@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -65,8 +67,9 @@ type Server struct {
 	sessionCookie, csrfCookie string // see the constants
 
 	// Failed logins per IP+username and per IP; failed second factors per
-	// user; requests per API token; signups per IP.
-	loginUser, loginIP, mfaUser, apiToken, signupIP *ratelimit.Limiter
+	// user; requests per API token; signups per IP; single sign-ons started
+	// per IP.
+	loginUser, loginIP, mfaUser, apiToken, signupIP, ssoIP *ratelimit.Limiter
 }
 
 func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher JobNotifier) (*Server, error) {
@@ -90,10 +93,14 @@ func New(cfg *config.Config, st *store.Store, log *slog.Logger, jobs, fetcher Jo
 		mfaUser:   ratelimit.New(10, 15*time.Minute),
 		apiToken:  ratelimit.New(600, time.Minute),
 		signupIP:  ratelimit.New(10, time.Hour),
+		ssoIP:     ratelimit.New(30, 15*time.Minute),
 	}
 	if cfg.OIDC != nil {
 		s.oidc = newOIDCClient(cfg.OIDC, cfg.BaseURL.String())
 		log.Info("single sign-on on", "issuer", cfg.OIDC.Issuer, "redirect_uri", s.oidc.redirect, "only", cfg.OIDC.Only)
+		if u, err := url.Parse(cfg.OIDC.Issuer); err == nil && u.Scheme == "http" && !loopback(u.Hostname()) {
+			log.Warn("ANCHOR_OIDC_ISSUER uses http: codes, tokens and the client secret cross the network unencrypted", "issuer", cfg.OIDC.Issuer)
+		}
 	}
 	s.sessionCookie, s.csrfCookie = sessionCookie, csrfCookie
 	if cfg.SecureCookies() {
@@ -114,7 +121,7 @@ func (s *Server) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			for _, l := range []*ratelimit.Limiter{s.loginUser, s.loginIP, s.mfaUser, s.apiToken, s.signupIP} {
+			for _, l := range []*ratelimit.Limiter{s.loginUser, s.loginIP, s.mfaUser, s.apiToken, s.signupIP, s.ssoIP} {
 				l.Sweep()
 			}
 			s.cer.sweep()
@@ -280,6 +287,14 @@ func cacheFor(d time.Duration, h http.Handler) http.Handler {
 		}
 		h.ServeHTTP(w, r)
 	})
+}
+
+// loopback reports whether host is this machine.
+func loopback(host string) bool {
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return ip.IsLoopback()
+	}
+	return host == "localhost"
 }
 
 // signupMode is the environment's choice if set, else the admin's.

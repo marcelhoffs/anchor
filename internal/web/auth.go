@@ -30,6 +30,9 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+	if s.passwordsOff(w, r) {
+		return
+	}
 	username, password, msg := newCredentials(r)
 	if msg.Format != "" {
 		s.render(w, r, http.StatusUnprocessableEntity, "setup", data{"Error": msg, "Username": username})
@@ -158,18 +161,16 @@ func (s *Server) dropBrowserSession(r *http.Request) {
 }
 
 // newSession signs u in: fully (mfaPassed) or waiting for a second factor;
-// sso marks a sign-in through the OpenID Connect provider.
-func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User, mfaPassed bool, ttl time.Duration, sso bool) error {
+// sso marks a sign-in through the OpenID Connect provider. verified is when
+// it last proved who it is (see requireRecentAuth), or zero.
+func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User, mfaPassed bool, ttl time.Duration, sso bool, verified time.Time) error {
 	s.dropBrowserSession(r)
 	token, hash := auth.NewToken(32)
 	now := time.Now()
 	ss := store.Session{
 		TokenHash: hash, UserID: u.ID, MFAPassed: mfaPassed, SSO: sso,
 		UserAgent: truncate(r.UserAgent(), 256), IP: s.clientIP(r),
-		CreatedAt: now, ExpiresAt: now.Add(ttl), LastSeenAt: now,
-	}
-	if mfaPassed {
-		ss.VerifiedAt = now
+		CreatedAt: now, ExpiresAt: now.Add(ttl), LastSeenAt: now, VerifiedAt: verified,
 	}
 	if err := s.store.CreateSession(r.Context(), ss); err != nil {
 		return err
@@ -181,7 +182,7 @@ func (s *Server) newSession(w http.ResponseWriter, r *http.Request, u store.User
 
 // startSession signs u in fully and redirects to next.
 func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.User, next string) {
-	if err := s.newSession(w, r, u, true, sessionTTL, false); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false, time.Now()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -191,7 +192,7 @@ func (s *Server) startSession(w http.ResponseWriter, r *http.Request, u store.Us
 // startPendingLogin records a passed password check and asks for the second
 // factor. The pending session can do nothing else and expires in minutes.
 func (s *Server) startPendingLogin(w http.ResponseWriter, r *http.Request, u store.User, next string) {
-	if err := s.newSession(w, r, u, false, pendingTTL, false); err != nil {
+	if err := s.newSession(w, r, u, false, pendingTTL, false, time.Time{}); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
