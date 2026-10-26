@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"errors"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -347,18 +348,30 @@ func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, st
 	return withUserLang(r, u), ss, u, true
 }
 
-// requireAdmin lets only admins in (see isAdmin). With an admin group, the
-// group must have been confirmed in the last adminGroupCheck: recheckGroup
-// asked the provider, so it's still stale only when that failed.
+// requireAdmin lets only admins in (see isAdmin). With an admin group, a
+// session signed in through the provider asks it on every request here,
+// and is refused when the provider can't answer.
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.groupAdmins() && currentSession(r).SSO {
+			was := currentUser(r).IsAdmin
+			switch err := s.checkGroup(r); {
+			case errors.Is(err, errSSOEnded):
+				s.endSSOSession(w, r)
+				return
+			case err != nil:
+				s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
+				http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
+					http.StatusServiceUnavailable)
+				return
+			}
+			if was && !currentUser(r).IsAdmin {
+				http.Error(w, langOf(r).T("%s no longer gives you admin rights.", s.cfg.OIDC.Name), http.StatusForbidden)
+				return
+			}
+		}
 		if !s.isAdmin(r) {
 			s.notFound(w, r)
-			return
-		}
-		if s.groupStale(r) {
-			http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
-				http.StatusServiceUnavailable)
 			return
 		}
 		next.ServeHTTP(w, r)

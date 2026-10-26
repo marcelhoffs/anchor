@@ -38,8 +38,8 @@ const (
 	maxOIDCFlows = 10000
 	// After failing, discovery waits this long before asking again.
 	discoveryRetry = 30 * time.Second
-	// With an admin group, admin rights hold while the provider confirmed
-	// the group this recently; see recheckGroup.
+	// With an admin group, requests other than page loads ask the provider
+	// again once its last answer is this old; see recheckGroup.
 	adminGroupCheck = 5 * time.Minute
 	// How long a page waits for the provider to confirm the group.
 	groupCheckTimeout = 5 * time.Second
@@ -497,43 +497,53 @@ var errSSOEnded = errors.New("the provider ended the session")
 
 // recheckGroup asks the provider again whether a session signed in there is
 // in the admin group: at every page load, and for other requests once the
-// last check is over adminGroupCheck old. When the provider has ended the
-// session, Anchor ends it too. When the provider can't be reached, the
-// request goes on, but the admin pages stay shut (see requireAdmin).
+// last check is over adminGroupCheck old. The admin pages ask on every
+// request themselves (see requireAdmin). When the provider has ended the
+// session, Anchor ends it too; when it can't be reached, the request goes on.
 func (s *Server) recheckGroup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ss, u := currentSession(r), currentUser(r)
-		if !s.groupAdmins() || !ss.SSO || !(pageLoad(r) || s.groupStale(r)) {
+		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) || s.groupStale(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		err := s.checkGroup(r)
 		switch {
 		case errors.Is(err, errSSOEnded):
-			s.log.Info("signed out: the provider ended the session", "user", u.Username)
-			if err := s.store.DeleteSession(r.Context(), ss.UserID, ss.TokenHash); err != nil {
-				s.serverError(w, r, err)
-				return
-			}
-			s.clearSessionCookie(w)
-			if r.Method != http.MethodGet {
-				http.Error(w, langOf(r).T("Not logged in"), http.StatusUnauthorized)
-				return
-			}
-			http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
+			s.endSSOSession(w, r)
 			return
 		case err != nil:
-			s.log.Warn("oidc: checking the admin group", "user", u.Username, "err", err)
+			s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
+// endSSOSession signs out a session the provider no longer accepts.
+func (s *Server) endSSOSession(w http.ResponseWriter, r *http.Request) {
+	ss := currentSession(r)
+	s.log.Info("signed out: the provider ended the session", "user", currentUser(r).Username)
+	if err := s.store.DeleteSession(r.Context(), ss.UserID, ss.TokenHash); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	s.clearSessionCookie(w)
+	if r.Method != http.MethodGet {
+		http.Error(w, langOf(r).T("Not logged in"), http.StatusUnauthorized)
+		return
+	}
+	http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
+}
+
 // pageLoad reports whether r is the browser loading a page, not a script's
-// call.
+// call. Through the service worker a page load's mode is same-origin, but
+// its destination is still a document.
 func pageLoad(r *http.Request) bool {
 	mode := r.Header.Get("Sec-Fetch-Mode")
-	return r.Method == http.MethodGet && (mode == "navigate" || mode == "")
+	return r.Method == http.MethodGet && (mode == "navigate" || mode == "" || r.Header.Get("Sec-Fetch-Dest") == "document")
+}
+
+func adminPath(r *http.Request) bool {
+	return r.URL.Path == "/admin" || strings.HasPrefix(r.URL.Path, "/admin/")
 }
 
 // checkGroup asks the provider's userinfo endpoint for the user's groups and

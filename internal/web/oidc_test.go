@@ -467,8 +467,11 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	idp.mu.Lock()
 	idp.groups["g-1"] = []string{"staff"}
 	idp.mu.Unlock()
-	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+	if code, _, _ := g.get("/admin/users"); code != http.StatusForbidden {
 		t.Fatalf("admin pages after leaving the group: %d", code)
+	}
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("admin pages for a non-admin: %d", code)
 	}
 	// Back in the group, her next sign-in makes her admin again.
 	g = e.client()
@@ -505,6 +508,29 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	stale := func() {
 		old := time.Now().Add(-10 * time.Minute).Unix()
 		e.db.W.Exec("UPDATE sessions SET created_at = ?, groups_checked_at = ?", old, old)
+	}
+
+	// Removed from the group: opening the admin pages asks the provider, even
+	// right after a check, and says why they're shut.
+	setGroups("staff")
+	if code, body, _ := g.get("/admin/users"); code != http.StatusForbidden || !strings.Contains(body, "Authentik no longer gives you admin rights") || isAdmin() {
+		t.Fatalf("admin pages after leaving the group: %d", code)
+	}
+	setGroups("anchor-admins")
+	g.get("/")
+
+	// A page load through the service worker counts as one.
+	setGroups("staff")
+	req, _ := http.NewRequest(http.MethodGet, e.srv.URL+"/", nil)
+	req.Header.Set("Sec-Fetch-Mode", "same-origin")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	if res, err := g.http.Do(req); err != nil {
+		t.Fatal(err)
+	} else {
+		res.Body.Close()
+	}
+	if isAdmin() {
+		t.Fatal("a page load through the service worker didn't check")
 	}
 
 	// Removed from the group: the next page load takes admin away.
@@ -555,18 +581,13 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	setGroups("anchor-admins")
 	g.get("/")
 
-	// The provider can't be reached: pages still work, admin pages only
-	// while the last check is recent.
+	// The provider can't be reached: pages still work, admin pages don't.
 	idp.down = true
-	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
-		t.Fatalf("admin pages, provider down, recent check: %d", code)
-	}
-	stale()
 	if code, _, _ := g.get("/"); code != http.StatusOK {
 		t.Fatalf("pages while the provider is down: %d", code)
 	}
-	if code, _, _ := g.get("/admin/users"); code != http.StatusServiceUnavailable {
-		t.Fatalf("admin pages, provider down, old check: %d", code)
+	if code, body, _ := g.get("/admin/users"); code != http.StatusServiceUnavailable || !strings.Contains(body, "couldn't confirm your admin rights") {
+		t.Fatalf("admin pages while the provider is down: %d", code)
 	}
 	idp.down = false
 
