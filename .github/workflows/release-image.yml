@@ -63,6 +63,24 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # Build the amd64 image locally first and stop the release if Trivy
+      # finds a fixable high or critical vulnerability in it.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          tags: anchor:scan
+          build-args: VERSION=${{ env.TAG }}
+          cache-from: type=gha
+      # Pinned to the v0.36.0 commit, since this action's tags have been
+      # hijacked before.
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: anchor:scan
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
       - uses: docker/build-push-action@v7
         with:
           context: .
