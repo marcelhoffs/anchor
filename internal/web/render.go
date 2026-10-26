@@ -217,8 +217,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
 	d["Bare"] = u == nil && authPages[page]
-	prefs := store.Settings{}.Normalized()
-	prefs.Accent = "ocean" // signed-out pages, such as the login screen
+	prefs := store.Settings{}.Normalized() // signed-out pages, such as the login screen
 	if u != nil {
 		prefs = u.Settings
 	}

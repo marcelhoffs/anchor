@@ -378,7 +378,7 @@ func TestAppearancePreference(t *testing.T) {
 		t.Fatal("logged-out pages should use ocean and the other defaults")
 	}
 	c := e.login("alice")
-	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="indigo" data-theme="system"`) {
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="ocean" data-theme="system"`) {
 		t.Fatal("new users should get the defaults")
 	}
 	if code, _, loc := c.post("/settings/appearance", url.Values{"accent": {"terracotta"}, "theme": {"dark"}}); code != http.StatusSeeOther || loc != "/settings?done=appearance" {
@@ -393,7 +393,7 @@ func TestAppearancePreference(t *testing.T) {
 	}
 	// Preferences are per user.
 	e.user("bob")
-	if _, body, _ := e.login("bob").get("/"); !strings.Contains(body, `data-accent="indigo"`) {
+	if _, body, _ := e.login("bob").get("/"); !strings.Contains(body, `data-accent="ocean"`) {
 		t.Fatal("alice's preference leaked to bob")
 	}
 }
@@ -627,8 +627,8 @@ func TestEveryAccentIsStyled(t *testing.T) {
 	}
 	// A saved accent that no longer exists falls back to the default.
 	e.db.W.Exec(`UPDATE users SET settings = '{"accent":"violet"}' WHERE username = 'alice'`)
-	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="indigo"`) {
-		t.Fatal("removed accent didn't fall back to indigo")
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="ocean"`) {
+		t.Fatal("removed accent didn't fall back to ocean")
 	}
 }
 

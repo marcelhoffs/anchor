@@ -49,7 +49,7 @@ type Settings struct {
 // Accents, Themes, Fonts, Languages, Sidebars, Sorts and DescriptionModes list the allowed
 // values, the default first.
 var (
-	Accents          = []string{"indigo", "terracotta", "yellow", "emerald", "forest", "ocean", "rose", "graphite"}
+	Accents          = []string{"ocean", "indigo", "terracotta", "yellow", "emerald", "forest", "rose", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
 	Fonts            = []string{"inter", "system", "roboto", "open-sans"}
 	Languages        = languages()
