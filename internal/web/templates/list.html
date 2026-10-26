@@ -9,7 +9,7 @@
   </nav>
   {{if .SavedSearches}}
   <div class="side-searches">
-  <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage">{{t "Manage"}}</a></h2>
+  <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage" title="{{t "Manage saved searches"}}" aria-label="{{t "Manage saved searches"}}">{{icon "pencil" "sm"}}</a></h2>
   <nav aria-label="{{t "Saved searches"}}">
     {{range .SavedSearches}}
     <a class="side-link" href="{{savedSearchURL .}}"{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
@@ -18,7 +18,7 @@
   </div>
   {{end}}
   <div class="side-tags">
-    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage">{{t "Manage"}}</a></h2>
+    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
     {{template "tag-links" .}}
   </div>
 </aside>
@@ -64,7 +64,7 @@
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
     <div class="drawer-head">
-      <h2 class="side-heading side-heading-row" id="tag-drawer-title">{{t "Tags"}}<a href="/tags" class="side-manage">{{t "Manage"}}</a></h2>
+      <h2 class="side-heading side-heading-row" id="tag-drawer-title">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
       <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="{{t "Close tags"}}">{{icon "x"}}</button>
     </div>
     {{template "tag-links" .}}
