@@ -135,10 +135,10 @@ func TestHeadTags(t *testing.T) {
 	c := e.admin()
 	_, body, _ := c.get("/")
 	for _, want := range []string{
-		`<link rel="manifest" href="/app.webmanifest?accent=indigo&amp;lang=en&amp;theme=system">`,
-		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-indigo.png?v=`,
-		`<meta name="theme-color" content="#f5f9ff" media="(prefers-color-scheme: light)">`,
-		`<meta name="theme-color" content="#0a0b1d" media="(prefers-color-scheme: dark)">`,
+		`<link rel="manifest" href="/app.webmanifest?accent=ocean&amp;lang=en&amp;theme=system">`,
+		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-ocean.png?v=`,
+		`<meta name="theme-color" content="#f3fbff" media="(prefers-color-scheme: light)">`,
+		`<meta name="theme-color" content="#010f1a" media="(prefers-color-scheme: dark)">`,
 		`viewport-fit=cover`,
 	} {
 		if !strings.Contains(body, want) {

@@ -271,7 +271,7 @@ func TestSettings(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
-	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
+	if u.Settings != (Settings{Accent: "ocean", Theme: "system", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
 	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {

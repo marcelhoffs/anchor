@@ -105,7 +105,7 @@ async function appearance(page, accent, theme) {
   await sleep(180000);
 
   // 1. The list, light.
-  await appearance(page, "indigo", "light");
+  await appearance(page, "ocean", "light");
   await post(page, "/space", { space: "" });
   await page.goto(BASE + "/");
   await page.screenshot({ path: OUT + "/bookmarks.png" });
@@ -116,7 +116,7 @@ async function appearance(page, accent, theme) {
   await page.screenshot({ path: OUT + "/dark.png" });
 
   // 3. The space switcher, in the shared space.
-  await appearance(page, "indigo", "light");
+  await appearance(page, "ocean", "light");
   await post(page, "/space", { space: spaceID });
   await page.goto(BASE + "/");
   await page.click("details.space-menu > summary");
