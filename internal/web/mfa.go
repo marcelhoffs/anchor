@@ -116,6 +116,7 @@ func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int
 		"Mode": mode, "Next": next, "Error": problem, "MFA": m, "Who": u.Username, "Action": action,
 		"PasskeyFinish": action + "/passkey/finish?next=" + urlQueryEscape(next),
 		"SSOLinked":     mode == "reauth" && s.ssoLinked(r.Context(), &u),
+		"SSOOnly":       mode == "reauth" && s.ssoReauthOnly(r),
 		"HasPassword":   u.HasPassword(),
 	})
 }
@@ -195,7 +196,7 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.User, method, next string, asJSON bool) {
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	s.store.RecordLogin(r.Context(), u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, false); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false, time.Now()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -225,6 +226,15 @@ func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store
 		next = r.URL.Query().Get("next")
 	}
 	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, "reauth", u, next, msg) }
+	if s.ssoReauthOnly(r) {
+		// The page only offers the provider; see ssoReauthOnly.
+		if asJSON {
+			jsonError(w, http.StatusForbidden, langOf(r).T("Confirm with %s", s.cfg.OIDC.Name))
+		} else {
+			render(http.StatusForbidden, i18n.M("Confirm with %s", s.cfg.OIDC.Name))
+		}
+		return
+	}
 	if s.mfaBlocked(w, r, u, asJSON, render) {
 		return
 	}
@@ -283,6 +293,10 @@ func (s *Server) reauthRecovery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) reauthPasskeyBegin(w http.ResponseWriter, r *http.Request) {
+	if s.ssoReauthOnly(r) {
+		jsonError(w, http.StatusForbidden, langOf(r).T("Confirm with %s", s.cfg.OIDC.Name))
+		return
+	}
 	s.beginPasskeyLogin(w, r, *currentUser(r), ceremonyKey("reauth", currentSession(r).TokenHash))
 }
 

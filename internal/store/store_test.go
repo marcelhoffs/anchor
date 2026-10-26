@@ -455,7 +455,7 @@ func TestOIDCIdentities(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	const iss = "https://idp.example"
-	u, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "first", Issuer: iss, Subject: "s1", First: true})
+	u, err := s.CreateOIDCUser(ctx, NewOIDCUser{Username: "first", Issuer: iss, Subject: "s1", First: true, Admin: true})
 	if err != nil || !u.IsAdmin || u.HasPassword() {
 		t.Fatalf("first user: %+v %v", u, err)
 	}

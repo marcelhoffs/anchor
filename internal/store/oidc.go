@@ -84,8 +84,8 @@ func (s *Store) TouchIdentity(ctx context.Context, issuer, subject string) error
 type NewOIDCUser struct {
 	Username        string
 	Issuer, Subject string
-	// First makes the account the first user, an admin, and fails with
-	// ErrConflict once any user exists: setup through the provider.
+	// First makes the account the first user, and fails with ErrConflict
+	// once any user exists: setup through the provider.
 	First bool
 	Admin bool
 	// InviteHash, when set, is consumed with the account, as in SignUp.
@@ -123,7 +123,7 @@ func (s *Store) CreateOIDCUser(ctx context.Context, n NewOIDCUser) (User, error)
 		var err error
 		u, err = scanUser(tx.QueryRowContext(ctx,
 			"INSERT INTO users (username, password_hash, is_admin, created_at, updated_at) VALUES (?, '', ?, ?, ?) RETURNING "+userCols,
-			n.Username, n.First || n.Admin, now, now))
+			n.Username, n.Admin, now, now))
 		if isUniqueViolation(err) {
 			return ErrConflict
 		}

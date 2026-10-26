@@ -58,7 +58,7 @@
         <a href="/settings">{{icon "settings" "sm"}}{{t "Settings"}}</a>
         <a href="/settings/security">{{icon "shield" "sm"}}{{t "Security"}}</a>
         <a href="/spaces">{{icon "space" "sm"}}{{t "Spaces"}}</a>
-        {{if .User.IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}{{t "Admin"}}</a>{{end}}
+        {{if .IsAdmin}}<a href="/admin/">{{icon "users" "sm"}}{{t "Admin"}}</a>{{end}}
         <form method="post" action="/logout">
           <input type="hidden" name="csrf" value="{{.CSRF}}">
           <button>{{icon "log-out" "sm"}}{{t "Log out"}}</button>

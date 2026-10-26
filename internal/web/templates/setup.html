@@ -5,6 +5,7 @@
   <div class="card">
     <h1>{{t "Welcome to Anchor"}}</h1>
     <p class="lead">{{t "Create the first account. It will be the administrator."}}</p>
+    {{if not (and .SSO .SSO.Only)}}
     <form method="post" action="/setup">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <label>{{t "Username"}} <input name="username" value="{{.Username}}" required autocomplete="username" autofocus></label>
@@ -13,8 +14,9 @@
       <label>{{t "Confirm password"}} <input type="password" name="confirm" required minlength="10" autocomplete="new-password"></label>
       <button class="btn btn-primary">{{t "Create admin account"}}</button>
     </form>
+    {{end}}
     {{with .SSO}}
-    <p class="or"><span>{{t "or"}}</span></p>
+    {{if not .Only}}<p class="or"><span>{{t "or"}}</span></p>{{end}}
     <a class="btn wide" href="/login/oidc">{{icon "key" "sm"}}{{t "Set up with %s" .Name}}</a>
     <p class="hint">{{t "Your account at the provider becomes Anchor's first administrator."}}</p>
     {{end}}

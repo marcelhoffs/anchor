@@ -136,6 +136,10 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 			data{"Error": i18n.M("Use Settings to change your own account.")})
 		return
 	}
+	if (action == "make-admin" || action == "remove-admin") && s.groupAdmins() {
+		s.renderAdminUsers(w, r, http.StatusConflict, data{"Error": i18n.M("Admin rights come from the %s group at %s.", s.cfg.OIDC.AdminGroup, s.cfg.OIDC.Name)})
+		return
+	}
 	switch action {
 	case "disable":
 		err = s.store.SetActive(r.Context(), id, false)

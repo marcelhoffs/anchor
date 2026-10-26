@@ -10,8 +10,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -115,6 +117,7 @@ func (e *env) ssoFlow(idp *fakeIdP, c *client, start func() (int, string, string
 	claims := map[string]any{
 		"iss": idp.srv.URL, "aud": "anchor", "sub": subject, "nonce": q.Get("nonce"),
 		"iat": time.Now().Unix(), "exp": time.Now().Add(5 * time.Minute).Unix(),
+		"auth_time": time.Now().Unix(), // the user signed in at the provider just now
 	}
 	for k, v := range extra {
 		claims[k] = v
@@ -328,7 +331,178 @@ func TestSSOAdminGroupAndPolicy(t *testing.T) {
 	}
 }
 
+// A sign-in through the provider confirms it's you only when the provider
+// really asked (auth_time), not when it reused its session; a reauth must.
+func TestSSOFreshAuth(t *testing.T) {
+	e, idp := oidcEnv(t, nil)
+	e.admin()
+	e.store.SetInstanceSetting(context.Background(), store.SettingSignup, "open")
+	hourAgo := time.Now().Add(-time.Hour).Unix()
+	needsReauth := func(c *client) bool {
+		_, _, loc := c.post("/settings/tokens", url.Values{"name": {"t"}})
+		return strings.HasPrefix(loc, "/reauth")
+	}
+	silent := e.client()
+	e.ssoFlow(idp, silent, getStart(silent, "/login/oidc"), "sam-sub", map[string]any{"preferred_username": "sam", "auth_time": hourAgo})
+	if !needsReauth(silent) {
+		t.Fatal("a sign-in on the provider's old session counts as confirmed")
+	}
+	reauth := func() (int, string, string) {
+		return silent.post("/reauth/sso", url.Values{"next": {"/settings/tokens"}})
+	}
+	for name, at := range map[string]any{"stale": hourAgo, "missing": nil, "ahead": time.Now().Add(time.Hour).Unix()} {
+		if code, body, _ := e.ssoFlow(idp, silent, reauth, "sam-sub", map[string]any{"auth_time": at}); code != http.StatusForbidden ||
+			!strings.Contains(body, "ask you to sign in again") {
+			t.Errorf("reauth with %s auth_time: %d", name, code)
+		}
+	}
+	if !needsReauth(silent) {
+		t.Fatal("refused reauths confirmed the session")
+	}
+	if code, _, loc := e.ssoFlow(idp, silent, reauth, "sam-sub", nil); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
+		t.Fatalf("fresh reauth: %d %q", code, loc)
+	}
+	if needsReauth(silent) {
+		t.Fatal("fresh reauth didn't confirm")
+	}
+	// A sign-in where the provider just asked counts.
+	fresh := e.client()
+	e.ssoFlow(idp, fresh, getStart(fresh, "/login/oidc"), "sam-sub", nil)
+	if needsReauth(fresh) {
+		t.Fatal("fresh sign-in not confirmed")
+	}
+}
+
+// Starting a sign-in is open to anyone: limited per IP, with what it keeps
+// cut to size and a ceiling on how many are in flight.
+func TestSSOStartLimits(t *testing.T) {
+	e, _ := oidcEnv(t, nil)
+	e.admin()
+	c := e.client()
+	if code, _, _ := c.get("/login/oidc?invite=" + strings.Repeat("x", 5000) + "&next=%2F" + strings.Repeat("y", 5000)); code != http.StatusSeeOther {
+		t.Fatalf("start: %d", code)
+	}
+	o := e.server.oidc
+	o.mu.Lock()
+	for _, f := range o.flows {
+		if f.invite != "" || f.next != "/" {
+			t.Errorf("kept invite %d and next %d bytes", len(f.invite), len(f.next))
+		}
+	}
+	o.mu.Unlock()
+	for i := 1; i < 30; i++ {
+		c.get("/login/oidc")
+	}
+	if code, _, _ := c.get("/login/oidc"); code != http.StatusTooManyRequests {
+		t.Fatalf("31st start from one IP: %d", code)
+	}
+	e.server.ssoIP.Reset("127.0.0.1")
+	o.mu.Lock()
+	for i := len(o.flows); i < maxOIDCFlows; i++ {
+		o.flows[strconv.Itoa(i)] = oidcFlow{expires: time.Now().Add(time.Minute)}
+	}
+	o.mu.Unlock()
+	if code, body, _ := c.get("/login/oidc"); code != http.StatusUnprocessableEntity || !strings.Contains(body, "unavailable") {
+		t.Fatalf("start beyond the ceiling: %d", code)
+	}
+}
+
+// A provider that's down is asked again only after discoveryRetry, and
+// doesn't hold up the sign-ins in flight meanwhile.
+func TestSSODiscoveryRetry(t *testing.T) {
+	var hits atomic.Int32
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer down.Close()
+	e := newEnvWith(t, "localhost", func(c *config.Config) {
+		c.OIDC = &config.OIDC{Issuer: down.URL, ClientID: "anchor", Name: "Down", Scopes: []string{"openid"}}
+	})
+	e.admin()
+	c := e.client()
+	for range 3 {
+		if code, _, _ := c.get("/login/oidc"); code != http.StatusUnprocessableEntity {
+			t.Fatalf("start while down: %d", code)
+		}
+	}
+	if n := hits.Load(); n != 1 {
+		t.Fatalf("asked the provider %d times", n)
+	}
+}
+
+// With an admin group, the group alone decides who is admin, and admin rights
+// rest on a recent check of it.
+func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
+	e, idp := oidcEnv(t, func(o *config.OIDC) { o.AdminGroup = "anchor-admins" })
+	ctx := context.Background()
+	root := e.admin() // an admin from before the group, with a password
+	e.store.SetInstanceSetting(ctx, store.SettingSignup, "open")
+	inGroup := map[string]any{"preferred_username": "gina", "groups": []string{"anchor-admins"}}
+	g := e.client()
+	e.ssoFlow(idp, g, getStart(g, "/login/oidc"), "g-1", inGroup)
+
+	// Only a session through the provider has admin rights.
+	if code, _, _ := root.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("password admin: %d", code)
+	}
+	if _, body, _ := root.get("/"); strings.Contains(body, `href="/admin/"`) {
+		t.Fatal("password admin offered the admin pages")
+	}
+	code, body, _ := g.get("/admin/users")
+	if code != http.StatusOK || strings.Contains(body, "/make-admin") || strings.Contains(body, "/remove-admin") || !strings.Contains(body, "anchor-admins") {
+		t.Fatalf("admin pages: %d", code)
+	}
+	// Anchor doesn't hand out or take away the role.
+	if code, body, _ := g.post("/admin/users/"+strconv.FormatInt(e.userID("root"), 10)+"/remove-admin", nil); code != http.StatusConflict ||
+		!strings.Contains(body, "Admin rights come from the anchor-admins group") {
+		t.Fatalf("remove-admin: %d", code)
+	}
+
+	// An hour on, the group is checked again: through the provider only.
+	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?, verified_at = 0", time.Now().Add(-2*time.Hour).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, loc := g.get("/admin/users"); code != http.StatusSeeOther || loc != "/reauth?next=%2Fadmin%2Fusers" {
+		t.Fatalf("stale group check: %d %q", code, loc)
+	}
+	if _, body, _ := g.get("/reauth?next=%2Fadmin%2Fusers"); strings.Contains(body, `action="/reauth/password"`) || !strings.Contains(body, "Confirm with Authentik") {
+		t.Fatal("reauth offers more than the provider")
+	}
+	if code, _, _ := g.post("/reauth/recovery", url.Values{"code": {"x"}, "next": {"/admin/users"}}); code != http.StatusForbidden {
+		t.Fatalf("reauth with a recovery code: %d", code)
+	}
+	// She left the group: the reauth takes the role away, even from the last admin.
+	e.store.SyncAdmin(ctx, e.userID("root"), false)
+	reauth := func() (int, string, string) { return g.post("/reauth/sso", url.Values{"next": {"/admin/users"}}) }
+	e.ssoFlow(idp, g, reauth, "g-1", map[string]any{"groups": []string{"staff"}})
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("admin pages after leaving the group: %d", code)
+	}
+	// Back in the group, her next sign-in makes her admin again.
+	g = e.client()
+	e.ssoFlow(idp, g, getStart(g, "/login/oidc"), "g-1", inGroup)
+	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
+		t.Fatalf("admin pages after rejoining: %d", code)
+	}
+	// Unlinked, the group can't vouch for her any more.
+	e.store.UnlinkIdentity(ctx, e.userID("gina"), true)
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("admin pages after unlinking: %d", code)
+	}
+}
+
 func TestSSOOnlyAndOff(t *testing.T) {
+	// A fresh instance sets up through the provider only.
+	fresh, _ := oidcEnv(t, func(o *config.OIDC) { o.Only = true })
+	fc := fresh.client()
+	if _, body, _ := fc.get("/setup"); strings.Contains(body, `action="/setup"`) || !strings.Contains(body, "Set up with Authentik") {
+		t.Fatal("setup page offers a password while SSO-only")
+	}
+	if code, _, _ := fc.post("/setup", url.Values{"username": {"x"}, "password": {"long-enough-pw"}, "confirm": {"long-enough-pw"}}); code != http.StatusNotFound {
+		t.Fatalf("password setup while SSO-only: %d", code)
+	}
+
 	e, _ := oidcEnv(t, func(o *config.OIDC) { o.Only = true })
 	e.user("alice")
 	c := e.client()

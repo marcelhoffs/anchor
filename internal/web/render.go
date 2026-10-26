@@ -212,6 +212,8 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	}
 	u := currentUser(r)
 	d["User"] = u
+	d["IsAdmin"] = s.isAdmin(r)
+	d["GroupAdmins"] = s.groupAdmins()
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
 	d["Bare"] = u == nil && authPages[page]

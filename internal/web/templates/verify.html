@@ -11,6 +11,8 @@
     <p class="lead">{{if .MFA.Enabled}}{{t "This action changes how you sign in, so it needs your second factor."}}{{else}}{{t "This action changes how you sign in."}}{{end}}</p>
     {{end}}
 
+    {{/* SSOOnly: with an admin group, a session from the provider confirms there. */}}
+    {{if not .SSOOnly}}
     {{if and .MFA.Passkeys .PasskeysAvailable}}
     <div class="verify-option" data-passkey-scope>
       <button type="button" class="btn btn-primary wide" data-passkey="login"
@@ -48,12 +50,13 @@
       <button class="btn btn-primary wide">{{t "Confirm"}}</button>
     </form>
     {{end}}
+    {{end}}
 
     {{if .SSOLinked}}
     <form method="post" action="/reauth/sso" class="verify-option">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="next" value="{{.Next}}">
-      <button class="btn wide{{if not (or .MFA.Enabled .HasPassword)}} btn-primary{{end}}">{{icon "key" "sm"}}{{t "Confirm with %s" .SSO.Name}}</button>
+      <button class="btn wide{{if or .SSOOnly (not (or .MFA.Enabled .HasPassword))}} btn-primary{{end}}">{{icon "key" "sm"}}{{t "Confirm with %s" .SSO.Name}}</button>
     </form>
     {{end}}
 
@@ -68,4 +71,4 @@
   </div>
 </div>
 {{end}}
-{{define "scripts"}}{{if and .MFA.Passkeys .PasskeysAvailable}}<script src="{{asset "passkeys.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}{{if and .MFA.Passkeys .PasskeysAvailable (not .SSOOnly)}}<script src="{{asset "passkeys.js"}}"></script>{{end}}{{end}}

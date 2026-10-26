@@ -25,7 +25,7 @@ var spaceNotices = map[string]i18n.Msg{
 // canCreateSpace reports whether the user may create shared spaces: admins
 // always, everyone else unless an admin limited it to admins.
 func (s *Server) canCreateSpace(r *http.Request) bool {
-	if currentUser(r).IsAdmin {
+	if s.isAdmin(r) {
 		return true
 	}
 	who, err := s.store.InstanceSetting(r.Context(), store.SettingSpaceCreation, "everyone")

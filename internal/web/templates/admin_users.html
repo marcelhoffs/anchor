@@ -14,6 +14,7 @@
   <section aria-labelledby="users">
     <h2 id="users">{{t "Users"}}</h2>
     <p class="muted">{{t "Admins manage accounts; they can't see anyone's bookmarks."}}</p>
+    {{if .GroupAdmins}}<p class="muted">{{t "Admins are the members of the %s group at %s, signed in through it." (code .SSO.AdminGroup) .SSO.Name}}</p>{{end}}
     <div class="table-wrap">
     <table>
       <thead><tr><th scope="col">{{t "User"}}</th><th scope="col">{{t "Two-factor"}}</th><th scope="col">{{t "Last login"}}</th><th scope="col">{{t "Created"}}</th><th scope="col"><span class="visually-hidden">{{t "Actions"}}</span></th></tr></thead>
@@ -34,7 +35,8 @@
                 {{else}}
                 <form method="post" action="/admin/users/{{.ID}}/enable"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>{{t "Enable account"}}</button></form>
                 {{end}}
-                {{if .IsAdmin}}
+                {{if $.GroupAdmins}}
+                {{else if .IsAdmin}}
                 <form method="post" action="/admin/users/{{.ID}}/remove-admin"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>{{t "Remove admin"}}</button></form>
                 {{else}}
                 <form method="post" action="/admin/users/{{.ID}}/make-admin"><input type="hidden" name="csrf" value="{{$.CSRF}}"><button>{{t "Make admin"}}</button></form>

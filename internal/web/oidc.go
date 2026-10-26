@@ -4,7 +4,9 @@ package web
 // Entra ID…), configured by ANCHOR_OIDC_*. An identity at the provider is
 // the pair (issuer, subject); it's never matched to an account by email or
 // name. A sign-in through the provider counts as complete: the provider
-// does its own second factor.
+// does its own second factor. It counts as a recent check of who it is (see
+// requireRecentAuth) only when the provider really asked: its auth_time
+// claim says so, not merely that it had a session.
 
 import (
 	"context"
@@ -32,6 +34,17 @@ import (
 const (
 	oidcFlowTTL = 10 * time.Minute
 	oidcCookie  = "anchor_oidc" // the state of the sign-in in flight
+	// A sign-in at the provider is fresh when it happened this recently
+	// (auth_time); a reauth needs a fresh one.
+	oidcFreshAuth = 5 * time.Minute
+	// Sign-ins in flight are kept in memory: at most this many, so starting
+	// them can't be a way to fill it.
+	maxOIDCFlows = 10000
+	// After failing, discovery waits this long before asking again.
+	discoveryRetry = 30 * time.Second
+	// With an admin group, admin rights hold while the group was checked
+	// (at a sign-in or reauth through the provider) this recently.
+	adminGroupCheck = time.Hour
 )
 
 // oidcFlow is a sign-in at the provider in flight, kept until it comes back.
@@ -52,9 +65,15 @@ type oidcClient struct {
 	redirect string
 	http     *http.Client
 
-	mu       sync.Mutex
+	// dmu guards discovery, apart from mu: a slow provider mustn't hold up
+	// the flows.
+	dmu      sync.Mutex
 	provider *oidc.Provider
-	flows    map[string]oidcFlow
+	failedAt time.Time
+	failErr  error
+
+	mu    sync.Mutex
+	flows map[string]oidcFlow
 }
 
 func newOIDCClient(cfg *config.OIDC, baseURL string) *oidcClient {
@@ -67,13 +86,17 @@ func newOIDCClient(cfg *config.OIDC, baseURL string) *oidcClient {
 
 // discover returns the provider and the OAuth2 settings for it.
 func (o *oidcClient) discover() (*oidc.Provider, *oauth2.Config, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
+	o.dmu.Lock()
+	defer o.dmu.Unlock()
 	if o.provider == nil {
+		if time.Since(o.failedAt) < discoveryRetry {
+			return nil, nil, o.failErr
+		}
 		// Background, not the request's context: the provider keeps it to
 		// fetch signing keys later.
 		p, err := oidc.NewProvider(oidc.ClientContext(context.Background(), o.http), o.cfg.Issuer)
 		if err != nil {
+			o.failedAt, o.failErr = time.Now(), err
 			return nil, nil, err
 		}
 		o.provider = p
@@ -84,10 +107,15 @@ func (o *oidcClient) discover() (*oidc.Provider, *oauth2.Config, error) {
 	}, nil
 }
 
-func (o *oidcClient) put(state string, f oidcFlow) {
+// put keeps a flow; false when too many are in flight.
+func (o *oidcClient) put(state string, f oidcFlow) bool {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if len(o.flows) >= maxOIDCFlows {
+		return false
+	}
 	o.flows[state] = f
+	return true
 }
 
 // take returns a flow once: a state can't be replayed.
@@ -143,7 +171,11 @@ func (s *Server) oidcRedirect(w http.ResponseWriter, r *http.Request, f oidcFlow
 	}
 	state := randomString()
 	f.nonce, f.verifier, f.expires = randomString(), oauth2.GenerateVerifier(), time.Now().Add(oidcFlowTTL)
-	s.oidc.put(state, f)
+	if !s.oidc.put(state, f) {
+		s.log.Warn("oidc: too many sign-ins in flight", "max", maxOIDCFlows)
+		s.oidcFailed(w, r, f.purpose, i18n.M("Single sign-on is unavailable right now. Try again later."))
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name: s.oidcCookieName(), Value: state, Path: "/", MaxAge: int(oidcFlowTTL.Seconds()), HttpOnly: true,
 		Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
@@ -157,9 +189,24 @@ func (s *Server) oidcRedirect(w http.ResponseWriter, r *http.Request, f oidcFlow
 }
 
 // oidcLogin starts signing in (or signing up, with ?invite=) at the provider.
+// Anyone can, so it's limited per IP, and what it keeps of the request is
+// cut to size.
 func (s *Server) oidcLogin(w http.ResponseWriter, r *http.Request) {
+	if ok, retry := s.ssoIP.Allow(s.clientIP(r)); !ok {
+		w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
+		s.renderLogin(w, r, http.StatusTooManyRequests, data{
+			"Error": i18n.M("Too many sign-ins from your network. Try again in %s.", retryText(langOf(r), retry))})
+		return
+	}
 	q := r.URL.Query()
-	s.oidcRedirect(w, r, oidcFlow{purpose: "login", next: safeNext(q.Get("next")), invite: q.Get("invite")})
+	next, invite := safeNext(q.Get("next")), q.Get("invite")
+	if len(next) > 2048 {
+		next = "/"
+	}
+	if len(invite) > 64 { // invite tokens are 32 characters
+		invite = ""
+	}
+	s.oidcRedirect(w, r, oidcFlow{purpose: "login", next: next, invite: invite})
 }
 
 // oidcLink starts linking the signed-in user's account to the provider.
@@ -202,9 +249,20 @@ func (s *Server) oidcFailed(w http.ResponseWriter, r *http.Request, purpose stri
 
 // oidcClaims are the ID token claims Anchor reads besides the subject.
 type oidcClaims struct {
-	PreferredUsername string `json:"preferred_username"`
-	Email             string `json:"email"`
-	Name              string `json:"name"`
+	PreferredUsername string  `json:"preferred_username"`
+	Email             string  `json:"email"`
+	Name              string  `json:"name"`
+	AuthTime          float64 `json:"auth_time"` // when the user last signed in at the provider
+}
+
+// freshAuth returns when the user signed in at the provider if that was in
+// the last oidcFreshAuth (a minute ahead allows for clock skew), else zero.
+func (c oidcClaims) freshAuth() time.Time {
+	at := time.Unix(int64(c.AuthTime), 0)
+	if c.AuthTime <= 0 || time.Since(at) > oidcFreshAuth || time.Until(at) > time.Minute {
+		return time.Time{}
+	}
+	return at
 }
 
 // oidcCallback is where the provider sends the browser back.
@@ -258,9 +316,9 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	switch f.purpose {
 	case "link":
-		s.oidcFinishLink(w, r, f, idt.Issuer, idt.Subject)
+		s.oidcFinishLink(w, r, f, idt.Issuer, idt.Subject, s.inAdminGroup(all))
 	case "reauth":
-		s.oidcFinishReauth(w, r, f, idt.Issuer, idt.Subject)
+		s.oidcFinishReauth(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all))
 	default:
 		s.oidcFinishLogin(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all))
 	}
@@ -302,15 +360,13 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 		s.oidcFailed(w, r, "login", i18n.M("Your Anchor account is disabled. Ask an admin."))
 		return
 	}
-	if admin != nil && *admin != u.IsAdmin {
-		if err := s.store.SetAdmin(ctx, u.ID, *admin); err != nil {
-			// The last admin keeps the role, whatever the group says.
-			s.log.Warn("oidc admin group", "user", u.Username, "admin", *admin, "err", err)
-		}
+	if err := s.syncAdmin(r, u, admin); err != nil {
+		s.serverError(w, r, err)
+		return
 	}
 	s.store.TouchIdentity(ctx, issuer, subject)
 	s.store.RecordLogin(ctx, u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, true); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, true, claims.freshAuth()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -320,7 +376,12 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 // oidcNewUser makes an account for a first sign-in, as far as the sign-up
 // mode allows: the first user ever (setup), open sign-up, or a valid invite.
 func (s *Server) oidcNewUser(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool) (store.User, bool) {
-	n := store.NewOIDCUser{Issuer: issuer, Subject: subject, First: !s.hasUsers.Load(), Admin: admin != nil && *admin}
+	n := store.NewOIDCUser{Issuer: issuer, Subject: subject, First: !s.hasUsers.Load()}
+	// The first user is the admin, unless the provider's group decides.
+	n.Admin = n.First
+	if admin != nil {
+		n.Admin = *admin
+	}
 	if !n.First {
 		inviteHash, ok := s.signupAllowed(r, f.invite)
 		if !ok {
@@ -385,7 +446,7 @@ func usernameFrom(c oidcClaims) string {
 	return "user"
 }
 
-func (s *Server) oidcFinishLink(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string) {
+func (s *Server) oidcFinishLink(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, admin *bool) {
 	u := currentUser(r)
 	if u == nil || u.ID != f.userID {
 		s.oidcFailed(w, r, "login", i18n.M("That sign-in expired or was started elsewhere. Start again."))
@@ -398,10 +459,14 @@ func (s *Server) oidcFinishLink(w http.ResponseWriter, r *http.Request, f oidcFl
 		s.serverError(w, r, err)
 		return
 	}
+	if err := s.syncAdmin(r, *u, admin); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	http.Redirect(w, r, "/settings/security?done=sso-linked", http.StatusSeeOther)
 }
 
-func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string) {
+func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool) {
 	u, cur := currentUser(r), currentSession(r)
 	if u == nil || u.ID != f.userID {
 		s.oidcFailed(w, r, "login", i18n.M("That sign-in expired or was started elsewhere. Start again."))
@@ -411,11 +476,73 @@ func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidc
 		s.renderSecurity(w, r, http.StatusForbidden, data{"Error": i18n.M("That's a different account at the provider than the one linked to yours.")})
 		return
 	}
+	// prompt=login and max_age=0 ask for a fresh sign-in, but only auth_time
+	// shows the provider didn't just reuse its session.
+	if claims.freshAuth().IsZero() {
+		s.log.Warn("oidc reauth without a fresh sign-in at the provider", "user", u.Username, "auth_time", claims.AuthTime)
+		s.renderSecurity(w, r, http.StatusForbidden, data{"Error": i18n.M("The provider didn't ask you to sign in again, so it couldn't confirm it's you.")})
+		return
+	}
+	if err := s.syncAdmin(r, *u, admin); err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	if err := s.store.MarkVerified(r.Context(), cur.TokenHash); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
 	http.Redirect(w, r, withNotice(safeNext(f.next), "confirmed"), http.StatusSeeOther)
+}
+
+// syncAdmin makes u an admin or not as the provider's group says; admin is
+// nil when no group is configured. The group is the source of truth, so it
+// can take the role from the last admin too.
+func (s *Server) syncAdmin(r *http.Request, u store.User, admin *bool) error {
+	if admin == nil || *admin == u.IsAdmin {
+		return nil
+	}
+	s.log.Info("admin role from the provider's group", "user", u.Username, "admin", *admin)
+	return s.store.SyncAdmin(r.Context(), u.ID, *admin)
+}
+
+// groupAdmins reports whether the provider's group decides who is admin.
+func (s *Server) groupAdmins() bool { return s.cfg.OIDC != nil && s.cfg.OIDC.AdminGroup != "" }
+
+// isAdmin reports whether the request has admin rights. With an admin group
+// only a session signed in through the provider has them, while the account
+// is still linked: the group was checked there, and is again at each reauth
+// (see ssoReauthOnly).
+func (s *Server) isAdmin(r *http.Request) bool {
+	u, ss := currentUser(r), currentSession(r)
+	if u == nil || !u.IsAdmin {
+		return false
+	}
+	return !s.groupAdmins() || ss.SSO && s.ssoLinked(r.Context(), u)
+}
+
+// groupStale reports whether the session's admin rights rest on a group
+// check older than adminGroupCheck. A session signed in through the
+// provider only ever confirms itself there, so its sign-in or last
+// confirmation is when the group was last checked.
+func (s *Server) groupStale(r *http.Request) bool {
+	ss := currentSession(r)
+	return s.groupAdmins() && time.Since(later(ss.CreatedAt, ss.VerifiedAt)) > adminGroupCheck
+}
+
+func later(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+// ssoReauthOnly reports whether the session confirms it's the user only
+// through the provider: with an admin group, a session signed in there does,
+// so that the group is checked again too. (An unlinked account has no
+// admin rights, see isAdmin, so it confirms any way it can.)
+func (s *Server) ssoReauthOnly(r *http.Request) bool {
+	ss := currentSession(r)
+	return s.groupAdmins() && ss != nil && ss.SSO && s.ssoLinked(r.Context(), currentUser(r))
 }
 
 // ssoLinked reports whether u's account is linked to the provider.
