@@ -4,8 +4,8 @@
 <aside class="sidebar">
   <nav class="side-views" aria-label="{{t "Views"}}">
     <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
-    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
-    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
+    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
+    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
   {{if .Bundles}}
   <div class="side-bundles">
@@ -96,7 +96,7 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
-      {{/* With edit rights, the icon can be dropped on a tag (dragtag.js). */}}
+      {{/* With edit rights, the icon can be dropped on a tag, Favourites or Archive (dragtag.js). */}}
       {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{else}}<span class="avatar" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{initial .Domain}}</span>{{end}}
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>

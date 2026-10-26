@@ -294,8 +294,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 /* Dragging a bookmark's icon onto a tag tags it (dragtag.js): the tags that
    take a drop show it while one is dragged, and the one under it lights up. */
 [data-drag-bookmark] { cursor: grab; }
-.dragging-bookmark [data-tag-drop] { outline: 1px dashed var(--border); outline-offset: -1px; }
-.dragging-bookmark [data-tag-drop].drop-over { background: var(--soft); color: var(--soft-text); outline: 2px solid var(--accent); }
+.dragging-bookmark :is([data-tag-drop], [data-flag-drop]) { outline: 1px dashed var(--border); outline-offset: -1px; }
+.dragging-bookmark :is([data-tag-drop], [data-flag-drop]).drop-over { background: var(--soft); color: var(--soft-text); outline: 2px solid var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
   .bookmark.just-tagged { animation: just-tagged 900ms ease-out; }
   @keyframes just-tagged { from { background: var(--soft); } }
