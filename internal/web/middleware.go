@@ -367,6 +367,20 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	})
 }
 
+// requireAdminAuth guards admin actions: with an admin group, requireAdmin's
+// recent check at the provider is enough; otherwise they need a recent
+// confirmation, as other sensitive actions do.
+func (s *Server) requireAdminAuth(next http.Handler) http.Handler {
+	confirmed := s.requireRecentAuth(next)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.groupAdmins() {
+			next.ServeHTTP(w, r)
+			return
+		}
+		confirmed.ServeHTTP(w, r)
+	})
+}
+
 // enforce2FA sends users without a second factor to set one up while the
 // instance requires 2FA. Only the pages needed to do that stay reachable.
 func (s *Server) enforce2FA(next http.Handler) http.Handler {

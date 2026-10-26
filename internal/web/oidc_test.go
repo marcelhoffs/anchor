@@ -510,6 +510,11 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	if strings.Contains(body, `<strong>root</strong> <span class="badge on">`) || !strings.Contains(body, `<strong>gina</strong> <span class="badge on">`) {
 		t.Fatal("admin badges don't follow the group")
 	}
+	// Admin actions don't ask to confirm: the group check is recent.
+	e.expireReauth()
+	if code, _, loc := g.post("/admin/settings", url.Values{"signup": {"open"}}); code != http.StatusSeeOther || strings.HasPrefix(loc, "/reauth") {
+		t.Fatalf("admin action with a recent group check: %d %q", code, loc)
+	}
 	// Anchor doesn't hand out or take away the role.
 	if code, body, _ := g.post("/admin/users/"+strconv.FormatInt(e.userID("root"), 10)+"/remove-admin", nil); code != http.StatusConflict ||
 		!strings.Contains(body, "Admin rights come from the anchor-admins group") {
