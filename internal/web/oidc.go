@@ -183,7 +183,9 @@ func (s *Server) oidcRedirect(w http.ResponseWriter, r *http.Request, f oidcFlow
 	opts := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(f.verifier), oidc.Nonce(f.nonce)}
 	if f.purpose == "reauth" {
 		// Ask the provider to check it's really them, not reuse its session.
-		opts = append(opts, oauth2.SetAuthURLParam("prompt", "login"), oauth2.SetAuthURLParam("max_age", "0"))
+		// Not max_age=0: Authentik ignores it, and its prompt=login only
+		// works once per session, so a short max_age is what makes it ask.
+		opts = append(opts, oauth2.SetAuthURLParam("prompt", "login"), oauth2.SetAuthURLParam("max_age", "60"))
 	}
 	http.Redirect(w, r, oc.AuthCodeURL(state, opts...), http.StatusSeeOther)
 }
@@ -476,7 +478,7 @@ func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidc
 		s.renderSecurity(w, r, http.StatusForbidden, data{"Error": i18n.M("That's a different account at the provider than the one linked to yours.")})
 		return
 	}
-	// prompt=login and max_age=0 ask for a fresh sign-in, but only auth_time
+	// prompt=login and max_age ask for a fresh sign-in, but only auth_time
 	// shows the provider didn't just reuse its session.
 	if claims.freshAuth().IsZero() {
 		s.log.Warn("oidc reauth without a fresh sign-in at the provider", "user", u.Username, "auth_time", claims.AuthTime)
