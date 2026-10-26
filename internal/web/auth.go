@@ -127,6 +127,12 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		s.serverError(w, r, err)
 		return
+	case s.ssoLinked(r.Context(), &u):
+		// Signing in only through the provider means removing someone there
+		// removes them here; the password is only for unlinking.
+		auth.VerifyDummy(password)
+		fail(http.StatusUnprocessableEntity, i18n.M("This account signs in with %s.", s.cfg.OIDC.Name))
+		return
 	default:
 		if auth.VerifyPassword(u.PasswordHash, password) != nil || !u.IsActive {
 			err = auth.ErrMismatch

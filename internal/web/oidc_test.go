@@ -302,6 +302,11 @@ func TestSSOLinkUnlink(t *testing.T) {
 	if code, _, _ := e.ssoFlow(idp, c, getStart(c, "/login/oidc"), "alice-sub", nil); code != http.StatusSeeOther {
 		t.Fatalf("sign in as alice: %d", code)
 	}
+	// Linked, she signs in only through the provider.
+	if code, body, _ := e.client().post("/login", url.Values{"username": {"alice"}, "password": {"alice-password"}}); code != http.StatusUnprocessableEntity ||
+		!strings.Contains(body, "This account signs in with Authentik") {
+		t.Fatalf("password sign-in of a linked account: %d", code)
+	}
 	// Another user can't link the same identity.
 	e.user("bob")
 	b := e.login("bob")
@@ -309,10 +314,12 @@ func TestSSOLinkUnlink(t *testing.T) {
 		t.Fatalf("link taken identity: %d", code)
 	}
 
-	// Unlink: fine with a password; refused for an account without one.
+	// Unlink: fine with a password, which then signs in again; refused for
+	// an account without one.
 	if code, _, loc := a.post("/settings/sso/unlink", nil); code != http.StatusSeeOther || loc != "/settings/security?done=sso-unlinked" {
 		t.Fatalf("unlink: %d %q", code, loc)
 	}
+	e.login("alice")
 	e.store.SetInstanceSetting(context.Background(), store.SettingSignup, "open")
 	n := e.client()
 	e.ssoFlow(idp, n, getStart(n, "/login/oidc"), "new-sub", map[string]any{"preferred_username": "nopass"})
@@ -633,15 +640,21 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	setGroups("anchor-admins")
 	g.get("/")
 
-	// The provider can't be reached: pages still work, admin pages don't.
+	// The provider can't be reached: pages still work, and for a while don't
+	// wait on it again; admin pages still ask, and are shut.
 	idp.down = true
 	if code, _, _ := g.get("/"); code != http.StatusOK {
 		t.Fatalf("pages while the provider is down: %d", code)
+	}
+	before = calls()
+	if g.get("/"); calls() != before {
+		t.Fatal("a page load asked the provider right after it failed")
 	}
 	if code, body, _ := g.get("/admin/users"); code != http.StatusServiceUnavailable || !strings.Contains(body, "couldn't confirm your admin rights") {
 		t.Fatalf("admin pages while the provider is down: %d", code)
 	}
 	idp.down = false
+	e.server.oidc.checkFailed.Store(0)
 
 	// The provider refuses the refresh token too: the session ends.
 	idp.mu.Lock()

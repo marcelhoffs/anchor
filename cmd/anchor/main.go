@@ -261,7 +261,7 @@ func userCmd(ctx context.Context, args []string) error {
 			if err := st.SetPassword(ctx, u.ID, auth.HashPassword(password), nil); err != nil {
 				return err
 			}
-			fmt.Printf("Password for %s reset; all their sessions were signed out.\n", u.Username)
+			fmt.Printf("Password for %s reset; all their sessions were signed out and API tokens revoked.\n", u.Username)
 		case "reset-2fa":
 			u, err := st.UserByUsername(ctx, name)
 			if errors.Is(err, store.ErrNotFound) {
@@ -273,7 +273,7 @@ func userCmd(ctx context.Context, args []string) error {
 			if err := st.ResetMFA(ctx, u.ID); err != nil {
 				return err
 			}
-			fmt.Printf("Two-factor authentication for %s removed; all their sessions were signed out.\n", u.Username)
+			fmt.Printf("Two-factor authentication for %s removed; all their sessions were signed out and API tokens revoked.\n", u.Username)
 			return nil
 		case "unlink-sso":
 			u, err := st.UserByUsername(ctx, name)

@@ -167,8 +167,9 @@ func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 	return scanUser(s.r.QueryRowContext(ctx, "SELECT "+userCols+" FROM users WHERE id = ?", id))
 }
 
-// SetPassword changes a user's password and revokes all of their sessions
-// except keepSession (pass nil to revoke every session).
+// SetPassword changes a user's password and revokes their API tokens and
+// all of their sessions except keepSession (pass nil to revoke every
+// session): whoever got in before can't stay in.
 func (s *Store) SetPassword(ctx context.Context, userID int64, passwordHash string, keepSession []byte) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx, "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
@@ -178,6 +179,9 @@ func (s *Store) SetPassword(ctx context.Context, userID int64, passwordHash stri
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
 			return ErrNotFound
+		}
+		if _, err := tx.ExecContext(ctx, "DELETE FROM api_tokens WHERE user_id = ?", userID); err != nil {
+			return err
 		}
 		_, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND token_hash IS NOT ?", userID, keepSession)
 		return err

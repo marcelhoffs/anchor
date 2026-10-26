@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
@@ -41,8 +42,10 @@ const (
 	// With an admin group, requests other than page loads ask the provider
 	// again once its last answer is this old; see recheckGroup.
 	adminGroupCheck = 5 * time.Minute
-	// How long a page waits for the provider to confirm the group.
+	// How long a page waits for the provider to confirm the group, and how
+	// long after a failed check pages don't ask (the admin pages still do).
 	groupCheckTimeout = 5 * time.Second
+	groupCheckBackoff = time.Minute
 	// What a session's provider tokens are sealed for.
 	ssoTokensKey = "sso-tokens"
 )
@@ -78,6 +81,8 @@ type oidcClient struct {
 	// One session's group checks run one at a time (see checkGroup); a
 	// session's lock is picked by its hash.
 	checks [64]sync.Mutex
+	// When a group check last failed (UnixNano), for groupCheckBackoff.
+	checkFailed atomic.Int64
 }
 
 func newOIDCClient(cfg *config.OIDC, baseURL string) *oidcClient {
@@ -495,7 +500,8 @@ var errSSOEnded = errors.New("the provider ended the session")
 // session, Anchor ends it too; when it can't be reached, the request goes on.
 func (s *Server) recheckGroup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) || s.groupStale(r)) {
+		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) || s.groupStale(r)) ||
+			time.Since(time.Unix(0, s.oidc.checkFailed.Load())) < groupCheckBackoff {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -505,6 +511,7 @@ func (s *Server) recheckGroup(next http.Handler) http.Handler {
 			s.endSSOSession(w, r)
 			return
 		case err != nil:
+			s.oidc.checkFailed.Store(time.Now().UnixNano())
 			s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
 		}
 		next.ServeHTTP(w, r)
