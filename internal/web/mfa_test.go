@@ -23,13 +23,6 @@ import (
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-// expireReauth makes every session look like it last proved itself long ago.
-func (e *env) expireReauth() {
-	if _, err := e.db.W.Exec("UPDATE sessions SET verified_at = 0"); err != nil {
-		e.t.Fatal(err)
-	}
-}
-
 func (e *env) userID(name string) int64 {
 	u, err := e.store.UserByUsername(context.Background(), name)
 	if err != nil {
@@ -173,47 +166,20 @@ func TestLoginRateLimit(t *testing.T) {
 	}
 }
 
-func TestSensitiveActionsNeedRecentAuth(t *testing.T) {
+// Sensitive actions never ask to confirm it's you again, however long ago
+// the sign-in was.
+func TestSensitiveActionsDontAskAgain(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
-	e.expireReauth()
-
-	req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/settings/tokens",
-		strings.NewReader(url.Values{"csrf": {c.csrf()}, "name": {"cli"}}.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Referer", e.srv.URL+"/settings/tokens")
-	res, err := c.http.Do(req)
-	if err != nil {
+	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?", time.Now().Add(-24*time.Hour).Unix()); err != nil {
 		t.Fatal(err)
 	}
-	res.Body.Close()
-	if loc := res.Header.Get("Location"); res.StatusCode != http.StatusSeeOther || loc != "/reauth?next=%2Fsettings%2Ftokens" {
-		t.Fatalf("stale session creating a token: %d %q", res.StatusCode, loc)
-	}
-	if list, _ := e.store.ListAPITokens(context.Background(), e.userID("alice")); len(list) != 0 {
-		t.Fatal("token created without re-authentication")
-	}
-
-	// Without 2FA, the password confirms.
-	if code, _, _ := c.post("/reauth/password", url.Values{"password": {"wrong"}, "next": {"/settings/tokens"}}); code != http.StatusUnauthorized {
-		t.Fatalf("wrong password: %d", code)
-	}
-	if code, _, loc := c.post("/reauth/password", url.Values{"password": {"alice-password"}, "next": {"/settings/tokens"}}); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
-		t.Fatalf("reauth: %d %q", code, loc)
-	}
 	if code, body, _ := c.post("/settings/tokens", url.Values{"name": {"cli"}, "scope": {"write"}, "expires": {"90"}}); code != http.StatusOK || !strings.Contains(body, apiTokenPrefix) {
-		t.Fatalf("create token after reauth: %d", code)
+		t.Fatalf("create token: %d", code)
 	}
-
-	// With 2FA on, the password alone no longer confirms.
-	secret, _ := enableTOTP(t, c)
-	e.expireReauth()
-	if code, _, _ := c.post("/reauth/password", url.Values{"password": {"alice-password"}}); code != http.StatusUnauthorized {
-		t.Fatalf("password reauth with 2FA on: %d", code)
-	}
-	if code, _, _ := c.post("/reauth/totp", url.Values{"code": {e.totpAfter("alice", secret)}}); code != http.StatusSeeOther {
-		t.Fatalf("totp reauth: %d", code)
+	if code, _, _ := c.get("/reauth"); code != http.StatusNotFound {
+		t.Fatalf("/reauth: %d", code)
 	}
 }
 
@@ -354,12 +320,6 @@ func TestPasskeyRegistrationAndLogin(t *testing.T) {
 	// The challenge is single use.
 	if code, _ := c2.postJSON("/login/2fa/passkey/finish", key.get(opts, false)); code == http.StatusOK {
 		t.Fatal("challenge reused")
-	}
-
-	// A stale session can't start adding another passkey; it's told where to confirm.
-	e.expireReauth()
-	if code, out := c2.postJSON("/settings/passkeys/begin", nil); code != http.StatusUnauthorized || !strings.HasPrefix(out["redirect"].(string), "/reauth") {
-		t.Fatalf("stale register begin: %d %v", code, out)
 	}
 }
 

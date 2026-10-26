@@ -423,7 +423,7 @@ func TestPagesAreCSPClean(t *testing.T) {
 	c.post("/saved-searches", url.Values{"name": {"Go"}, "query": {"#go site:go.dev"}})
 	b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("alice")), 1)
 	for _, path := range []string{"/", "/?q=nothing", "/bookmarks/new", "/bookmarks/1/edit", "/tags", "/settings", "/nope",
-		"/settings/security", "/settings/tokens", "/settings/data", "/reauth", "/saved-searches", "/?q=%23go+site%3Ago.dev"} {
+		"/settings/security", "/settings/tokens", "/settings/data", "/saved-searches", "/?q=%23go+site%3Ago.dev"} {
 		_, body, _ := c.get(path)
 		if m := cspViolation(body); m != "" {
 			t.Errorf("%s contains %q", path, m)

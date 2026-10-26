@@ -1,28 +1,21 @@
-{{define "title"}}{{if eq .Mode "login"}}{{t "Two-factor authentication"}}{{else}}{{t "Confirm it's you"}}{{end}}{{end}}
+{{define "title"}}{{t "Two-factor authentication"}}{{end}}
 {{define "content"}}
 <div class="auth">
   {{template "auth-brand" .}}
   <div class="card">
-    {{if eq .Mode "login"}}
     <h1>{{t "Two-factor authentication"}}</h1>
     <p class="lead">{{t "Signing in as %s." (strong .Who)}}</p>
-    {{else}}
-    <h1>{{t "Confirm it's you"}}</h1>
-    <p class="lead">{{if .MFA.Enabled}}{{t "This action changes how you sign in, so it needs your second factor."}}{{else}}{{t "This action changes how you sign in."}}{{end}}</p>
-    {{end}}
 
-    {{/* SSOOnly: with an admin group, a session from the provider confirms there. */}}
-    {{if not .SSOOnly}}
     {{if and .MFA.Passkeys .PasskeysAvailable}}
     <div class="verify-option" data-passkey-scope>
       <button type="button" class="btn btn-primary wide" data-passkey="login"
-        data-begin="{{.Action}}/passkey/begin" data-finish="{{.PasskeyFinish}}">{{icon "key" "sm"}}{{t "Use a passkey"}}</button>
+        data-begin="/login/2fa/passkey/begin" data-finish="{{.PasskeyFinish}}">{{icon "key" "sm"}}{{t "Use a passkey"}}</button>
       {{template "passkey-status" .}}
     </div>
     {{end}}
 
     {{if .MFA.TOTP}}
-    <form method="post" action="{{.Action}}/totp" class="verify-option">
+    <form method="post" action="/login/2fa/totp" class="verify-option">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <input type="hidden" name="next" value="{{.Next}}">
       <label>{{t "Code from your authenticator app"}}
@@ -34,41 +27,20 @@
     {{if .MFA.Enabled}}
     <details class="verify-option">
       <summary>{{t "Use a recovery code"}}</summary>
-      <form method="post" action="{{.Action}}/recovery">
+      <form method="post" action="/login/2fa/recovery">
         <input type="hidden" name="csrf" value="{{.CSRF}}">
         <input type="hidden" name="next" value="{{.Next}}">
         <label>{{t "Recovery code"}} <input name="code" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="xxxxx-xxxxx" required></label>
         <button class="btn wide">{{t "Use recovery code"}}</button>
       </form>
     </details>
-    {{else if .HasPassword}}
-    <form method="post" action="/reauth/password">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="hidden" name="next" value="{{.Next}}">
-      <input type="text" name="username" value="{{.Who}}" autocomplete="username" hidden>
-      <label>{{t "Password"}} <input type="password" name="password" required autocomplete="current-password" autofocus></label>
-      <button class="btn btn-primary wide">{{t "Confirm"}}</button>
-    </form>
-    {{end}}
     {{end}}
 
-    {{if .SSOLinked}}
-    <form method="post" action="/reauth/sso" class="verify-option">
-      <input type="hidden" name="csrf" value="{{.CSRF}}">
-      <input type="hidden" name="next" value="{{.Next}}">
-      <button class="btn wide{{if or .SSOOnly (not (or .MFA.Enabled .HasPassword))}} btn-primary{{end}}">{{icon "key" "sm"}}{{t "Confirm with %s" .SSO.Name}}</button>
-    </form>
-    {{end}}
-
-    {{if eq .Mode "login"}}
     <form method="post" action="/logout" class="verify-cancel">
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <button class="link-btn">{{t "Cancel and sign in as someone else"}}</button>
     </form>
-    {{else}}
-    <p class="verify-cancel"><a href="{{if .Next}}{{.Next}}{{else}}/settings/security{{end}}">{{t "Cancel"}}</a></p>
-    {{end}}
   </div>
 </div>
 {{end}}
-{{define "scripts"}}{{if and .MFA.Passkeys .PasskeysAvailable (not .SSOOnly)}}<script src="{{asset "passkeys.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}{{if and .MFA.Passkeys .PasskeysAvailable}}<script src="{{asset "passkeys.js"}}"></script>{{end}}{{end}}

@@ -52,8 +52,9 @@ func (s *Store) LinkIdentity(ctx context.Context, userID int64, issuer, subject 
 }
 
 // UnlinkIdentity removes a user's identity. Unless force is set, a user
-// without a password keeps it: it's their only way in.
-func (s *Store) UnlinkIdentity(ctx context.Context, userID int64, force bool) error {
+// without a password keeps it: it's their only way in. dropAdmin also takes
+// the admin role away, when it came from the provider's group.
+func (s *Store) UnlinkIdentity(ctx context.Context, userID int64, force, dropAdmin bool) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		var hash string
 		if err := tx.QueryRowContext(ctx, "SELECT password_hash FROM users WHERE id = ?", userID).Scan(&hash); err != nil {
@@ -69,7 +70,10 @@ func (s *Store) UnlinkIdentity(ctx context.Context, userID int64, force bool) er
 		if n, _ := res.RowsAffected(); n == 0 {
 			return ErrNotFound
 		}
-		return nil
+		if dropAdmin {
+			_, err = tx.ExecContext(ctx, "UPDATE users SET is_admin = 0, updated_at = ? WHERE id = ?", unix(s.now()), userID)
+		}
+		return err
 	})
 }
 

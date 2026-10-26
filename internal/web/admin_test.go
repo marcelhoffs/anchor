@@ -45,12 +45,6 @@ func TestAdmin(t *testing.T) {
 		t.Fatalf("admin disabled themselves: %d", code)
 	}
 
-	// Admin actions need a recent check too.
-	e.expireReauth()
-	if code, _, loc := root.post("/admin/users/"+aliceID+"/enable", nil); code != http.StatusSeeOther || !strings.HasPrefix(loc, "/reauth") {
-		t.Fatalf("stale admin action: %d %q", code, loc)
-	}
-
 	// The audit log is gone.
 	if code, _, _ := root.get("/admin/audit"); code != http.StatusNotFound {
 		t.Fatalf("audit log page: %d, want 404", code)

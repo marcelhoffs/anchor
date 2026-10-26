@@ -7,10 +7,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/netip"
-	"net/url"
 	"strings"
 	"time"
 
@@ -349,21 +348,26 @@ func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, st
 	return withUserLang(r, u), ss, u, true
 }
 
-// requireAdmin lets only admins in (see isAdmin). With an admin group, one
-// whose group check is over adminGroupCheck old confirms through the
-// provider first, which checks it again.
+// requireAdmin lets only admins in (see isAdmin); anyone else gets the
+// same not-found page as for any page that isn't theirs. With an admin
+// group, a session signed in through the provider asks it on every request
+// here, and is refused when the provider can't answer.
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.groupAdmins() && currentSession(r).SSO {
+			switch err := s.checkGroup(r); {
+			case errors.Is(err, errSSOEnded):
+				s.endSSOSession(w, r)
+				return
+			case err != nil:
+				s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
+				http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
+					http.StatusServiceUnavailable)
+				return
+			}
+		}
 		if !s.isAdmin(r) {
 			s.notFound(w, r)
-			return
-		}
-		if s.groupStale(r) {
-			back := "/admin/"
-			if r.Method == http.MethodGet {
-				back = safeNext(r.URL.RequestURI())
-			}
-			http.Redirect(w, r, "/reauth?next="+url.QueryEscape(back), http.StatusSeeOther)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -374,7 +378,7 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 // instance requires 2FA. Only the pages needed to do that stay reachable.
 func (s *Server) enforce2FA(next http.Handler) http.Handler {
 	allowed := func(p string) bool {
-		for _, prefix := range []string{"/settings/security", "/settings/totp", "/settings/passkeys", "/settings/recovery", "/reauth"} {
+		for _, prefix := range []string{"/settings/security", "/settings/totp", "/settings/passkeys", "/settings/recovery"} {
 			if strings.HasPrefix(p, prefix) {
 				return true
 			}
@@ -397,31 +401,5 @@ func (s *Server) enforce2FA(next http.Handler) http.Handler {
 			return
 		}
 		http.Redirect(w, r, "/settings/security?required=1", http.StatusSeeOther)
-	})
-}
-
-// requireRecentAuth makes sensitive actions ask for the password (or a
-// second factor, for users who have one) if the session hasn't proved itself
-// in the last reauthWindow.
-func (s *Server) requireRecentAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if time.Since(currentSession(r).VerifiedAt) <= reauthWindow {
-			next.ServeHTTP(w, r)
-			return
-		}
-		// Come back to the page the form was on; the action itself is re-sent
-		// by the user once confirmed.
-		back := "/settings/security"
-		if ref, err := url.Parse(r.Referer()); err == nil && ref.Host == r.Host && ref.Path != "" {
-			back = safeNext(ref.RequestURI())
-		}
-		to := "/reauth?next=" + url.QueryEscape(back)
-		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": langOf(r).T("Please confirm it's you first."), "redirect": to})
-			return
-		}
-		http.Redirect(w, r, to, http.StatusSeeOther)
 	})
 }

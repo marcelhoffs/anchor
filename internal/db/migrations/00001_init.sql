@@ -110,8 +110,9 @@ CREATE TABLE sessions (
   created_at   INTEGER NOT NULL,
   expires_at   INTEGER NOT NULL,
   last_seen_at INTEGER NOT NULL,
-  verified_at  INTEGER NOT NULL DEFAULT 0,            -- last password or second-factor check
-  sso          INTEGER NOT NULL DEFAULT 0             -- started through the provider, which does its own second factor
+  sso          INTEGER NOT NULL DEFAULT 0,            -- started through the provider, which does its own second factor
+  sso_tokens   BLOB,                                  -- sso: the provider's access and refresh tokens, sealed
+  groups_checked_at INTEGER NOT NULL DEFAULT 0          -- sso: when the provider last confirmed the user's groups
 );
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);

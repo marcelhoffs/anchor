@@ -14,36 +14,48 @@ type Session struct {
 	CreatedAt  time.Time
 	ExpiresAt  time.Time
 	LastSeenAt time.Time
-	VerifiedAt time.Time // last password, 2FA or re-authentication check
-	SpaceID    int64     // the space being looked at; 0 = the personal one
-	SSO        bool      // signed in through the OpenID Connect provider
+	SpaceID    int64 // the space being looked at; 0 = the personal one
+	SSO        bool  // signed in through the OpenID Connect provider
+	// SSO only: the provider's tokens, sealed, and when it last confirmed
+	// the user's groups (before the first check: the sign-in did).
+	SSOTokens       []byte
+	GroupsCheckedAt time.Time
 }
 
 const sessionCols = `token_hash, user_id, mfa_passed, coalesce(user_agent, ''), coalesce(ip, ''), created_at, expires_at,
-	last_seen_at, verified_at, coalesce(space_id, 0), sso`
+	last_seen_at, coalesce(space_id, 0), sso, sso_tokens, groups_checked_at`
 
 func scanSession(row interface{ Scan(...any) error }) (Session, error) {
 	var ss Session
-	var created, expires, seen, verified int64
-	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen, &verified,
-		&ss.SpaceID, &ss.SSO)
+	var created, expires, seen, checked int64
+	err := row.Scan(&ss.TokenHash, &ss.UserID, &ss.MFAPassed, &ss.UserAgent, &ss.IP, &created, &expires, &seen,
+		&ss.SpaceID, &ss.SSO, &ss.SSOTokens, &checked)
 	ss.CreatedAt, ss.ExpiresAt, ss.LastSeenAt = fromUnix(created), fromUnix(expires), fromUnix(seen)
-	ss.VerifiedAt = fromUnix(verified)
+	ss.GroupsCheckedAt = fromUnix(checked)
 	return ss, notFound(err)
 }
 
 func (s *Store) CreateSession(ctx context.Context, ss Session) error {
 	_, err := s.w.ExecContext(ctx,
-		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at, verified_at, sso)
+		`INSERT INTO sessions (token_hash, user_id, mfa_passed, user_agent, ip, created_at, expires_at, last_seen_at, sso, sso_tokens)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ss.TokenHash, ss.UserID, ss.MFAPassed, ss.UserAgent, ss.IP, unix(ss.CreatedAt), unix(ss.ExpiresAt), unix(ss.LastSeenAt),
-		unix(ss.VerifiedAt), ss.SSO)
+		ss.SSO, ss.SSOTokens)
 	return err
 }
 
-// MarkVerified records that the session just proved its identity again.
-func (s *Store) MarkVerified(ctx context.Context, hash []byte) error {
-	_, err := s.w.ExecContext(ctx, "UPDATE sessions SET verified_at = ? WHERE token_hash = ?", unix(s.now()), hash)
+// SessionTokens returns a session's sealed provider tokens.
+func (s *Store) SessionTokens(ctx context.Context, hash []byte) ([]byte, error) {
+	var tokens []byte
+	err := s.r.QueryRowContext(ctx, "SELECT sso_tokens FROM sessions WHERE token_hash = ?", hash).Scan(&tokens)
+	return tokens, notFound(err)
+}
+
+// GroupsChecked records that the provider just confirmed the session's
+// groups, with tokens (sealed) as its tokens now.
+func (s *Store) GroupsChecked(ctx context.Context, hash, tokens []byte) error {
+	_, err := s.w.ExecContext(ctx, "UPDATE sessions SET sso_tokens = ?, groups_checked_at = ? WHERE token_hash = ?",
+		tokens, unix(s.now()), hash)
 	return err
 }
 

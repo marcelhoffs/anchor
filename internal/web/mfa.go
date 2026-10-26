@@ -105,19 +105,15 @@ func (s *Server) mfaBlocked(w http.ResponseWriter, r *http.Request, u store.User
 
 // --- Second factor at login ---
 
-func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int, mode string, u store.User, next string, problem i18n.Msg) {
+func (s *Server) renderVerify(w http.ResponseWriter, r *http.Request, status int, u store.User, next string, problem i18n.Msg) {
 	m, err := s.store.MFAStatus(r.Context(), u.ID)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
 	}
-	action := map[string]string{"login": "/login/2fa", "reauth": "/reauth"}[mode]
 	s.render(w, r, status, "verify", data{
-		"Mode": mode, "Next": next, "Error": problem, "MFA": m, "Who": u.Username, "Action": action,
-		"PasskeyFinish": action + "/passkey/finish?next=" + urlQueryEscape(next),
-		"SSOLinked":     mode == "reauth" && s.ssoLinked(r.Context(), &u),
-		"SSOOnly":       mode == "reauth" && s.ssoReauthOnly(r),
-		"HasPassword":   u.HasPassword(),
+		"Next": next, "Error": problem, "MFA": m, "Who": u.Username,
+		"PasskeyFinish": "/login/2fa/passkey/finish?next=" + urlQueryEscape(next),
 	})
 }
 
@@ -127,7 +123,7 @@ func (s *Server) login2FAForm(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
-	s.renderVerify(w, r, http.StatusOK, "login", u, r.URL.Query().Get("next"), i18n.Msg{})
+	s.renderVerify(w, r, http.StatusOK, u, r.URL.Query().Get("next"), i18n.Msg{})
 }
 
 func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string, check func(store.User) (bool, error)) {
@@ -137,7 +133,7 @@ func (s *Server) login2FA(w http.ResponseWriter, r *http.Request, method string,
 		return
 	}
 	next := r.PostFormValue("next")
-	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, "login", u, next, msg) }
+	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, u, next, msg) }
 	if s.mfaBlocked(w, r, u, false, render) {
 		return
 	}
@@ -196,7 +192,7 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.User, method, next string, asJSON bool) {
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	s.store.RecordLogin(r.Context(), u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, false, time.Now()); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false, nil); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -211,98 +207,6 @@ func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.U
 		return
 	}
 	http.Redirect(w, r, next, http.StatusSeeOther)
-}
-
-// --- Re-authentication before sensitive actions ---
-
-func (s *Server) reauthForm(w http.ResponseWriter, r *http.Request) {
-	s.renderVerify(w, r, http.StatusOK, "reauth", *currentUser(r), r.URL.Query().Get("next"), i18n.Msg{})
-}
-
-func (s *Server) reauth(w http.ResponseWriter, r *http.Request, check func(store.User) (bool, error), asJSON bool) {
-	u, cur := *currentUser(r), currentSession(r)
-	next := r.PostFormValue("next")
-	if asJSON {
-		next = r.URL.Query().Get("next")
-	}
-	render := func(status int, msg i18n.Msg) { s.renderVerify(w, r, status, "reauth", u, next, msg) }
-	if s.ssoReauthOnly(r) {
-		// The page only offers the provider; see ssoReauthOnly.
-		if asJSON {
-			jsonError(w, http.StatusForbidden, langOf(r).T("Confirm with %s", s.cfg.OIDC.Name))
-		} else {
-			render(http.StatusForbidden, i18n.M("Confirm with %s", s.cfg.OIDC.Name))
-		}
-		return
-	}
-	if s.mfaBlocked(w, r, u, asJSON, render) {
-		return
-	}
-	passed, err := check(u)
-	if err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	if !passed {
-		if asJSON {
-			jsonError(w, http.StatusUnauthorized, langOf(r).T("That passkey wasn't accepted. Try again."))
-		} else {
-			render(http.StatusUnauthorized, i18n.M("That didn't work. Check it and try again."))
-		}
-		return
-	}
-	s.mfaUser.Reset(fmt.Sprint(u.ID))
-	if err := s.store.MarkVerified(r.Context(), cur.TokenHash); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	next = withNotice(safeNext(next), "confirmed")
-	if asJSON {
-		writeJSON(w, http.StatusOK, map[string]string{"redirect": next})
-		return
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
-}
-
-// withNotice adds done=<notice> to a local URL that has no query yet.
-func withNotice(next, notice string) string {
-	if strings.Contains(next, "?") {
-		return next
-	}
-	return next + "?done=" + notice
-}
-
-// reauthPassword is only for users without a second factor; everyone else
-// must confirm with one ("API tokens bypass 2FA, so creating one requires a
-// fresh 2FA check").
-func (s *Server) reauthPassword(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, func(u store.User) (bool, error) {
-		if m, err := s.store.MFAStatus(r.Context(), u.ID); err != nil || m.Enabled() {
-			return false, err
-		}
-		return auth.VerifyPassword(u.PasswordHash, r.PostFormValue("password")) == nil, nil
-	}, false)
-}
-
-func (s *Server) reauthTOTP(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkTOTP(r, u, r.PostFormValue("code")) }, false)
-}
-
-func (s *Server) reauthRecovery(w http.ResponseWriter, r *http.Request) {
-	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkRecovery(r, u, r.PostFormValue("code")) }, false)
-}
-
-func (s *Server) reauthPasskeyBegin(w http.ResponseWriter, r *http.Request) {
-	if s.ssoReauthOnly(r) {
-		jsonError(w, http.StatusForbidden, langOf(r).T("Confirm with %s", s.cfg.OIDC.Name))
-		return
-	}
-	s.beginPasskeyLogin(w, r, *currentUser(r), ceremonyKey("reauth", currentSession(r).TokenHash))
-}
-
-func (s *Server) reauthPasskeyFinish(w http.ResponseWriter, r *http.Request) {
-	key := ceremonyKey("reauth", currentSession(r).TokenHash)
-	s.reauth(w, r, func(u store.User) (bool, error) { return s.checkPasskey(r, u, key) }, true)
 }
 
 // --- Security settings ---
@@ -320,7 +224,6 @@ var securityNotices = map[string]i18n.Msg{
 	"totp-off":     i18n.M("Authenticator app removed. Your other sessions were signed out."),
 	"passkey":      i18n.M("Passkey added."),
 	"passkey-off":  i18n.M("Passkey removed. Your other sessions were signed out."),
-	"confirmed":    i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 	"recovery-low": i18n.M("You're running low on recovery codes. Generate new ones below."),
 	"sso-linked":   i18n.M("Your account is linked: you can now sign in with single sign-on."),
 	"sso-unlinked": i18n.M("Single sign-on is unlinked from your account."),

@@ -483,13 +483,13 @@ func TestOIDCIdentities(t *testing.T) {
 		t.Fatalf("identity of bob: %q %v", sub, err)
 	}
 	// Unlinking: refused without a password unless forced.
-	if err := s.UnlinkIdentity(ctx, u.ID, false); !isValidationErr(err) {
+	if err := s.UnlinkIdentity(ctx, u.ID, false, false); !isValidationErr(err) {
 		t.Fatalf("unlink passwordless: %v", err)
 	}
-	if err := s.UnlinkIdentity(ctx, bob.ID, false); err != nil {
+	if err := s.UnlinkIdentity(ctx, bob.ID, false, false); err != nil {
 		t.Fatalf("unlink bob: %v", err)
 	}
-	if err := s.UnlinkIdentity(ctx, u.ID, true); err != nil {
+	if err := s.UnlinkIdentity(ctx, u.ID, true, false); err != nil {
 		t.Fatalf("forced unlink: %v", err)
 	}
 	// An invite is consumed with the account.

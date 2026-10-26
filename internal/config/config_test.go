@@ -20,6 +20,12 @@ func TestOIDC(t *testing.T) {
 		"scopes": {map[string]string{"ANCHOR_OIDC_ISSUER": "https://auth.example", "ANCHOR_OIDC_CLIENT_ID": "anchor", "ANCHOR_OIDC_SCOPES": "profile,groups email"}, "", func(c *Config) bool {
 			return strings.Join(c.OIDC.Scopes, " ") == "openid profile groups email"
 		}},
+		"admin group": {map[string]string{"ANCHOR_OIDC_ISSUER": "https://auth.example", "ANCHOR_OIDC_CLIENT_ID": "anchor", "ANCHOR_OIDC_ADMIN_GROUP": "admins"}, "", func(c *Config) bool {
+			return strings.Join(c.OIDC.Scopes, " ") == "openid profile email offline_access"
+		}},
+		"admin group, own offline_access": {map[string]string{"ANCHOR_OIDC_ISSUER": "https://auth.example", "ANCHOR_OIDC_CLIENT_ID": "anchor", "ANCHOR_OIDC_ADMIN_GROUP": "admins", "ANCHOR_OIDC_SCOPES": "offline_access profile"}, "", func(c *Config) bool {
+			return strings.Join(c.OIDC.Scopes, " ") == "openid offline_access profile"
+		}},
 		"only":          {map[string]string{"ANCHOR_OIDC_ISSUER": "https://auth.example", "ANCHOR_OIDC_CLIENT_ID": "anchor", "ANCHOR_OIDC_ONLY": "true"}, "", func(c *Config) bool { return c.OIDC.Only }},
 		"no client id":  {map[string]string{"ANCHOR_OIDC_ISSUER": "https://auth.example"}, "ANCHOR_OIDC_CLIENT_ID", nil},
 		"bad issuer":    {map[string]string{"ANCHOR_OIDC_ISSUER": "auth.example", "ANCHOR_OIDC_CLIENT_ID": "anchor"}, "ANCHOR_OIDC_ISSUER", nil},

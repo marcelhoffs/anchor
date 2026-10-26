@@ -27,7 +27,6 @@ var adminNotices = map[string]i18n.Msg{
 	"settings":      i18n.M("Settings saved."),
 	"space-owner":   i18n.M("The space has a new owner."),
 	"space-delete":  i18n.M("Space deleted."),
-	"confirmed":     i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 }
 
 // adminSpaces lists every shared space: names, members and sizes, never
@@ -136,7 +135,7 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 			data{"Error": i18n.M("Use Settings to change your own account.")})
 		return
 	}
-	if (action == "make-admin" || action == "remove-admin") && s.groupAdmins() {
+	if (action == "make-admin" || action == "remove-admin") && s.groupAdmins() && s.ssoLinked(r.Context(), &target) {
 		s.renderAdminUsers(w, r, http.StatusConflict, data{"Error": i18n.M("Admin rights come from the %s group at %s.", s.cfg.OIDC.AdminGroup, s.cfg.OIDC.Name)})
 		return
 	}
