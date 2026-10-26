@@ -170,7 +170,6 @@ func (e *env) ssoFlow(idp *fakeIdP, c *client, start func() (int, string, string
 	claims := map[string]any{
 		"iss": idp.srv.URL, "aud": "anchor", "sub": subject, "nonce": q.Get("nonce"),
 		"iat": time.Now().Unix(), "exp": time.Now().Add(5 * time.Minute).Unix(),
-		"auth_time": time.Now().Unix(), // the user signed in at the provider just now
 	}
 	for k, v := range extra {
 		claims[k] = v
@@ -286,16 +285,10 @@ func TestSSORejectsBadFlows(t *testing.T) {
 	}
 }
 
-func TestSSOLinkReauthUnlink(t *testing.T) {
+func TestSSOLinkUnlink(t *testing.T) {
 	e, idp := oidcEnv(t, nil)
 	e.user("alice")
 	a := e.login("alice")
-	e.expireReauth()
-	// Linking is a sensitive action: it asks to confirm first.
-	if code, _, loc := a.post("/settings/sso/link", nil); code != http.StatusSeeOther || !strings.HasPrefix(loc, "/reauth") {
-		t.Fatalf("link without recent auth: %d %q", code, loc)
-	}
-	a.post("/reauth/password", url.Values{"password": {"alice-password"}, "next": {"/settings/security"}})
 	code, _, loc := e.ssoFlow(idp, a, func() (int, string, string) { return a.post("/settings/sso/link", nil) }, "alice-sub", nil)
 	if code != http.StatusSeeOther || loc != "/settings/security?done=sso-linked" {
 		t.Fatalf("link: %d %q", code, loc)
@@ -315,22 +308,6 @@ func TestSSOLinkReauthUnlink(t *testing.T) {
 		t.Fatalf("link taken identity: %d", code)
 	}
 
-	// Reauth through the provider: only alice's own identity counts.
-	e.expireReauth()
-	if _, body, _ := a.get("/reauth?next=%2Fsettings%2Ftokens"); !strings.Contains(body, "Confirm with Authentik") {
-		t.Fatal("reauth page lacks the provider")
-	}
-	reauth := func() (int, string, string) { return a.post("/reauth/sso", url.Values{"next": {"/settings/tokens"}}) }
-	if code, _, _ := e.ssoFlow(idp, a, reauth, "someone-else", nil); code != http.StatusForbidden {
-		t.Fatalf("reauth as someone else: %d", code)
-	}
-	if !strings.Contains(idp.lastAu.Get("prompt"), "login") {
-		t.Fatal("reauth doesn't ask the provider to sign in again")
-	}
-	if code, _, loc := e.ssoFlow(idp, a, reauth, "alice-sub", nil); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
-		t.Fatalf("reauth: %d %q", code, loc)
-	}
-
 	// Unlink: fine with a password; refused for an account without one.
 	if code, _, loc := a.post("/settings/sso/unlink", nil); code != http.StatusSeeOther || loc != "/settings/security?done=sso-unlinked" {
 		t.Fatalf("unlink: %d %q", code, loc)
@@ -341,7 +318,7 @@ func TestSSOLinkReauthUnlink(t *testing.T) {
 	if code, body, _ := n.post("/settings/sso/unlink", nil); code != http.StatusConflict || !strings.Contains(body, "Set a password first") {
 		t.Fatalf("unlink without password: %d", code)
 	}
-	// It sets a first password without a current one (the sign-in was just now).
+	// It sets a first password without a current one.
 	if code, _, loc := n.post("/settings/password", url.Values{"password": {"brand-new-pass"}, "confirm": {"brand-new-pass"}}); code != http.StatusSeeOther || loc != "/settings/security?done=password" {
 		t.Fatalf("set first password: %d %q", code, loc)
 	}
@@ -381,52 +358,6 @@ func TestSSOAdminGroupAndPolicy(t *testing.T) {
 	c = e.client()
 	if code, body, _ := e.ssoFlow(idp, c, getStart(c, "/login/oidc"), "g-1", nil); code != http.StatusUnprocessableEntity || !strings.Contains(body, "disabled") {
 		t.Fatalf("disabled: %d", code)
-	}
-}
-
-// A session signed in through the provider never asks to confirm it's you.
-// A password session confirming through the provider counts only when the
-// provider really asked (auth_time), not when it reused its session.
-func TestSSOFreshAuth(t *testing.T) {
-	e, idp := oidcEnv(t, nil)
-	e.admin()
-	e.store.SetInstanceSetting(context.Background(), store.SettingSignup, "open")
-	hourAgo := time.Now().Add(-time.Hour).Unix()
-	needsReauth := func(c *client) bool {
-		_, _, loc := c.post("/settings/tokens", url.Values{"name": {"t"}})
-		return strings.HasPrefix(loc, "/reauth")
-	}
-	sso := e.client()
-	e.ssoFlow(idp, sso, getStart(sso, "/login/oidc"), "sam-sub", map[string]any{"preferred_username": "sam", "auth_time": hourAgo})
-	e.expireReauth()
-	if needsReauth(sso) {
-		t.Fatal("a session through the provider asked to confirm")
-	}
-
-	e.user("alice")
-	a := e.login("alice")
-	e.ssoFlow(idp, a, func() (int, string, string) { return a.post("/settings/sso/link", nil) }, "alice-sub", nil)
-	e.expireReauth()
-	if !needsReauth(a) {
-		t.Fatal("a password session didn't ask to confirm")
-	}
-	reauth := func() (int, string, string) {
-		return a.post("/reauth/sso", url.Values{"next": {"/settings/tokens"}})
-	}
-	for name, at := range map[string]any{"stale": hourAgo, "missing": nil, "ahead": time.Now().Add(time.Hour).Unix()} {
-		if code, body, _ := e.ssoFlow(idp, a, reauth, "alice-sub", map[string]any{"auth_time": at}); code != http.StatusForbidden ||
-			!strings.Contains(body, "ask you to sign in again") {
-			t.Errorf("reauth with %s auth_time: %d", name, code)
-		}
-	}
-	if !needsReauth(a) {
-		t.Fatal("refused reauths confirmed the session")
-	}
-	if code, _, loc := e.ssoFlow(idp, a, reauth, "alice-sub", nil); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
-		t.Fatalf("fresh reauth: %d %q", code, loc)
-	}
-	if needsReauth(a) {
-		t.Fatal("fresh reauth didn't confirm")
 	}
 }
 
@@ -515,7 +446,6 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 		t.Fatal("admin badges don't follow the group")
 	}
 	// Admin actions don't ask to confirm.
-	e.expireReauth()
 	if code, _, loc := g.post("/admin/settings", url.Values{"signup": {"open"}}); code != http.StatusSeeOther || strings.HasPrefix(loc, "/reauth") {
 		t.Fatalf("admin action with a recent group check: %d %q", code, loc)
 	}
@@ -525,24 +455,18 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 		t.Fatalf("remove-admin: %d", code)
 	}
 
-	// Later on, the provider confirms the group without asking her anything;
-	// confirming it's her goes through the provider only.
-	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?, verified_at = 0", time.Now().Add(-2*time.Hour).Unix()); err != nil {
+	// Later on, the provider confirms the group without asking her anything.
+	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?", time.Now().Add(-2*time.Hour).Unix()); err != nil {
 		t.Fatal(err)
 	}
 	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
 		t.Fatalf("admin pages after a while: %d", code)
 	}
-	if _, body, _ := g.get("/reauth?next=%2Fadmin%2Fusers"); strings.Contains(body, `action="/reauth/password"`) || !strings.Contains(body, "Confirm with Authentik") {
-		t.Fatal("reauth offers more than the provider")
-	}
-	if code, _, _ := g.post("/reauth/recovery", url.Values{"code": {"x"}, "next": {"/admin/users"}}); code != http.StatusForbidden {
-		t.Fatalf("reauth with a recovery code: %d", code)
-	}
-	// She left the group: the reauth takes the role away, even from the last admin.
+	// She left the group: that takes the role away, even from the last admin.
 	e.store.SyncAdmin(ctx, e.userID("root"), false)
-	reauth := func() (int, string, string) { return g.post("/reauth/sso", url.Values{"next": {"/admin/users"}}) }
-	e.ssoFlow(idp, g, reauth, "g-1", map[string]any{"groups": []string{"staff"}})
+	idp.mu.Lock()
+	idp.groups["g-1"] = []string{"staff"}
+	idp.mu.Unlock()
 	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
 		t.Fatalf("admin pages after leaving the group: %d", code)
 	}

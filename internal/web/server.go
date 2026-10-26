@@ -39,9 +39,6 @@ const (
 	sessionMaxAge = 90 * 24 * time.Hour
 	// A password-checked session waiting for its second factor lives this long.
 	pendingTTL = 5 * time.Minute
-	// Sensitive actions (2FA changes, API tokens, admin actions) need a
-	// password session to have proved itself this recently.
-	reauthWindow = 10 * time.Minute
 	// A session's sliding expiry is pushed forward at most this often, so
 	// browsing doesn't turn every page view into a database write.
 	sessionTouchEvery = time.Hour
@@ -211,32 +208,18 @@ func (s *Server) Handler() http.Handler {
 			r.Post("/settings/import", s.importFile)
 			r.Get("/settings/export", s.exportFile)
 
-			r.Get("/reauth", s.reauthForm)
-			r.Post("/reauth/password", s.reauthPassword)
-			r.Post("/reauth/totp", s.reauthTOTP)
-			r.Post("/reauth/recovery", s.reauthRecovery)
-			r.Post("/reauth/passkey/begin", s.reauthPasskeyBegin)
-			r.Post("/reauth/passkey/finish", s.reauthPasskeyFinish)
-			r.With(s.requireSSO).Post("/reauth/sso", s.oidcReauth)
-
-			// Changing how you sign in, or minting credentials, needs a recent
-			// password or second-factor check.
-			r.Group(func(r chi.Router) {
-				r.Use(s.requireRecentAuth)
-				r.Post("/settings/totp/start", s.totpStart)
-				r.Post("/settings/totp/enable", s.totpEnable)
-				r.Post("/settings/totp/disable", s.totpDisable)
-				r.Post("/settings/passkeys/begin", s.passkeyRegisterBegin)
-				r.Post("/settings/passkeys/finish", s.passkeyRegisterFinish)
-				r.Post("/settings/passkeys/{id}/delete", s.passkeyDelete)
-				r.Post("/settings/recovery", s.recoveryRegenerate)
-				r.With(s.requireSSO).Post("/settings/sso/link", s.oidcLink)
-				r.With(s.requireSSO).Post("/settings/sso/unlink", s.oidcUnlink)
-				r.Post("/settings/tokens", s.createToken)
-				// Handing a space over, or deleting it with everything in it.
-				r.Post("/spaces/{id}/members/{uid}/owner", s.transferSpace)
-				r.Post("/spaces/{id}/delete", s.deleteSpace)
-			})
+			r.Post("/settings/totp/start", s.totpStart)
+			r.Post("/settings/totp/enable", s.totpEnable)
+			r.Post("/settings/totp/disable", s.totpDisable)
+			r.Post("/settings/passkeys/begin", s.passkeyRegisterBegin)
+			r.Post("/settings/passkeys/finish", s.passkeyRegisterFinish)
+			r.Post("/settings/passkeys/{id}/delete", s.passkeyDelete)
+			r.Post("/settings/recovery", s.recoveryRegenerate)
+			r.With(s.requireSSO).Post("/settings/sso/link", s.oidcLink)
+			r.With(s.requireSSO).Post("/settings/sso/unlink", s.oidcUnlink)
+			r.Post("/settings/tokens", s.createToken)
+			r.Post("/spaces/{id}/members/{uid}/owner", s.transferSpace)
+			r.Post("/spaces/{id}/delete", s.deleteSpace)
 
 			r.Post("/space", s.selectSpace)
 			r.Get("/spaces", s.spaces)
@@ -254,16 +237,13 @@ func (s *Server) Handler() http.Handler {
 				r.Get("/users", s.adminUsers)
 				r.Get("/invites", s.adminInvites)
 				r.Get("/spaces", s.adminSpaces)
-				r.Group(func(r chi.Router) {
-					r.Use(s.requireRecentAuth)
-					r.Post("/users/{id}/{action}", s.adminUserAction)
-					r.Post("/invites", s.adminCreateInvite)
-					r.Post("/invites/{id}/delete", s.adminDeleteInvite)
-					r.Post("/settings", s.adminSaveSettings)
-					r.Post("/spaces", s.adminSaveSpaceCreation)
-					r.Post("/spaces/{id}/owner", s.adminSpaceOwner)
-					r.Post("/spaces/{id}/delete", s.adminDeleteSpace)
-				})
+				r.Post("/users/{id}/{action}", s.adminUserAction)
+				r.Post("/invites", s.adminCreateInvite)
+				r.Post("/invites/{id}/delete", s.adminDeleteInvite)
+				r.Post("/settings", s.adminSaveSettings)
+				r.Post("/spaces", s.adminSaveSpaceCreation)
+				r.Post("/spaces/{id}/owner", s.adminSpaceOwner)
+				r.Post("/spaces/{id}/delete", s.adminDeleteSpace)
 			})
 		})
 	})

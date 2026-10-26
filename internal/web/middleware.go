@@ -7,10 +7,8 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/json"
 	"net/http"
 	"net/netip"
-	"net/url"
 	"strings"
 	"time"
 
@@ -371,7 +369,7 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 // instance requires 2FA. Only the pages needed to do that stay reachable.
 func (s *Server) enforce2FA(next http.Handler) http.Handler {
 	allowed := func(p string) bool {
-		for _, prefix := range []string{"/settings/security", "/settings/totp", "/settings/passkeys", "/settings/recovery", "/reauth"} {
+		for _, prefix := range []string{"/settings/security", "/settings/totp", "/settings/passkeys", "/settings/recovery"} {
 			if strings.HasPrefix(p, prefix) {
 				return true
 			}
@@ -394,38 +392,5 @@ func (s *Server) enforce2FA(next http.Handler) http.Handler {
 			return
 		}
 		http.Redirect(w, r, "/settings/security?required=1", http.StatusSeeOther)
-	})
-}
-
-// confirmed reports whether a session needn't prove who it is before a
-// sensitive action: one signed in through the provider never asks (the
-// provider decides how long its sign-ins last); another proved itself in
-// the last reauthWindow.
-func confirmed(ss *store.Session) bool {
-	return ss.SSO || time.Since(ss.VerifiedAt) <= reauthWindow
-}
-
-// requireRecentAuth makes sensitive actions ask for the password (or a
-// second factor, for users who have one) unless the session is confirmed.
-func (s *Server) requireRecentAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if confirmed(currentSession(r)) {
-			next.ServeHTTP(w, r)
-			return
-		}
-		// Come back to the page the form was on; the action itself is re-sent
-		// by the user once confirmed.
-		back := "/settings/security"
-		if ref, err := url.Parse(r.Referer()); err == nil && ref.Host == r.Host && ref.Path != "" {
-			back = safeNext(ref.RequestURI())
-		}
-		to := "/reauth?next=" + url.QueryEscape(back)
-		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": langOf(r).T("Please confirm it's you first."), "redirect": to})
-			return
-		}
-		http.Redirect(w, r, to, http.StatusSeeOther)
 	})
 }

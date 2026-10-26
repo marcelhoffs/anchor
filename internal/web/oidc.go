@@ -4,10 +4,7 @@ package web
 // Entra ID…), configured by ANCHOR_OIDC_*. An identity at the provider is
 // the pair (issuer, subject); it's never matched to an account by email or
 // name. A sign-in through the provider counts as complete: the provider
-// does its own second factor, and its sessions never ask to confirm it's
-// them (see confirmed). A password session confirming through the provider
-// counts only when the provider really asked: its auth_time claim says so,
-// not merely that it had a session.
+// does its own second factor.
 
 import (
 	"context"
@@ -36,9 +33,6 @@ import (
 const (
 	oidcFlowTTL = 10 * time.Minute
 	oidcCookie  = "anchor_oidc" // the state of the sign-in in flight
-	// A sign-in at the provider is fresh when it happened this recently
-	// (auth_time); a reauth needs a fresh one.
-	oidcFreshAuth = 5 * time.Minute
 	// Sign-ins in flight are kept in memory: at most this many, so starting
 	// them can't be a way to fill it.
 	maxOIDCFlows = 10000
@@ -55,12 +49,12 @@ const (
 
 // oidcFlow is a sign-in at the provider in flight, kept until it comes back.
 type oidcFlow struct {
-	purpose  string // "login", "link" or "reauth"
+	purpose  string // "login" or "link"
 	nonce    string
 	verifier string // PKCE
 	next     string
 	invite   string // an invite token, for a first sign-in under invite-only
-	userID   int64  // link and reauth: who started it
+	userID   int64  // link: who started it
 	expires  time.Time
 }
 
@@ -190,14 +184,7 @@ func (s *Server) oidcRedirect(w http.ResponseWriter, r *http.Request, f oidcFlow
 		Name: s.oidcCookieName(), Value: state, Path: "/", MaxAge: int(oidcFlowTTL.Seconds()), HttpOnly: true,
 		Secure: s.cfg.SecureCookies(), SameSite: http.SameSiteLaxMode,
 	})
-	opts := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(f.verifier), oidc.Nonce(f.nonce)}
-	if f.purpose == "reauth" {
-		// Ask the provider to check it's really them, not reuse its session.
-		// Not max_age=0: Authentik ignores it, and its prompt=login only
-		// works once per session, so a short max_age is what makes it ask.
-		opts = append(opts, oauth2.SetAuthURLParam("prompt", "login"), oauth2.SetAuthURLParam("max_age", "60"))
-	}
-	http.Redirect(w, r, oc.AuthCodeURL(state, opts...), http.StatusSeeOther)
+	http.Redirect(w, r, oc.AuthCodeURL(state, oauth2.S256ChallengeOption(f.verifier), oidc.Nonce(f.nonce)), http.StatusSeeOther)
 }
 
 // oidcLogin starts signing in (or signing up, with ?invite=) at the provider.
@@ -224,12 +211,6 @@ func (s *Server) oidcLogin(w http.ResponseWriter, r *http.Request) {
 // oidcLink starts linking the signed-in user's account to the provider.
 func (s *Server) oidcLink(w http.ResponseWriter, r *http.Request) {
 	s.oidcRedirect(w, r, oidcFlow{purpose: "link", next: "/settings/security", userID: currentUser(r).ID})
-}
-
-// oidcReauth confirms it's the signed-in user with a fresh sign-in at the
-// provider, before a sensitive action.
-func (s *Server) oidcReauth(w http.ResponseWriter, r *http.Request) {
-	s.oidcRedirect(w, r, oidcFlow{purpose: "reauth", next: safeNext(r.PostFormValue("next")), userID: currentUser(r).ID})
 }
 
 func (s *Server) oidcUnlink(w http.ResponseWriter, r *http.Request) {
@@ -261,20 +242,9 @@ func (s *Server) oidcFailed(w http.ResponseWriter, r *http.Request, purpose stri
 
 // oidcClaims are the ID token claims Anchor reads besides the subject.
 type oidcClaims struct {
-	PreferredUsername string  `json:"preferred_username"`
-	Email             string  `json:"email"`
-	Name              string  `json:"name"`
-	AuthTime          float64 `json:"auth_time"` // when the user last signed in at the provider
-}
-
-// freshAuth returns when the user signed in at the provider if that was in
-// the last oidcFreshAuth (a minute ahead allows for clock skew), else zero.
-func (c oidcClaims) freshAuth() time.Time {
-	at := time.Unix(int64(c.AuthTime), 0)
-	if c.AuthTime <= 0 || time.Since(at) > oidcFreshAuth || time.Until(at) > time.Minute {
-		return time.Time{}
-	}
-	return at
+	PreferredUsername string `json:"preferred_username"`
+	Email             string `json:"email"`
+	Name              string `json:"name"`
 }
 
 // oidcCallback is where the provider sends the browser back.
@@ -329,8 +299,6 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	switch f.purpose {
 	case "link":
 		s.oidcFinishLink(w, r, f, idt.Issuer, idt.Subject, s.inAdminGroup(all))
-	case "reauth":
-		s.oidcFinishReauth(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all), tok)
 	default:
 		s.oidcFinishLogin(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all), tok)
 	}
@@ -386,7 +354,7 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 	}
 	s.store.TouchIdentity(ctx, issuer, subject)
 	s.store.RecordLogin(ctx, u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, true, sealed, claims.freshAuth()); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, true, sealed); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -484,45 +452,6 @@ func (s *Server) oidcFinishLink(w http.ResponseWriter, r *http.Request, f oidcFl
 		return
 	}
 	http.Redirect(w, r, "/settings/security?done=sso-linked", http.StatusSeeOther)
-}
-
-func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool, tok *oauth2.Token) {
-	u, cur := currentUser(r), currentSession(r)
-	if u == nil || u.ID != f.userID {
-		s.oidcFailed(w, r, "login", i18n.M("That sign-in expired or was started elsewhere. Start again."))
-		return
-	}
-	if mine, err := s.store.IdentityOf(r.Context(), u.ID, issuer); err != nil || mine != subject {
-		s.renderSecurity(w, r, http.StatusForbidden, data{"Error": i18n.M("That's a different account at the provider than the one linked to yours.")})
-		return
-	}
-	// prompt=login and max_age ask for a fresh sign-in, but only auth_time
-	// shows the provider didn't just reuse its session.
-	if claims.freshAuth().IsZero() {
-		s.log.Warn("oidc reauth without a fresh sign-in at the provider", "user", u.Username, "auth_time", claims.AuthTime)
-		s.renderSecurity(w, r, http.StatusForbidden, data{"Error": i18n.M("The provider didn't ask you to sign in again, so it couldn't confirm it's you.")})
-		return
-	}
-	if err := s.syncAdmin(r, *u, admin); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	// A session signed in through the provider takes on the new tokens.
-	if cur.SSO {
-		sealed, err := s.sealTokens(tok)
-		if err == nil {
-			err = s.store.GroupsChecked(r.Context(), cur.TokenHash, sealed)
-		}
-		if err != nil {
-			s.serverError(w, r, err)
-			return
-		}
-	}
-	if err := s.store.MarkVerified(r.Context(), cur.TokenHash); err != nil {
-		s.serverError(w, r, err)
-		return
-	}
-	http.Redirect(w, r, withNotice(safeNext(f.next), "confirmed"), http.StatusSeeOther)
 }
 
 // syncAdmin makes u an admin or not as the provider's group says; admin is
@@ -729,15 +658,6 @@ func later(a, b time.Time) time.Time {
 		return a
 	}
 	return b
-}
-
-// ssoReauthOnly reports whether the session confirms it's the user only
-// through the provider: with an admin group, a session signed in there does,
-// so that the group is checked again too. (An unlinked account has no
-// admin rights, see isAdmin, so it confirms any way it can.)
-func (s *Server) ssoReauthOnly(r *http.Request) bool {
-	ss := currentSession(r)
-	return s.groupAdmins() && ss != nil && ss.SSO && s.ssoLinked(r.Context(), currentUser(r))
 }
 
 // ssoLinked reports whether u's account is linked to the provider.

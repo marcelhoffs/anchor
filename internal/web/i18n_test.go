@@ -189,7 +189,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 
 	pages := []string{"/", "/?q=%23go", "/?q=nothing", "/?q=%21archived", "/tags", "/saved-searches", "/bookmarks/new",
 		"/bookmarks/1/edit", "/settings", "/settings/security", "/settings/tokens", "/settings/data", "/spaces",
-		spaceURL(spaces[0].ID), "/admin/", "/admin/users", "/admin/invites", "/admin/spaces", "/reauth",
+		spaceURL(spaces[0].ID), "/admin/", "/admin/users", "/admin/invites", "/admin/spaces",
 		"/s/" + b.ShareToken, "/no-such-page"}
 	anon := e.client()
 	for _, lang := range i18n.Langs {

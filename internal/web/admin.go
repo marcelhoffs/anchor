@@ -27,7 +27,6 @@ var adminNotices = map[string]i18n.Msg{
 	"settings":      i18n.M("Settings saved."),
 	"space-owner":   i18n.M("The space has a new owner."),
 	"space-delete":  i18n.M("Space deleted."),
-	"confirmed":     i18n.M("Thanks, you're confirmed for the next 10 minutes. Go ahead."),
 }
 
 // adminSpaces lists every shared space: names, members and sizes, never

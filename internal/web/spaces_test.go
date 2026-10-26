@@ -76,12 +76,6 @@ func TestSpacePages(t *testing.T) {
 		t.Fatal("role change not shown")
 	}
 
-	// Handing over and deleting need a recent sign-in check.
-	e.expireReauth()
-	if code, _, loc := alice.post(page+"/members/"+bobID+"/owner", nil); code != http.StatusSeeOther || !strings.HasPrefix(loc, "/reauth") {
-		t.Fatalf("stale hand-over: %d %q", code, loc)
-	}
-	alice.post("/reauth/password", url.Values{"password": {"alice-password"}})
 	if code, _, _ := alice.post(page+"/members/"+bobID+"/owner", nil); code != http.StatusSeeOther {
 		t.Fatalf("hand-over: %d", code)
 	}
@@ -91,7 +85,6 @@ func TestSpacePages(t *testing.T) {
 	if code, _, _ := alice.get(page); code != http.StatusNotFound {
 		t.Fatal("still in the space after leaving")
 	}
-	bob.post("/reauth/password", url.Values{"password": {"bob-password"}})
 	if code, _, loc := bob.post(page+"/delete", nil); code != http.StatusSeeOther || loc != "/spaces?done=deleted" {
 		t.Fatalf("delete: %d %q", code, loc)
 	}
@@ -100,7 +93,6 @@ func TestSpacePages(t *testing.T) {
 	}
 
 	// Admins can keep space creation to themselves.
-	root.post("/reauth/password", url.Values{"password": {"root-password"}})
 	root.post("/admin/spaces", url.Values{"space_creation": {"admins"}})
 	if _, body, _ := bob.get("/spaces"); strings.Contains(body, "Create space") {
 		t.Fatal("create form shown to a non-admin")
