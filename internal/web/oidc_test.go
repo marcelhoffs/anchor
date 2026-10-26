@@ -23,8 +23,9 @@ import (
 	"github.com/marcelhoffs/anchor/internal/store"
 )
 
-// fakeIdP is an OpenID Connect provider for tests: discovery, keys and a
-// token endpoint that hands out the ID token prepared for each code.
+// fakeIdP is an OpenID Connect provider for tests: discovery, keys, a
+// token endpoint that hands out the ID token prepared for each code and
+// renews tokens, and userinfo with each subject's groups.
 type fakeIdP struct {
 	t      *testing.T
 	srv    *httptest.Server
@@ -32,6 +33,14 @@ type fakeIdP struct {
 	mu     sync.Mutex
 	codes  map[string]idpGrant
 	lastAu url.Values // the last authorization request's query
+
+	access, refresh map[string]string // valid tokens, to their subject
+	groups          map[string]any    // each subject's groups now
+	n               int               // tokens issued
+	userinfos       int               // userinfo calls
+	refreshes       int               // tokens renewed
+	down            bool              // userinfo and renewing fail
+	noGroupInfo     bool              // userinfo leaves the groups out, like Entra ID
 }
 
 type idpGrant struct {
@@ -44,13 +53,15 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := &fakeIdP{t: t, key: key, codes: map[string]idpGrant{}}
+	f := &fakeIdP{t: t, key: key, codes: map[string]idpGrant{},
+		access: map[string]string{}, refresh: map[string]string{}, groups: map[string]any{}}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]any{
 			"issuer": f.srv.URL, "authorization_endpoint": f.srv.URL + "/authorize", "token_endpoint": f.srv.URL + "/token",
-			"jwks_uri": f.srv.URL + "/jwks", "id_token_signing_alg_values_supported": []string{"RS256"},
-			"response_types_supported": []string{"code"}, "subject_types_supported": []string{"public"},
+			"jwks_uri": f.srv.URL + "/jwks", "userinfo_endpoint": f.srv.URL + "/userinfo",
+			"id_token_signing_alg_values_supported": []string{"RS256"}, "response_types_supported": []string{"code"},
+			"subject_types_supported": []string{"public"},
 		})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
@@ -59,16 +70,58 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 	mux.HandleFunc("/token", func(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		f.mu.Lock()
-		g, ok := f.codes[r.PostFormValue("code")]
-		delete(f.codes, r.PostFormValue("code"))
-		f.mu.Unlock()
-		sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
-		if !ok || base64.RawURLEncoding.EncodeToString(sum[:]) != g.challenge {
-			http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
-			return
+		defer f.mu.Unlock()
+		var claims map[string]any
+		if r.PostFormValue("grant_type") == "refresh_token" {
+			sub, ok := f.refresh[r.PostFormValue("refresh_token")]
+			if f.down {
+				http.Error(w, "down", http.StatusBadGateway)
+				return
+			}
+			delete(f.refresh, r.PostFormValue("refresh_token")) // each works once
+			if !ok {
+				http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
+				return
+			}
+			f.refreshes++
+			claims = map[string]any{"iss": f.srv.URL, "aud": "anchor", "sub": sub, "groups": f.groups[sub],
+				"iat": time.Now().Unix(), "exp": time.Now().Add(5 * time.Minute).Unix()}
+		} else {
+			g, ok := f.codes[r.PostFormValue("code")]
+			delete(f.codes, r.PostFormValue("code"))
+			sum := sha256.Sum256([]byte(r.PostFormValue("code_verifier")))
+			if !ok || base64.RawURLEncoding.EncodeToString(sum[:]) != g.challenge {
+				http.Error(w, `{"error":"invalid_grant"}`, http.StatusBadRequest)
+				return
+			}
+			claims = g.claims
+			if gr, ok := claims["groups"]; ok {
+				f.groups[claims["sub"].(string)] = gr
+			}
 		}
+		f.n++
+		sub := claims["sub"].(string)
+		at, rt := "at-"+strconv.Itoa(f.n), "rt-"+strconv.Itoa(f.n)
+		f.access[at], f.refresh[rt] = sub, sub
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{"access_token": "at", "token_type": "Bearer", "id_token": f.sign(g.claims)})
+		json.NewEncoder(w).Encode(map[string]any{"access_token": at, "refresh_token": rt, "token_type": "Bearer",
+			"expires_in": 300, "id_token": f.sign(claims)})
+	})
+	mux.HandleFunc("/userinfo", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		f.userinfos++
+		sub, ok := f.access[strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")]
+		switch {
+		case f.down:
+			http.Error(w, "down", http.StatusBadGateway)
+		case !ok:
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+		case f.noGroupInfo:
+			json.NewEncoder(w).Encode(map[string]any{"sub": sub})
+		default:
+			json.NewEncoder(w).Encode(map[string]any{"sub": sub, "groups": f.groups[sub]})
+		}
 	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
@@ -463,12 +516,13 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 		t.Fatalf("remove-admin: %d", code)
 	}
 
-	// An hour on, the group is checked again: through the provider only.
+	// Later on, the provider confirms the group without asking her anything;
+	// confirming it's her goes through the provider only.
 	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?, verified_at = 0", time.Now().Add(-2*time.Hour).Unix()); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, loc := g.get("/admin/users"); code != http.StatusSeeOther || loc != "/reauth?next=%2Fadmin%2Fusers" {
-		t.Fatalf("stale group check: %d %q", code, loc)
+	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
+		t.Fatalf("admin pages after a while: %d", code)
 	}
 	if _, body, _ := g.get("/reauth?next=%2Fadmin%2Fusers"); strings.Contains(body, `action="/reauth/password"`) || !strings.Contains(body, "Confirm with Authentik") {
 		t.Fatal("reauth offers more than the provider")
@@ -493,6 +547,106 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	e.store.UnlinkIdentity(ctx, e.userID("gina"), true)
 	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
 		t.Fatalf("admin pages after unlinking: %d", code)
+	}
+}
+
+// With an admin group, the provider confirms the group at every page load
+// and every adminGroupCheck otherwise, renewing tokens as needed; a session
+// it no longer accepts ends.
+func TestSSOAdminGroupRecheck(t *testing.T) {
+	e, idp := oidcEnv(t, func(o *config.OIDC) { o.AdminGroup = "anchor-admins" })
+	ctx := context.Background()
+	e.admin()
+	e.store.SetInstanceSetting(ctx, store.SettingSignup, "open")
+	g := e.client()
+	e.ssoFlow(idp, g, getStart(g, "/login/oidc"), "g-1", map[string]any{"preferred_username": "gina", "groups": []string{"anchor-admins"}})
+	setGroups := func(groups ...string) {
+		idp.mu.Lock()
+		idp.groups["g-1"] = groups
+		idp.mu.Unlock()
+	}
+	isAdmin := func() bool {
+		u, _ := e.store.UserByUsername(ctx, "gina")
+		return u.IsAdmin
+	}
+	stale := func() {
+		old := time.Now().Add(-10 * time.Minute).Unix()
+		e.db.W.Exec("UPDATE sessions SET created_at = ?, groups_checked_at = ?", old, old)
+	}
+
+	// Removed from the group: the next page load takes admin away.
+	setGroups("staff")
+	if _, body, _ := g.get("/"); strings.Contains(body, `href="/admin/"`) || isAdmin() {
+		t.Fatal("admin kept after leaving the group")
+	}
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("admin pages after leaving the group: %d", code)
+	}
+	setGroups("anchor-admins")
+	if code, _, _ := g.get("/admin/users"); code != http.StatusOK || !isAdmin() {
+		t.Fatalf("admin pages after rejoining: %d", code)
+	}
+
+	// A script's call checks only once the last check is old.
+	calls := func() int {
+		idp.mu.Lock()
+		defer idp.mu.Unlock()
+		return idp.userinfos
+	}
+	before := calls()
+	g.post("/settings/appearance", url.Values{"theme": {"dark"}})
+	if calls() != before {
+		t.Fatal("a recent check was repeated")
+	}
+	stale()
+	g.post("/settings/appearance", url.Values{"theme": {"dark"}})
+	if calls() != before+1 {
+		t.Fatal("an old check wasn't repeated")
+	}
+
+	// An access token that's refused is renewed with the refresh token.
+	idp.mu.Lock()
+	clear(idp.access)
+	idp.mu.Unlock()
+	if code, _, _ := g.get("/admin/users"); code != http.StatusOK || idp.refreshes != 1 {
+		t.Fatalf("renewing the access token: %d, %d renewals", code, idp.refreshes)
+	}
+
+	// Groups left out of userinfo come from a new ID token.
+	idp.noGroupInfo = true
+	setGroups("staff")
+	if g.get("/"); isAdmin() || idp.refreshes != 2 {
+		t.Fatalf("groups from the ID token: admin %v, %d renewals", isAdmin(), idp.refreshes)
+	}
+	idp.noGroupInfo = false
+	setGroups("anchor-admins")
+	g.get("/")
+
+	// The provider can't be reached: pages still work, admin pages only
+	// while the last check is recent.
+	idp.down = true
+	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
+		t.Fatalf("admin pages, provider down, recent check: %d", code)
+	}
+	stale()
+	if code, _, _ := g.get("/"); code != http.StatusOK {
+		t.Fatalf("pages while the provider is down: %d", code)
+	}
+	if code, _, _ := g.get("/admin/users"); code != http.StatusServiceUnavailable {
+		t.Fatalf("admin pages, provider down, old check: %d", code)
+	}
+	idp.down = false
+
+	// The provider refuses the refresh token too: the session ends.
+	idp.mu.Lock()
+	clear(idp.access)
+	clear(idp.refresh)
+	idp.mu.Unlock()
+	if code, _, loc := g.get("/tags"); code != http.StatusSeeOther || loc != "/login?next=%2Ftags" {
+		t.Fatalf("session the provider ended: %d %q", code, loc)
+	}
+	if code, _, _ := g.get("/"); code != http.StatusSeeOther {
+		t.Fatalf("still signed in: %d", code)
 	}
 }
 

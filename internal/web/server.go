@@ -180,7 +180,7 @@ func (s *Server) Handler() http.Handler {
 		r.With(s.requireUser).Get("/favicons/{id}", s.favicon)
 
 		r.Group(func(r chi.Router) {
-			r.Use(s.requireUser, s.enforce2FA, s.loadScope)
+			r.Use(s.requireUser, s.recheckGroup, s.enforce2FA, s.loadScope)
 			r.Get("/", s.list)
 			r.Get("/bookmarks/new", s.newBookmark)
 			r.Post("/bookmarks", s.createBookmark)

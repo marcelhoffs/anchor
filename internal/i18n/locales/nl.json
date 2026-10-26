@@ -432,6 +432,7 @@
  "Use recovery code": "Herstelcode gebruiken",
  "Confirm": "Bevestigen",
  "Confirm with %s": "Bevestigen met %s",
+ "%s couldn't confirm your admin rights. Try again in a moment.": "%s kon je beheerdersrechten niet bevestigen. Probeer het zo opnieuw.",
  "Cancel and sign in as someone else": "Annuleren en als iemand anders inloggen",
  "User disabled and signed out everywhere.": "Gebruiker uitgeschakeld en overal uitgelogd.",
  "User enabled.": "Gebruiker ingeschakeld.",

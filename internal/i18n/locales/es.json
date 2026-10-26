@@ -432,6 +432,7 @@
  "Use recovery code": "Usar código de recuperación",
  "Confirm": "Confirmar",
  "Confirm with %s": "Confirmar con %s",
+ "%s couldn't confirm your admin rights. Try again in a moment.": "%s no pudo confirmar tus permisos de administrador. Inténtalo de nuevo en un momento.",
  "Cancel and sign in as someone else": "Cancelar e iniciar sesión con otra cuenta",
  "User disabled and signed out everywhere.": "Usuario desactivado y con la sesión cerrada en todas partes.",
  "User enabled.": "Usuario activado.",

@@ -9,6 +9,7 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -47,7 +48,8 @@ type OIDC struct {
 	ClientSecret string // "" for a public client (PKCE only)
 	Name         string // the provider's name on the sign-in button
 	// AdminGroup, when set, makes members of that group admins and everyone
-	// else not, on every sign-in through the provider.
+	// else not, checked at sign-in through the provider and as the session
+	// is used.
 	AdminGroup  string
 	GroupsClaim string   // the ID token claim with the groups
 	Scopes      []string // asked for; always includes openid
@@ -134,6 +136,11 @@ func Load(requireServe bool) (*Config, error) {
 			if sc != "openid" {
 				c.OIDC.Scopes = append(c.OIDC.Scopes, sc)
 			}
+		}
+		// With an admin group, sessions check it again with a refresh token,
+		// which some providers (Authentik) only hand out for offline_access.
+		if c.OIDC.AdminGroup != "" && !slices.Contains(c.OIDC.Scopes, "offline_access") {
+			c.OIDC.Scopes = append(c.OIDC.Scopes, "offline_access")
 		}
 		if u, err := url.Parse(issuer); err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
 			errs = append(errs, errors.New("ANCHOR_OIDC_ISSUER must be the provider's http(s) issuer URL"))

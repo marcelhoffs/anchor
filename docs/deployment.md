@@ -117,9 +117,9 @@ Anchor can sign people in through an OpenID Connect provider: Authentik, Keycloa
 | `ANCHOR_OIDC_CLIENT_ID` | required with an issuer | The client ID Anchor has at the provider. |
 | `ANCHOR_OIDC_CLIENT_SECRET` | empty | The client secret; leave it empty for a public client (Anchor always uses PKCE). |
 | `ANCHOR_OIDC_NAME` | `SSO` | Shown on the button: "Sign in with Authentik". |
-| `ANCHOR_OIDC_SCOPES` | `openid profile email` | Scopes asked for. Add `groups` if your provider needs that scope for a groups claim. |
+| `ANCHOR_OIDC_SCOPES` | `openid profile email` | Scopes asked for. Add `groups` if your provider needs that scope for a groups claim. With an admin group, `offline_access` is always added. |
 | `ANCHOR_OIDC_ADMIN_GROUP` | empty | Members of this group are admins, everyone else isn't (see [Admins from a group](#admins-from-a-group)). Empty: admins are managed in Anchor. |
-| `ANCHOR_OIDC_GROUPS_CLAIM` | `groups` | The ID token claim that lists the groups. |
+| `ANCHOR_OIDC_GROUPS_CLAIM` | `groups` | The claim that lists the groups, in the ID token and the userinfo response. |
 | `ANCHOR_OIDC_ONLY` | `false` | `true` hides password sign-in and sign-up, so everyone goes through the provider. |
 
 At the provider, the redirect URI is `{ANCHOR_BASE_URL}/login/oidc/callback`, for example `https://anchor.example.com/login/oidc/callback`. Anchor logs it at startup.
@@ -128,13 +128,15 @@ At the provider, the redirect URI is `{ANCHOR_BASE_URL}/login/oidc/callback`, fo
 
 **Two-factor authentication.** A sign-in through the provider counts as complete, so set up multi-factor authentication there. The "require two-factor authentication" policy then only applies to password sign-ins. Sensitive actions, like creating an API token, ask the provider to confirm it's you again. Anchor checks that it really did, from the ID token's `auth_time` claim: a sign-in counts as confirming it's you only if it happened in the last five minutes, not when the provider just reused its session. A provider must therefore send `auth_time` (Authentik and Keycloak do; for Entra ID, add it as an optional claim).
 
-**Admins from a group.** With `ANCHOR_OIDC_ADMIN_GROUP`, the group alone decides who is admin. Admin rights hold only in a session signed in through the provider, for an account still linked to it; a password sign-in has none, and *Make admin* and *Remove admin* are gone from the admin pages. The group is read at every sign-in, link and reauth through the provider, and is applied even to the last admin. An hour after the last check, the admin pages ask the provider to confirm it's you again, which checks the group again; in those sessions, confirming works only through the provider. Someone who leaves the group therefore loses admin rights within the hour.
+**Admins from a group.** With `ANCHOR_OIDC_ADMIN_GROUP`, the group alone decides who is admin. Admin rights hold only in a session signed in through the provider, for an account still linked to it; a password sign-in has none, and *Make admin* and *Remove admin* are gone from the admin pages. The group is read at every sign-in, link and reauth through the provider, and is applied even to the last admin. While a session is in use, Anchor asks the provider's userinfo endpoint again at every page load, and for other requests once the last check is more than five minutes old. Someone who leaves the group therefore loses admin rights at their next page load, without signing in again; the admin pages don't ask to confirm it's you, but admin actions still do (in those sessions, only through the provider).
+
+For these checks Anchor keeps the provider's access and refresh tokens with the session, encrypted with `ANCHOR_SECRET_KEY`, and asks for the `offline_access` scope so the provider hands out a refresh token. When the access token has expired, or the provider refuses it, Anchor renews it with the refresh token. If the provider refuses that too (the user was disabled or removed, or their tokens revoked), or sent no refresh token, Anchor ends the session and the user signs in again. If the provider can't be reached, pages keep working, but the admin pages stay shut once the last check is more than five minutes old. Sessions from before Anchor kept tokens end at their next check. If the userinfo response has no groups claim (as with Entra ID), Anchor reads the groups from the ID token that comes with a renewed access token.
 
 **Getting back in.** Accounts made through the provider have no password until their owner sets one under Settings → Security. If someone loses their provider account, `anchor user unlink-sso <name>` and `anchor user reset-password <name>` give them a password sign-in again (with `ANCHOR_OIDC_ONLY=true`, switch that off first).
 
 ### Authentik
 
-1. **Applications → Providers → Create → OAuth2/OpenID Provider.** Client type *Confidential*; redirect URI `https://anchor.example.com/login/oidc/callback` (strict); any RS256 signing key. Keep the default scope mappings (`openid`, `email`, `profile`): `profile` already includes the user's groups.
+1. **Applications → Providers → Create → OAuth2/OpenID Provider.** Client type *Confidential*; redirect URI `https://anchor.example.com/login/oidc/callback` (strict); any RS256 signing key. Keep the default scope mappings (`openid`, `email`, `profile`): `profile` already includes the user's groups. With an admin group, also select the `offline_access` scope mapping under *Advanced protocol settings*, so Authentik hands out refresh tokens; its *Refresh Token validity* bounds how long a session can go unchecked.
 2. **Applications → Applications → Create**, with slug `anchor` and the provider above. Bind a group or policy to choose who may use Anchor.
 3. In `.env`:
 

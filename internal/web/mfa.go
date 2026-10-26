@@ -196,7 +196,7 @@ func (s *Server) login2FAPasskeyFinish(w http.ResponseWriter, r *http.Request) {
 func (s *Server) completeLogin(w http.ResponseWriter, r *http.Request, u store.User, method, next string, asJSON bool) {
 	s.mfaUser.Reset(fmt.Sprint(u.ID))
 	s.store.RecordLogin(r.Context(), u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, false, time.Now()); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, false, nil, time.Now()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

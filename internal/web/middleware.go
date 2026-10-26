@@ -349,9 +349,9 @@ func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, st
 	return withUserLang(r, u), ss, u, true
 }
 
-// requireAdmin lets only admins in (see isAdmin). With an admin group, one
-// whose group check is over adminGroupCheck old confirms through the
-// provider first, which checks it again.
+// requireAdmin lets only admins in (see isAdmin). With an admin group, the
+// group must have been confirmed in the last adminGroupCheck: recheckGroup
+// asked the provider, so it's still stale only when that failed.
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.isAdmin(r) {
@@ -359,11 +359,8 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 			return
 		}
 		if s.groupStale(r) {
-			back := "/admin/"
-			if r.Method == http.MethodGet {
-				back = safeNext(r.URL.RequestURI())
-			}
-			http.Redirect(w, r, "/reauth?next="+url.QueryEscape(back), http.StatusSeeOther)
+			http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
+				http.StatusServiceUnavailable)
 			return
 		}
 		next.ServeHTTP(w, r)

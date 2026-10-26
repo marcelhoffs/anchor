@@ -12,6 +12,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -42,9 +43,13 @@ const (
 	maxOIDCFlows = 10000
 	// After failing, discovery waits this long before asking again.
 	discoveryRetry = 30 * time.Second
-	// With an admin group, admin rights hold while the group was checked
-	// (at a sign-in or reauth through the provider) this recently.
-	adminGroupCheck = time.Hour
+	// With an admin group, admin rights hold while the provider confirmed
+	// the group this recently; see recheckGroup.
+	adminGroupCheck = 5 * time.Minute
+	// How long a page waits for the provider to confirm the group.
+	groupCheckTimeout = 5 * time.Second
+	// What a session's provider tokens are sealed for.
+	ssoTokensKey = "sso-tokens"
 )
 
 // oidcFlow is a sign-in at the provider in flight, kept until it comes back.
@@ -74,6 +79,10 @@ type oidcClient struct {
 
 	mu    sync.Mutex
 	flows map[string]oidcFlow
+
+	// One session's group checks run one at a time (see checkGroup); a
+	// session's lock is picked by its hash.
+	checks [64]sync.Mutex
 }
 
 func newOIDCClient(cfg *config.OIDC, baseURL string) *oidcClient {
@@ -320,9 +329,9 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 	case "link":
 		s.oidcFinishLink(w, r, f, idt.Issuer, idt.Subject, s.inAdminGroup(all))
 	case "reauth":
-		s.oidcFinishReauth(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all))
+		s.oidcFinishReauth(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all), tok)
 	default:
-		s.oidcFinishLogin(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all))
+		s.oidcFinishLogin(w, r, f, idt.Issuer, idt.Subject, claims, s.inAdminGroup(all), tok)
 	}
 }
 
@@ -345,7 +354,7 @@ func (s *Server) inAdminGroup(claims map[string]any) *bool {
 	return &in
 }
 
-func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool) {
+func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool, tok *oauth2.Token) {
 	ctx := r.Context()
 	u, err := s.store.UserByIdentity(ctx, issuer, subject)
 	switch {
@@ -366,9 +375,17 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 		s.serverError(w, r, err)
 		return
 	}
+	if s.groupAdmins() && tok.RefreshToken == "" {
+		s.log.Warn("oidc: no refresh token, so the session ends when its access token does; allow offline_access at the provider", "user", u.Username)
+	}
+	sealed, err := s.sealTokens(tok)
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
 	s.store.TouchIdentity(ctx, issuer, subject)
 	s.store.RecordLogin(ctx, u.ID)
-	if err := s.newSession(w, r, u, true, sessionTTL, true, claims.freshAuth()); err != nil {
+	if err := s.newSession(w, r, u, true, sessionTTL, true, sealed, claims.freshAuth()); err != nil {
 		s.serverError(w, r, err)
 		return
 	}
@@ -468,7 +485,7 @@ func (s *Server) oidcFinishLink(w http.ResponseWriter, r *http.Request, f oidcFl
 	http.Redirect(w, r, "/settings/security?done=sso-linked", http.StatusSeeOther)
 }
 
-func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool) {
+func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidcFlow, issuer, subject string, claims oidcClaims, admin *bool, tok *oauth2.Token) {
 	u, cur := currentUser(r), currentSession(r)
 	if u == nil || u.ID != f.userID {
 		s.oidcFailed(w, r, "login", i18n.M("That sign-in expired or was started elsewhere. Start again."))
@@ -488,6 +505,17 @@ func (s *Server) oidcFinishReauth(w http.ResponseWriter, r *http.Request, f oidc
 	if err := s.syncAdmin(r, *u, admin); err != nil {
 		s.serverError(w, r, err)
 		return
+	}
+	// A session signed in through the provider takes on the new tokens.
+	if cur.SSO {
+		sealed, err := s.sealTokens(tok)
+		if err == nil {
+			err = s.store.GroupsChecked(r.Context(), cur.TokenHash, sealed)
+		}
+		if err != nil {
+			s.serverError(w, r, err)
+			return
+		}
 	}
 	if err := s.store.MarkVerified(r.Context(), cur.TokenHash); err != nil {
 		s.serverError(w, r, err)
@@ -512,8 +540,8 @@ func (s *Server) groupAdmins() bool { return s.cfg.OIDC != nil && s.cfg.OIDC.Adm
 
 // isAdmin reports whether the request has admin rights. With an admin group
 // only a session signed in through the provider has them, while the account
-// is still linked: the group was checked there, and is again at each reauth
-// (see ssoReauthOnly).
+// is still linked: the group was checked there, and is again as the session
+// is used (see recheckGroup).
 func (s *Server) isAdmin(r *http.Request) bool {
 	u, ss := currentUser(r), currentSession(r)
 	return s.accountAdmin(r.Context(), u) && (!s.groupAdmins() || ss.SSO)
@@ -527,12 +555,172 @@ func (s *Server) accountAdmin(ctx context.Context, u *store.User) bool {
 }
 
 // groupStale reports whether the session's admin rights rest on a group
-// check older than adminGroupCheck. A session signed in through the
-// provider only ever confirms itself there, so its sign-in or last
-// confirmation is when the group was last checked.
+// check older than adminGroupCheck: its sign-in through the provider, or
+// the provider's last answer since.
 func (s *Server) groupStale(r *http.Request) bool {
 	ss := currentSession(r)
-	return s.groupAdmins() && time.Since(later(ss.CreatedAt, ss.VerifiedAt)) > adminGroupCheck
+	return s.groupAdmins() && time.Since(later(ss.CreatedAt, ss.GroupsCheckedAt)) > adminGroupCheck
+}
+
+// errSSOEnded: the provider no longer accepts the session's tokens.
+var errSSOEnded = errors.New("the provider ended the session")
+
+// recheckGroup asks the provider again whether a session signed in there is
+// in the admin group: at every page load, and for other requests once the
+// last check is over adminGroupCheck old. When the provider has ended the
+// session, Anchor ends it too. When the provider can't be reached, the
+// request goes on, but the admin pages stay shut (see requireAdmin).
+func (s *Server) recheckGroup(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ss, u := currentSession(r), currentUser(r)
+		if !s.groupAdmins() || !ss.SSO || !(pageLoad(r) || s.groupStale(r)) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		err := s.checkGroup(r)
+		switch {
+		case errors.Is(err, errSSOEnded):
+			s.log.Info("signed out: the provider ended the session", "user", u.Username)
+			if err := s.store.DeleteSession(r.Context(), ss.UserID, ss.TokenHash); err != nil {
+				s.serverError(w, r, err)
+				return
+			}
+			s.clearSessionCookie(w)
+			if r.Method != http.MethodGet {
+				http.Error(w, langOf(r).T("Not logged in"), http.StatusUnauthorized)
+				return
+			}
+			http.Redirect(w, r, "/login?next="+urlQueryEscape(r.URL.RequestURI()), http.StatusSeeOther)
+			return
+		case err != nil:
+			s.log.Warn("oidc: checking the admin group", "user", u.Username, "err", err)
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// pageLoad reports whether r is the browser loading a page, not a script's
+// call.
+func pageLoad(r *http.Request) bool {
+	mode := r.Header.Get("Sec-Fetch-Mode")
+	return r.Method == http.MethodGet && (mode == "navigate" || mode == "")
+}
+
+// checkGroup asks the provider's userinfo endpoint for the user's groups and
+// applies the admin group. The access token is renewed when it has expired
+// or is refused; errSSOEnded when the provider refuses the refresh token, or
+// there is none.
+func (s *Server) checkGroup(r *http.Request) error {
+	ss, u := currentSession(r), currentUser(r)
+	subject, err := s.store.IdentityOf(r.Context(), u.ID, s.cfg.OIDC.Issuer)
+	if errors.Is(err, store.ErrNotFound) {
+		return nil // unlinked: no admin rights to check (see accountAdmin)
+	} else if err != nil {
+		return err
+	}
+	p, oc, err := s.oidc.discover()
+	if err != nil {
+		return err
+	}
+	// Two requests mustn't both spend the refresh token: a provider may take
+	// each only once. The second one finds the tokens the first one got.
+	lock := &s.oidc.checks[int(ss.TokenHash[0])%len(s.oidc.checks)]
+	lock.Lock()
+	defer lock.Unlock()
+	sealed, err := s.store.SessionTokens(r.Context(), ss.TokenHash)
+	if err != nil {
+		return err
+	}
+	var tok oauth2.Token
+	if b, err := s.keys.Open(ssoTokensKey, sealed); err != nil || json.Unmarshal(b, &tok) != nil {
+		return errSSOEnded // a session from before Anchor kept them
+	}
+
+	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), s.oidc.http), groupCheckTimeout)
+	defer cancel()
+	renewed := false
+	renew := func() error {
+		if tok.RefreshToken == "" {
+			return errSSOEnded
+		}
+		old := tok
+		old.AccessToken = "" // makes the token source refresh it
+		t, err := oc.TokenSource(ctx, &old).Token()
+		var re *oauth2.RetrieveError
+		if errors.As(err, &re) && re.Response != nil && re.Response.StatusCode < 500 {
+			return errSSOEnded
+		} else if err != nil {
+			return err
+		}
+		tok, renewed = *t, true
+		return nil
+	}
+	if !tok.Valid() {
+		if err := renew(); err != nil {
+			return err
+		}
+	}
+	info, err := p.UserInfo(ctx, oauth2.StaticTokenSource(&tok))
+	if err != nil && !renewed {
+		// Perhaps revoked before it expired: once more with new tokens.
+		if err := renew(); err != nil {
+			return err
+		}
+		info, err = p.UserInfo(ctx, oauth2.StaticTokenSource(&tok))
+	}
+	if err != nil {
+		return err
+	}
+	if info.Subject != subject {
+		return errSSOEnded
+	}
+	var claims map[string]any
+	if err := info.Claims(&claims); err != nil {
+		return err
+	}
+	if _, ok := claims[s.cfg.OIDC.GroupsClaim]; !ok {
+		// Some providers (Entra ID) leave the groups out of userinfo; a new
+		// ID token has them.
+		if !renewed {
+			if err := renew(); err != nil {
+				return err
+			}
+		}
+		raw, _ := tok.Extra("id_token").(string)
+		idt, err := p.Verifier(&oidc.Config{ClientID: s.cfg.OIDC.ClientID}).Verify(ctx, raw)
+		if err != nil {
+			return err
+		}
+		if idt.Subject != subject {
+			return errSSOEnded
+		}
+		if err := idt.Claims(&claims); err != nil {
+			return err
+		}
+	}
+
+	admin := s.inAdminGroup(claims)
+	if err := s.syncAdmin(r, *u, admin); err != nil {
+		return err
+	}
+	u.IsAdmin = *admin // for the rest of this request
+	if sealed, err = s.sealTokens(&tok); err != nil {
+		return err
+	}
+	if err := s.store.GroupsChecked(r.Context(), ss.TokenHash, sealed); err != nil {
+		return err
+	}
+	ss.GroupsCheckedAt = time.Now()
+	return nil
+}
+
+// sealTokens encrypts the provider's tokens for keeping with a session.
+func (s *Server) sealTokens(tok *oauth2.Token) ([]byte, error) {
+	b, err := json.Marshal(tok)
+	if err != nil {
+		return nil, err
+	}
+	return s.keys.Seal(ssoTokensKey, b)
 }
 
 func later(a, b time.Time) time.Time {
