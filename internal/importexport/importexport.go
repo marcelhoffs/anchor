@@ -5,11 +5,13 @@ package importexport
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -160,6 +162,13 @@ func itemFromAttrs(attrs map[string]string, folders []string) Item {
 			}
 		}
 	}
+	// A folder is often in TAGS too (Anchor's own export).
+	seen := map[string]bool{}
+	it.Tags = slices.DeleteFunc(it.Tags, func(t string) bool {
+		dup := seen[t]
+		seen[t] = true
+		return dup
+	})
 	it.CreatedAt = unixAttr(attrs["add_date"], attrs["time_added"])
 	it.UpdatedAt = unixAttr(attrs["last_modified"])
 	return it
@@ -221,10 +230,18 @@ type Writer interface {
 	Close() error
 }
 
-type netscapeWriter struct{ w io.Writer }
+type netscapeWriter struct {
+	w       io.Writer
+	folders map[string][]Item // by tag
+	root    []Item            // untagged
+}
 
 // NewNetscapeWriter writes Netscape bookmark HTML, which every browser and
-// bookmark manager can import. Tags go in the TAGS attribute.
+// bookmark manager can import. Each tag becomes a folder, by name, holding
+// its bookmarks: one with several tags is in each of their folders (an
+// Anchor import merges the copies). Untagged ones follow at the top level.
+// Tags also go in the TAGS attribute, for linkding and Pinboard. The
+// folders are only known at the end, so nothing is written before Close.
 func NewNetscapeWriter(w io.Writer) (Writer, error) {
 	_, err := io.WriteString(w, `<!DOCTYPE NETSCAPE-Bookmark-file-1>
 <!-- This is an automatically generated file. It will be read and overwritten. DO NOT EDIT! -->
@@ -233,32 +250,58 @@ func NewNetscapeWriter(w io.Writer) (Writer, error) {
 <H1>Bookmarks</H1>
 <DL><p>
 `)
-	return &netscapeWriter{w}, err
+	return &netscapeWriter{w: w, folders: map[string][]Item{}}, err
 }
 
 func (n *netscapeWriter) Write(it Item) error {
+	if len(it.Tags) == 0 {
+		n.root = append(n.root, it)
+	}
+	for _, t := range it.Tags {
+		n.folders[t] = append(n.folders[t], it)
+	}
+	return nil
+}
+
+func (n *netscapeWriter) Close() error {
+	names := make([]string, 0, len(n.folders))
+	for t := range n.folders {
+		names = append(names, t)
+	}
+	slices.SortFunc(names, func(a, b string) int {
+		return cmp.Or(cmp.Compare(strings.ToLower(a), strings.ToLower(b)), cmp.Compare(a, b))
+	})
 	var b strings.Builder
-	fmt.Fprintf(&b, `<DT><A HREF="%s"`, html.EscapeString(it.URL))
-	if !it.CreatedAt.IsZero() {
-		fmt.Fprintf(&b, ` ADD_DATE="%d"`, it.CreatedAt.Unix())
+	for _, t := range names {
+		fmt.Fprintf(&b, "<DT><H3>%s</H3>\n<DL><p>\n", html.EscapeString(t))
+		for _, it := range n.folders[t] {
+			writeNetscapeItem(&b, it)
+		}
+		b.WriteString("</DL><p>\n")
 	}
-	if !it.UpdatedAt.IsZero() {
-		fmt.Fprintf(&b, ` LAST_MODIFIED="%d"`, it.UpdatedAt.Unix())
+	for _, it := range n.root {
+		writeNetscapeItem(&b, it)
 	}
-	if len(it.Tags) > 0 {
-		fmt.Fprintf(&b, ` TAGS="%s"`, html.EscapeString(strings.Join(it.Tags, ",")))
-	}
-	fmt.Fprintf(&b, ">%s</A>\n", html.EscapeString(cmpOr(it.Title, it.URL)))
-	if it.Description != "" {
-		fmt.Fprintf(&b, "<DD>%s\n", html.EscapeString(it.Description))
-	}
+	b.WriteString("</DL><p>\n")
 	_, err := io.WriteString(n.w, b.String())
 	return err
 }
 
-func (n *netscapeWriter) Close() error {
-	_, err := io.WriteString(n.w, "</DL><p>\n")
-	return err
+func writeNetscapeItem(b *strings.Builder, it Item) {
+	fmt.Fprintf(b, `<DT><A HREF="%s"`, html.EscapeString(it.URL))
+	if !it.CreatedAt.IsZero() {
+		fmt.Fprintf(b, ` ADD_DATE="%d"`, it.CreatedAt.Unix())
+	}
+	if !it.UpdatedAt.IsZero() {
+		fmt.Fprintf(b, ` LAST_MODIFIED="%d"`, it.UpdatedAt.Unix())
+	}
+	if len(it.Tags) > 0 {
+		fmt.Fprintf(b, ` TAGS="%s"`, html.EscapeString(strings.Join(it.Tags, ",")))
+	}
+	fmt.Fprintf(b, ">%s</A>\n", html.EscapeString(cmpOr(it.Title, it.URL)))
+	if it.Description != "" {
+		fmt.Fprintf(b, "<DD>%s\n", html.EscapeString(it.Description))
+	}
 }
 
 type jsonWriter struct {

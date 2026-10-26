@@ -117,7 +117,7 @@ Icons are stored once per host and shared by every bookmark, and every user, on 
 
 Files up to 32 MiB are accepted. The import runs in the background in small batches, so it doesn't slow down other users, and the page shows its progress. A URL the space already has isn't duplicated: the existing bookmark gains the imported tags, empty fields are filled in, and favourite or archived can be turned on but never off. Links that aren't http or https are skipped and counted. Imported bookmarks then join the page-details queue.
 
-**Export** writes all the bookmarks in the space you're in as Netscape HTML, which any browser can import, or as Anchor JSON, which keeps everything Anchor knows, including notes and flags.
+**Export** writes all the bookmarks in the space you're in as Netscape HTML, which any browser can import, or as Anchor JSON, which keeps everything Anchor knows, including notes and flags. In the HTML, each tag is a folder: a bookmark with several tags is in each of their folders, and untagged bookmarks sit at the top level. Importing that file back into Anchor merges the copies again.
 
 ## Accounts and sign-in
 
