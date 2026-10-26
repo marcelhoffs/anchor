@@ -181,6 +181,18 @@ func TestSensitiveActionsDontAskAgain(t *testing.T) {
 	if code, _, _ := c.get("/reauth"); code != http.StatusNotFound {
 		t.Fatalf("/reauth: %d", code)
 	}
+	// Whoever made that token can't keep using it once the password changes,
+	// or an admin resets two-factor.
+	ctx := context.Background()
+	c.post("/settings/password", url.Values{"current": {"alice-password"}, "password": {"new-alice-password"}, "confirm": {"new-alice-password"}})
+	if list, _ := e.store.ListAPITokens(ctx, e.userID("alice")); len(list) != 0 {
+		t.Fatal("API token survived a password change")
+	}
+	e.store.CreateAPIToken(ctx, e.userID("alice"), "cli", []byte("h"), []string{"read"}, time.Time{})
+	e.store.ResetMFA(ctx, e.userID("alice"))
+	if list, _ := e.store.ListAPITokens(ctx, e.userID("alice")); len(list) != 0 {
+		t.Fatal("API token survived a two-factor reset")
+	}
 }
 
 func TestRemovingFactorSignsOutOtherSessions(t *testing.T) {

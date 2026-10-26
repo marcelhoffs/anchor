@@ -218,7 +218,7 @@ type sessionRow struct {
 }
 
 var securityNotices = map[string]i18n.Msg{
-	"password":     i18n.M("Password changed. Your other sessions were signed out."),
+	"password":     i18n.M("Password changed. Your other sessions were signed out and your API tokens revoked."),
 	"revoked":      i18n.M("Session revoked."),
 	"totp":         i18n.M("Authenticator app is set up."),
 	"totp-off":     i18n.M("Authenticator app removed. Your other sessions were signed out."),

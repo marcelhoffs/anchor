@@ -20,7 +20,7 @@ var adminNotices = map[string]i18n.Msg{
 	"enable":        i18n.M("User enabled."),
 	"make-admin":    i18n.M("User is now an admin."),
 	"remove-admin":  i18n.M("Admin rights removed."),
-	"reset-2fa":     i18n.M("Two-factor authentication reset. The user was signed out everywhere."),
+	"reset-2fa":     i18n.M("Two-factor authentication reset. The user was signed out everywhere and their API tokens revoked."),
 	"delete":        i18n.M("Account deleted."),
 	"delete-spaces": i18n.M("Account deleted. The shared spaces they owned are now yours."),
 	"invite-off":    i18n.M("Invite revoked."),
@@ -165,7 +165,7 @@ func (s *Server) adminUserAction(w http.ResponseWriter, r *http.Request) {
 			s.clearSessionCookie(w)
 		}
 		s.showSecret(w, r, "users", i18n.M("New password for %s", target.Username),
-			i18n.M("They were signed out everywhere. Give them this password; it is shown only once."), password)
+			i18n.M("They were signed out everywhere and their API tokens revoked. Give them this password; it is shown only once."), password)
 		return
 	default:
 		s.notFound(w, r)

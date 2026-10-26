@@ -135,7 +135,7 @@ Admins can require two-factor authentication for everyone. Users without it are 
 
 **Single sign-on.** With an OpenID Connect provider configured, people can sign in through it (the authorization code flow with PKCE; Anchor checks the ID token's signature, issuer, audience, expiry and nonce). An account at the provider is linked to one Anchor user by its issuer and subject, never by email address or name. A first sign-in creates an account only as far as the sign-up mode allows, and an optional provider group decides which linked accounts are admins (checked again with the provider's userinfo endpoint at every page load, renewing its tokens with the refresh token; a session the provider no longer accepts ends). The provider handles the second factor for these sign-ins. Starting a sign-in is limited per IP address. See [Deployment](deployment.md#single-sign-on-oidc).
 
-**Sessions** last 30 days from the last visit, and at most 90 days from signing in. They are listed under Settings → Security, where each can be signed out. Changing or resetting a password signs out every session.
+**Sessions** last 30 days from the last visit, and at most 90 days from signing in. They are listed under Settings → Security, where each can be signed out. Changing or resetting a password, or an admin resetting two-factor, signs out every other session and revokes the account's API tokens, so whoever got in before can't stay in.
 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 

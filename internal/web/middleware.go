@@ -360,6 +360,7 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 				s.endSSOSession(w, r)
 				return
 			case err != nil:
+				s.oidc.checkFailed.Store(time.Now().UnixNano())
 				s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
 				http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
 					http.StatusServiceUnavailable)

@@ -185,19 +185,24 @@ func TestSharedSpaces(t *testing.T) {
 		t.Fatalf("members: %+v", members)
 	}
 
-	// Only the owner manages the space.
-	bobScope, _ := s.Access(ctx, bob.ID, owner.SpaceID())
-	carolScope, _ := s.Access(ctx, carol.ID, owner.SpaceID())
-	for name, err := range map[string]error{
-		"add":      s.AddMember(ctx, carolScope, "alice", RoleRead),
-		"role":     s.SetRole(ctx, carolScope, bob.ID, RoleWrite),
-		"remove":   s.RemoveMember(ctx, carolScope, bob.ID),
-		"rename":   s.RenameSpace(ctx, carolScope, "Mine"),
-		"transfer": s.TransferSpace(ctx, carolScope, carol.ID),
-		"delete":   s.DeleteSpace(ctx, carolScope),
-	} {
-		if !errors.Is(err, ErrForbidden) {
-			t.Errorf("editor can %s: %v", name, err)
+	// Only the owner manages the space, not its other members.
+	for who, id := range map[string]int64{"bob": bob.ID, "carol": carol.ID} {
+		sc, _ := s.Access(ctx, id, owner.SpaceID())
+		other := carol.ID
+		if id == carol.ID {
+			other = bob.ID
+		}
+		for name, err := range map[string]error{
+			"add":      s.AddMember(ctx, sc, "alice", RoleRead),
+			"role":     s.SetRole(ctx, sc, other, RoleWrite),
+			"remove":   s.RemoveMember(ctx, sc, other),
+			"rename":   s.RenameSpace(ctx, sc, "Mine"),
+			"transfer": s.TransferSpace(ctx, sc, id),
+			"delete":   s.DeleteSpace(ctx, sc),
+		} {
+			if !errors.Is(err, ErrForbidden) {
+				t.Errorf("%s (%s) can %s: %v", who, sc.Role(), name, err)
+			}
 		}
 	}
 	// A personal space has nothing to manage.
@@ -212,7 +217,8 @@ func TestSharedSpaces(t *testing.T) {
 	if err := s.SetRole(ctx, owner, bob.ID, RoleWrite); err != nil {
 		t.Fatal(err)
 	}
-	if bobScope, _ = s.Access(ctx, bob.ID, owner.SpaceID()); !bobScope.CanWrite() {
+	bobScope, _ := s.Access(ctx, bob.ID, owner.SpaceID())
+	if !bobScope.CanWrite() {
 		t.Fatal("bob can't edit after being made an editor")
 	}
 	if err := s.SetRole(ctx, owner, alice.ID, RoleRead); !errors.Is(err, ErrNotFound) {
@@ -243,6 +249,7 @@ func TestSharedSpaces(t *testing.T) {
 
 	// Members leave; removed members lose access at once, and their saved
 	// searches in the space go with them.
+	carolScope, _ := s.Access(ctx, carol.ID, owner.SpaceID())
 	for _, sc := range []Scope{aliceScope, carolScope} {
 		if _, err := s.CreateSavedSearch(ctx, sc, "Go", "#go"); err != nil {
 			t.Fatal(err)

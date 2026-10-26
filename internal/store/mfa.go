@@ -169,8 +169,8 @@ func (s *Store) DeletePasskey(ctx context.Context, userID, id int64) error {
 	return nil
 }
 
-// ResetMFA removes every second factor and signs the user out everywhere
-// (admin recovery for a lost device).
+// ResetMFA removes every second factor and API token and signs the user
+// out everywhere (admin recovery for a lost device).
 func (s *Store) ResetMFA(ctx context.Context, userID int64) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
 		res, err := tx.ExecContext(ctx,
@@ -185,6 +185,7 @@ func (s *Store) ResetMFA(ctx context.Context, userID int64) error {
 		for _, q := range []string{
 			"DELETE FROM webauthn_credentials WHERE user_id = ?",
 			"DELETE FROM recovery_codes WHERE user_id = ?",
+			"DELETE FROM api_tokens WHERE user_id = ?",
 			"DELETE FROM sessions WHERE user_id = ?",
 		} {
 			if _, err := tx.ExecContext(ctx, q, userID); err != nil {
