@@ -119,38 +119,44 @@ func TestSharing(t *testing.T) {
 	}
 }
 
-func TestBundles(t *testing.T) {
+func TestSavedSearches(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u, other := newUser(t, s, "alice"), newUser(t, s, "bob")
-	if _, err := s.CreateBundle(ctx, personal(s, u.ID), " ", "#go"); !isValidationErr(err) {
+	if _, err := s.CreateSavedSearch(ctx, personal(s, u.ID), " ", "#go"); !isValidationErr(err) {
 		t.Fatalf("empty name: %v", err)
 	}
-	if _, err := s.CreateBundle(ctx, personal(s, u.ID), "Go", " "); !isValidationErr(err) {
+	if _, err := s.CreateSavedSearch(ctx, personal(s, u.ID), "Go", " "); !isValidationErr(err) {
 		t.Fatalf("empty query: %v", err)
 	}
-	b, err := s.CreateBundle(ctx, personal(s, u.ID), " zebra ", " #go site:github.com ")
+	b, err := s.CreateSavedSearch(ctx, personal(s, u.ID), " zebra ", " #go site:github.com ")
 	if err != nil || b.Name != "zebra" || b.Query != "#go site:github.com" {
 		t.Fatalf("create = %+v, %v", b, err)
 	}
-	s.CreateBundle(ctx, personal(s, u.ID), "Apple", "!fav")
-	list, _ := s.ListBundles(ctx, personal(s, u.ID))
+	s.CreateSavedSearch(ctx, personal(s, u.ID), "Apple", "!fav")
+	list, _ := s.ListSavedSearches(ctx, personal(s, u.ID))
 	if len(list) != 2 || list[0].Name != "Apple" {
 		t.Fatalf("list = %+v", list)
 	}
-	if err := s.UpdateBundle(ctx, personal(s, other.ID), b.ID, "x", "y"); err != ErrNotFound {
-		t.Fatalf("bob edited alice's bundle: %v", err)
+	if err := s.RenameSavedSearch(ctx, personal(s, other.ID), b.ID, "x"); err != ErrNotFound {
+		t.Fatalf("bob renamed alice's saved search: %v", err)
 	}
-	if err := s.DeleteBundle(ctx, personal(s, other.ID), b.ID); err != ErrNotFound {
-		t.Fatalf("bob deleted alice's bundle: %v", err)
+	if err := s.DeleteSavedSearch(ctx, personal(s, other.ID), b.ID); err != ErrNotFound {
+		t.Fatalf("bob deleted alice's saved search: %v", err)
 	}
-	if err := s.UpdateBundle(ctx, personal(s, u.ID), b.ID, "Go repos", "#go"); err != nil {
+	if err := s.RenameSavedSearch(ctx, personal(s, u.ID), b.ID, " "); !isValidationErr(err) {
+		t.Fatalf("blank rename: %v", err)
+	}
+	if err := s.RenameSavedSearch(ctx, personal(s, u.ID), b.ID, "Go repos"); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.DeleteBundle(ctx, personal(s, u.ID), b.ID); err != nil {
+	if list, _ := s.ListSavedSearches(ctx, personal(s, u.ID)); list[1].Name != "Go repos" || list[1].Query != "#go site:github.com" {
+		t.Fatalf("after rename = %+v", list)
+	}
+	if err := s.DeleteSavedSearch(ctx, personal(s, u.ID), b.ID); err != nil {
 		t.Fatal(err)
 	}
-	if list, _ := s.ListBundles(ctx, personal(s, u.ID)); len(list) != 1 {
+	if list, _ := s.ListSavedSearches(ctx, personal(s, u.ID)); len(list) != 1 {
 		t.Fatalf("after delete = %+v", list)
 	}
 }

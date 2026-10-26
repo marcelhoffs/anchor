@@ -7,18 +7,18 @@
     <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
     <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
-  {{if .Bundles}}
-  <div class="side-bundles">
-  <h2 class="side-heading side-heading-row">{{t "Bundles"}}<a href="/bundles" class="side-manage">{{t "Manage"}}</a></h2>
-  <nav aria-label="{{t "Bundles"}}">
-    {{range .Bundles}}
-    <a class="side-link" href="{{bundleURL .}}"{{if eq $.View (print "bundle:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
+  {{if .SavedSearches}}
+  <div class="side-searches">
+  <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage">{{t "Manage"}}</a></h2>
+  <nav aria-label="{{t "Saved searches"}}">
+    {{range .SavedSearches}}
+    <a class="side-link" href="{{savedSearchURL .}}"{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
     {{end}}
   </nav>
   </div>
   {{end}}
   <div class="side-tags">
-    <h2 class="side-heading">{{t "Tags"}}</h2>
+    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage">{{t "Manage"}}</a></h2>
     {{template "tag-links" .}}
   </div>
 </aside>
@@ -64,7 +64,7 @@
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
     <div class="drawer-head">
-      <h2 class="side-heading" id="tag-drawer-title">{{t "Tags"}}</h2>
+      <h2 class="side-heading side-heading-row" id="tag-drawer-title">{{t "Tags"}}<a href="/tags" class="side-manage">{{t "Manage"}}</a></h2>
       <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="{{t "Close tags"}}">{{icon "x"}}</button>
     </div>
     {{template "tag-links" .}}
@@ -73,20 +73,20 @@
   <div class="list-head">
     <h1>{{.Heading}}</h1>
     <div class="list-actions">
-      {{if and .Query (eq .View "")}}<button class="btn" popovertarget="save-bundle">{{icon "layers" "sm"}}<span class="label-sm">{{t "Save search"}}</span></button>{{end}}
+      {{if and .Query (eq .View "")}}<button class="btn" popovertarget="save-search">{{icon "layers" "sm"}}<span class="label-sm">{{t "Save search"}}</span></button>{{end}}
       {{template "pager" .}}
     </div>
   </div>
 
   {{if and .Query (eq .View "")}}
-  <div id="save-bundle" class="confirm" popover role="dialog" aria-labelledby="save-bundle-title">
-    <p class="confirm-title" id="save-bundle-title">{{t "Save this search"}}</p>
-    <p class="confirm-text">{{t "It's listed in the sidebar as a bundle and stays up to date as you add bookmarks."}}</p>
-    <form method="post" action="/bundles">
+  <div id="save-search" class="confirm" popover role="dialog" aria-labelledby="save-search-title">
+    <p class="confirm-title" id="save-search-title">{{t "Save this search"}}</p>
+    <p class="confirm-text">{{t "It's listed in the sidebar under saved searches and stays up to date as you add bookmarks."}}</p>
+    <form method="post" action="/saved-searches">
       <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="query" value="{{.Query}}">
       <label>{{t "Name"}} <input name="name" required maxlength="100" autofocus></label>
       <div class="confirm-actions">
-        <button type="button" class="btn" popovertarget="save-bundle" popovertargetaction="hide">{{t "Cancel"}}</button>
+        <button type="button" class="btn" popovertarget="save-search" popovertargetaction="hide">{{t "Cancel"}}</button>
         <button class="btn btn-primary">{{t "Save"}}</button>
       </div>
     </form>

@@ -45,7 +45,7 @@ Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, w
 | DELETE | `/api/v1/bookmarks/{id}` | Delete a bookmark |
 | POST | `/api/v1/bookmarks/{id}/archive` | Archive; `{"archived": false}` unarchives |
 | POST | `/api/v1/bookmarks/{id}/share` | Make a public link (`share_url`); `{"shared": false}` removes it |
-| GET | `/api/v1/bundles` | Saved searches; list a bundle's bookmarks with `?q=` set to its `query` |
+| GET | `/api/v1/saved-searches` | Saved searches; list the bookmarks of one with `?q=` set to its `query` |
 | GET | `/api/v1/tags` | Tags with their bookmark counts |
 | POST | `/api/v1/tags` | Create a tag (`{"name": "home lab"}`); bookmarks can only use tags that exist |
 | PATCH | `/api/v1/tags/{id}` | Rename (`{"name": …}`) or merge into another tag (`{"merge_into": id}`) |

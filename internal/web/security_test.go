@@ -129,7 +129,7 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 	ctx := context.Background()
 	uid := e.userID("root")
 	tag, _ := e.store.CreateTag(ctx, personal(e.store, uid), "go")
-	bundle, _ := e.store.CreateBundle(ctx, personal(e.store, uid), "Go", "#go")
+	saved, _ := e.store.CreateSavedSearch(ctx, personal(e.store, uid), "Go", "#go")
 	tok, _ := e.store.CreateAPIToken(ctx, uid, "script", []byte("hash"), []string{"read"}, time.Time{})
 	root.post("/admin/settings", url.Values{"signup": {"invite"}})
 	root.post("/admin/invites", url.Values{"note": {"friend"}})
@@ -155,7 +155,7 @@ func TestDestructiveActionsAreConfirmed(t *testing.T) {
 	invites, _ := e.store.ListInvites(ctx)
 	for _, c := range []struct{ page, id, action string }{
 		{"/tags", "delete-tag-" + itoa(tag.ID), "/tags/" + itoa(tag.ID) + "/delete"},
-		{"/bundles", "delete-bundle-" + itoa(bundle.ID), "/bundles/" + itoa(bundle.ID) + "/delete"},
+		{"/saved-searches", "delete-search-" + itoa(saved.ID), "/saved-searches/" + itoa(saved.ID) + "/delete"},
 		{"/settings/tokens", "revoke-token-" + itoa(tok.ID), "/settings/tokens/" + itoa(tok.ID) + "/delete"},
 		{"/admin/invites", "revoke-invite-" + itoa(invites[0].ID), "/admin/invites/" + itoa(invites[0].ID) + "/delete"},
 		{"/admin/users", "disable-" + alice, "/admin/users/" + alice + "/disable"},

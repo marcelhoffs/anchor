@@ -175,7 +175,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev/"}, "title": {"Go & friends"}, "tags": {"go"}})
 	c.post("/bookmarks/1/share", url.Values{"on": {"1"}})
 	c.post("/bookmarks/1/flag", url.Values{"flag": {"favourite"}, "on": {"1"}})
-	c.post("/bundles", url.Values{"name": {"Go"}, "query": {"#go"}})
+	c.post("/saved-searches", url.Values{"name": {"Go"}, "query": {"#go"}})
 	c.post("/spaces", url.Values{"name": {"Team"}})
 	c.post("/admin/settings", url.Values{"signup": {"invite"}})
 	c.post("/admin/invites", url.Values{"note": {"friend"}})
@@ -187,7 +187,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 	e.store.AddMember(ctx, team, "alice", store.RoleRead)
 	b, _ := e.store.GetBookmark(ctx, personal(e.store, uid), 1)
 
-	pages := []string{"/", "/?q=%23go", "/?q=nothing", "/?q=%21archived", "/tags", "/bundles", "/bookmarks/new",
+	pages := []string{"/", "/?q=%23go", "/?q=nothing", "/?q=%21archived", "/tags", "/saved-searches", "/bookmarks/new",
 		"/bookmarks/1/edit", "/settings", "/settings/security", "/settings/tokens", "/settings/data", "/spaces",
 		spaceURL(spaces[0].ID), "/admin/", "/admin/users", "/admin/invites", "/admin/spaces", "/reauth",
 		"/s/" + b.ShareToken, "/no-such-page"}

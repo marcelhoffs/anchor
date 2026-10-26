@@ -99,12 +99,12 @@ func TestSpaceAccess(t *testing.T) {
 			t.Errorf("reader %s: %v, want ErrForbidden", name, err)
 		}
 	}
-	// Bundles are the reader's own: keeping them changes nothing in the space.
-	if _, err := s.CreateBundle(ctx, r, "Team", "#team"); err != nil {
+	// Saved searches are the reader's own: keeping them changes nothing in the space.
+	if _, err := s.CreateSavedSearch(ctx, r, "Team", "#team"); err != nil {
 		t.Fatalf("reader can't save a search: %v", err)
 	}
-	if list, _ := s.ListBundles(ctx, w); len(list) != 0 {
-		t.Fatal("bundles are shared between members")
+	if list, _ := s.ListSavedSearches(ctx, w); len(list) != 0 {
+		t.Fatal("saved searches are shared between members")
 	}
 
 	// Outsiders reach nothing, not even through a bookmark id.
@@ -244,7 +244,7 @@ func TestSharedSpaces(t *testing.T) {
 	// Members leave; removed members lose access at once, and their saved
 	// searches in the space go with them.
 	for _, sc := range []Scope{aliceScope, carolScope} {
-		if _, err := s.CreateBundle(ctx, sc, "Go", "#go"); err != nil {
+		if _, err := s.CreateSavedSearch(ctx, sc, "Go", "#go"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -260,7 +260,7 @@ func TestSharedSpaces(t *testing.T) {
 		}
 	}
 	var stale int
-	s.r.QueryRowContext(ctx, "SELECT count(*) FROM bundles WHERE space_id = ?", owner.SpaceID()).Scan(&stale)
+	s.r.QueryRowContext(ctx, "SELECT count(*) FROM saved_searches WHERE space_id = ?", owner.SpaceID()).Scan(&stale)
 	if stale != 0 {
 		t.Fatalf("%d saved searches left behind", stale)
 	}
@@ -271,7 +271,7 @@ func TestSharedSpaces(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.CreateBundle(ctx, bobScope, "Fam", "#family")
+	s.CreateSavedSearch(ctx, bobScope, "Fam", "#family")
 	if err := s.RenameSpace(ctx, bobScope, "Gone soon"); err != nil {
 		t.Fatal(err)
 	}
@@ -279,7 +279,7 @@ func TestSharedSpaces(t *testing.T) {
 		t.Fatal(err)
 	}
 	var left int
-	s.r.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM bookmarks) + (SELECT count(*) FROM tags) + (SELECT count(*) FROM bundles)
+	s.r.QueryRowContext(ctx, `SELECT (SELECT count(*) FROM bookmarks) + (SELECT count(*) FROM tags) + (SELECT count(*) FROM saved_searches)
 		+ (SELECT count(*) FROM space_members WHERE space_id = ?) + (SELECT count(*) FROM bookmarks_fts WHERE rowid = ?)`,
 		bobScope.SpaceID(), b.ID).Scan(&left)
 	if left != 0 {

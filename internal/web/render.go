@@ -64,7 +64,7 @@ var funcs = template.FuncMap{
 		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" rel="license">AGPL-3.0</a>`)
 	},
 	"tagURL":            tagURL,
-	"bundleURL":         bundleURL,
+	"savedSearchURL":    savedSearchURL,
 	"dict":              dict,
 	"brandMark":         brandMark,
 	"appIconURL":        appIconURL,

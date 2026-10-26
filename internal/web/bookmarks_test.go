@@ -130,7 +130,7 @@ func TestSharingFlow(t *testing.T) {
 	}
 }
 
-func TestBundlesFlow(t *testing.T) {
+func TestSavedSearchesFlow(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	e.user("bob")
@@ -139,52 +139,52 @@ func TestBundlesFlow(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
 	c.post("/bookmarks", url.Values{"url": {"https://rust-lang.org"}, "title": {"Rust"}})
 
-	if _, body, _ := c.get("/?q=" + url.QueryEscape("#go")); strings.Contains(body, `popovertarget="save-bundle"`) {
+	if _, body, _ := c.get("/?q=" + url.QueryEscape("#go")); strings.Contains(body, `popovertarget="save-search"`) {
 		t.Fatal("a tag view offers to save itself")
 	}
 	q := "site:go.dev #go"
-	if _, body, _ := c.get("/?q=" + url.QueryEscape(q)); !strings.Contains(body, `popovertarget="save-bundle"`) {
+	if _, body, _ := c.get("/?q=" + url.QueryEscape(q)); !strings.Contains(body, `popovertarget="save-search"`) {
 		t.Fatal("no Save search on a search")
 	}
-	code, _, loc := c.post("/bundles", url.Values{"name": {"Go sites"}, "query": {q}})
+	code, _, loc := c.post("/saved-searches", url.Values{"name": {"Go sites"}, "query": {q}})
 	if code != http.StatusSeeOther || loc != "/?q="+url.QueryEscape(q) {
 		t.Fatalf("save: %d %q", code, loc)
 	}
 	_, body, _ := c.get(loc)
-	if !strings.Contains(body, "<h1>Go sites</h1>") || strings.Contains(body, `popovertarget="save-bundle"`) {
-		t.Fatal("bundle view not shown as the bundle")
+	if !strings.Contains(body, "<h1>Go sites</h1>") || strings.Contains(body, `popovertarget="save-search"`) {
+		t.Fatal("saved search view not shown as the saved search")
 	}
-	if !strings.Contains(body, `aria-label="Bundles"`) || strings.Count(body, `aria-current="page"`) != 1 {
-		t.Fatal("bundle not in the sidebar, or not the only current entry")
+	if !strings.Contains(body, `aria-label="Saved searches"`) || strings.Count(body, `aria-current="page"`) != 1 {
+		t.Fatal("saved search not in the sidebar, or not the only current entry")
 	}
-	if code, body, _ := c.post("/bundles", url.Values{"name": {""}, "query": {"x"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "Give the bundle a name") {
+	if code, body, _ := c.post("/saved-searches", url.Values{"name": {""}, "query": {"x"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "Give the saved search a name") {
 		t.Fatalf("empty name: %d", code)
 	}
 
-	list, _ := e.store.ListBundles(context.Background(), personal(e.store, e.userID("alice")))
+	list, _ := e.store.ListSavedSearches(context.Background(), personal(e.store, e.userID("alice")))
 	id := itoa(list[0].ID)
 	bob := e.login("bob")
 	if _, body, _ := bob.get("/"); strings.Contains(body, "Go sites") {
-		t.Fatal("bob sees alice's bundle")
+		t.Fatal("bob sees alice's saved search")
 	}
-	if code, _, _ := bob.post("/bundles/"+id+"/delete", nil); code != http.StatusNotFound {
-		t.Fatalf("bob deleted alice's bundle: %d", code)
+	if code, _, _ := bob.post("/saved-searches/"+id+"/delete", nil); code != http.StatusNotFound {
+		t.Fatalf("bob deleted alice's saved search: %d", code)
 	}
-	if code, _, _ := c.post("/bundles/"+id, url.Values{"name": {"Go"}, "query": {"#go"}}); code != http.StatusSeeOther {
+	if code, _, _ := c.post("/saved-searches/"+id+"/rename", url.Values{"name": {"Go"}}); code != http.StatusSeeOther {
 		t.Fatalf("rename: %d", code)
 	}
-	if _, body, _ := c.get("/bundles"); !strings.Contains(body, `value="Go"`) {
+	if _, body, _ := c.get("/saved-searches"); !strings.Contains(body, `">Go</a>`) || !strings.Contains(body, q) {
 		t.Fatal("rename not shown")
 	}
 	api := apiClient{t, e.srv.URL, apiToken(t, c, "read")}
-	if code, out := api.do("GET", "/bundles", nil); code != http.StatusOK || len(out["results"].([]any)) != 1 {
-		t.Fatalf("api bundles: %d %v", code, out)
+	if code, out := api.do("GET", "/saved-searches", nil); code != http.StatusOK || len(out["results"].([]any)) != 1 {
+		t.Fatalf("api saved searches: %d %v", code, out)
 	}
-	if code, _, _ := c.post("/bundles/"+id+"/delete", nil); code != http.StatusSeeOther {
+	if code, _, _ := c.post("/saved-searches/"+id+"/delete", nil); code != http.StatusSeeOther {
 		t.Fatalf("delete: %d", code)
 	}
-	if _, body, _ := c.get("/"); strings.Contains(body, `aria-label="Bundles"`) {
-		t.Fatal("empty bundles section shown")
+	if _, body, _ := c.get("/"); strings.Contains(body, `aria-label="Saved searches"`) {
+		t.Fatal("empty saved searches section shown")
 	}
 }
 
