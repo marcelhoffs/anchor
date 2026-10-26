@@ -3,6 +3,7 @@ package importexport
 import (
 	"bytes"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -76,10 +77,44 @@ func TestRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	// HTML keeps URL, title, description, tags and dates, not notes or flags.
-	if len(got) != 2 || got[0].URL != in[0].URL || got[0].Title != in[0].Title || got[0].Description != "desc" ||
+	// Each tag is a folder holding its bookmarks, so the first is in both x
+	// and y; untagged ones come last, at the top.
+	if len(got) != 3 || got[0].URL != in[0].URL || got[0].Title != in[0].Title || got[0].Description != "desc" ||
 		!reflect.DeepEqual(got[0].Tags, []string{"x", "y"}) || !got[0].CreatedAt.Equal(in[0].CreatedAt) ||
-		!got[0].UpdatedAt.Equal(in[0].UpdatedAt) || got[1].Title != "https://b.example/" {
+		!got[0].UpdatedAt.Equal(in[0].UpdatedAt) || got[1].URL != in[0].URL || !reflect.DeepEqual(got[1].Tags, []string{"y", "x"}) ||
+		got[2].Title != "https://b.example/" || len(got[2].Tags) != 0 {
 		t.Fatalf("HTML round trip: %+v", got)
+	}
+}
+
+// What a browser sees: one folder per tag, by name, and untagged bookmarks
+// at the top level.
+func TestNetscapeFolders(t *testing.T) {
+	var buf bytes.Buffer
+	w, _ := NewNetscapeWriter(&buf)
+	for _, it := range []Item{
+		{URL: "https://go.dev/", Title: "Go", Tags: []string{"lang", "Dev & ops"}},
+		{URL: "https://plain.example/", Title: "Plain"},
+		{URL: "https://zig.example/", Title: "Zig", Tags: []string{"lang"}},
+	} {
+		w.Write(it)
+	}
+	w.Close()
+	want := `<DL><p>
+<DT><H3>Dev &amp; ops</H3>
+<DL><p>
+<DT><A HREF="https://go.dev/" TAGS="lang,Dev &amp; ops">Go</A>
+</DL><p>
+<DT><H3>lang</H3>
+<DL><p>
+<DT><A HREF="https://go.dev/" TAGS="lang,Dev &amp; ops">Go</A>
+<DT><A HREF="https://zig.example/" TAGS="lang">Zig</A>
+</DL><p>
+<DT><A HREF="https://plain.example/">Plain</A>
+</DL><p>
+`
+	if got := buf.String(); !strings.HasSuffix(got, want) {
+		t.Fatalf("export:\n%s", got)
 	}
 }
 
