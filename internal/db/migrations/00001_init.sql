@@ -1,5 +1,5 @@
--- Anchor's schema. Migrations 1 to 11 were squashed into this one before the
--- first release; new migrations start at 00002.
+-- Anchor's schema. Earlier migrations were squashed into this one before the
+-- first public release; new migrations start at 00002.
 
 -- +goose Up
 
@@ -71,7 +71,7 @@ CREATE TABLE instance_settings (
 
 -- Spaces ----------------------------------------------------------------
 
--- Bookmarks, tags and bundles belong to a space. Every user has a personal
+-- Bookmarks, tags and saved searches belong to a space. Every user has a personal
 -- space; shared spaces have several members.
 CREATE TABLE spaces (
   id          INTEGER PRIMARY KEY,
@@ -110,10 +110,23 @@ CREATE TABLE sessions (
   created_at   INTEGER NOT NULL,
   expires_at   INTEGER NOT NULL,
   last_seen_at INTEGER NOT NULL,
-  verified_at  INTEGER NOT NULL DEFAULT 0             -- last password or second-factor check
+  verified_at  INTEGER NOT NULL DEFAULT 0,            -- last password or second-factor check
+  sso          INTEGER NOT NULL DEFAULT 0             -- started through the provider, which does its own second factor
 );
 CREATE INDEX sessions_user ON sessions(user_id);
 CREATE INDEX sessions_expires ON sessions(expires_at);
+
+-- An identity at the OpenID Connect provider, (issuer, subject), signs in as
+-- one user. A user has at most one. Never matched by email or name, only by
+-- subject.
+CREATE TABLE oidc_identities (
+  issuer       TEXT NOT NULL,
+  subject      TEXT NOT NULL,
+  user_id      INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER,
+  PRIMARY KEY (issuer, subject)
+) WITHOUT ROWID;
 
 -- Bookmarks -------------------------------------------------------------
 
@@ -163,15 +176,15 @@ CREATE TABLE bookmark_tags (
 ) WITHOUT ROWID;
 CREATE INDEX bookmark_tags_tag ON bookmark_tags(tag_id);
 
--- A bundle is one person's saved search within one space.
-CREATE TABLE bundles (
+-- One person's saved search within one space.
+CREATE TABLE saved_searches (
   id       INTEGER PRIMARY KEY,
   space_id INTEGER NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
   user_id  INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name     TEXT NOT NULL,
   query    TEXT NOT NULL
 );
-CREATE INDEX bundles_space_user ON bundles(space_id, user_id);
+CREATE INDEX saved_searches_space_user ON saved_searches(space_id, user_id);
 
 -- Background jobs (imports), into the space they were started in.
 CREATE TABLE jobs (
@@ -265,11 +278,12 @@ END;
 -- +goose Down
 DROP TABLE bookmarks_fts;
 DROP TABLE jobs;
-DROP TABLE bundles;
+DROP TABLE saved_searches;
 DROP TABLE bookmark_tags;
 DROP TABLE tags;
 DROP TABLE bookmarks;
 DROP TABLE favicons;
+DROP TABLE oidc_identities;
 DROP TABLE sessions;
 DROP TABLE space_members;
 DROP TABLE spaces;
