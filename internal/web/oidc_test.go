@@ -420,40 +420,83 @@ func TestSSODiscoveryRetry(t *testing.T) {
 	}
 }
 
-// With an admin group, the group alone decides who is admin, and admin rights
-// rest on a recent check of it.
-func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
+// With an admin group, the group decides who is admin among linked
+// accounts, in sessions through the provider; Anchor's admins decide for
+// local accounts.
+func TestSSOAdminGroupAndLocalAdmins(t *testing.T) {
 	e, idp := oidcEnv(t, func(o *config.OIDC) { o.AdminGroup = "anchor-admins" })
 	ctx := context.Background()
-	root := e.admin() // an admin from before the group, with a password
+	root := e.admin() // a local admin, with a password
 	e.store.SetInstanceSetting(ctx, store.SettingSignup, "open")
 	inGroup := map[string]any{"preferred_username": "gina", "groups": []string{"anchor-admins"}}
 	g := e.client()
 	e.ssoFlow(idp, g, getStart(g, "/login/oidc"), "g-1", inGroup)
-
-	// Only a session through the provider has admin rights.
-	if code, _, _ := root.get("/admin/users"); code != http.StatusNotFound {
-		t.Fatalf("password admin: %d", code)
+	h := e.client()
+	e.ssoFlow(idp, h, getStart(h, "/login/oidc"), "h-1", map[string]any{"preferred_username": "hal", "groups": []string{"staff"}})
+	e.user("pat")
+	id := func(name string) string { return strconv.FormatInt(e.userID(name), 10) }
+	isAdmin := func(name string) bool {
+		u, _ := e.store.UserByUsername(ctx, name)
+		return u.IsAdmin
 	}
-	if _, body, _ := root.get("/"); strings.Contains(body, `href="/admin/"`) {
-		t.Fatal("password admin offered the admin pages")
+
+	// A local admin is one with a password session.
+	if code, _, _ := root.get("/admin/users"); code != http.StatusOK {
+		t.Fatalf("local admin: %d", code)
 	}
 	code, body, _ := g.get("/admin/users")
-	if code != http.StatusOK || strings.Contains(body, "/make-admin") || strings.Contains(body, "/remove-admin") || !strings.Contains(body, "anchor-admins") {
+	if code != http.StatusOK || !strings.Contains(body, "anchor-admins") {
 		t.Fatalf("admin pages: %d", code)
 	}
-	// root still has the flag from before the group, but isn't an admin.
-	if strings.Contains(body, `<strong>root</strong> <span class="badge on">`) || !strings.Contains(body, `<strong>gina</strong> <span class="badge on">`) {
-		t.Fatal("admin badges don't follow the group")
+	if !strings.Contains(body, `<strong>root</strong> <span class="badge on">`) || !strings.Contains(body, `<strong>gina</strong> <span class="badge on">`) {
+		t.Fatal("admin badges")
+	}
+	// Only local accounts get Make admin and Remove admin.
+	if !strings.Contains(body, "/users/"+id("pat")+"/make-admin") || !strings.Contains(body, "/users/"+id("root")+"/remove-admin") ||
+		strings.Contains(body, "/users/"+id("hal")+"/make-admin") {
+		t.Fatal("make/remove admin offered for the wrong accounts")
+	}
+	if code, body, _ := g.post("/admin/users/"+id("hal")+"/make-admin", nil); code != http.StatusConflict ||
+		!strings.Contains(body, "Admin rights come from the anchor-admins group") {
+		t.Fatalf("make-admin for a linked account: %d", code)
 	}
 	// Admin actions don't ask to confirm.
 	if code, _, loc := g.post("/admin/settings", url.Values{"signup": {"open"}}); code != http.StatusSeeOther || strings.HasPrefix(loc, "/reauth") {
-		t.Fatalf("admin action with a recent group check: %d %q", code, loc)
+		t.Fatalf("admin action: %d %q", code, loc)
 	}
-	// Anchor doesn't hand out or take away the role.
-	if code, body, _ := g.post("/admin/users/"+strconv.FormatInt(e.userID("root"), 10)+"/remove-admin", nil); code != http.StatusConflict ||
-		!strings.Contains(body, "Admin rights come from the anchor-admins group") {
-		t.Fatalf("remove-admin: %d", code)
+
+	// A local account is made admin here, and is one without 2FA.
+	if code, _, _ := g.post("/admin/users/"+id("pat")+"/make-admin", nil); code != http.StatusSeeOther || !isAdmin("pat") {
+		t.Fatalf("make-admin for a local account: %d", code)
+	}
+	p := e.login("pat")
+	if code, _, _ := p.get("/admin/users"); code != http.StatusOK {
+		t.Fatalf("local admin pages: %d", code)
+	}
+	// Linking hands the role to the group: pat isn't in it.
+	if _, body, _ := p.get("/settings/security"); !strings.Contains(body, "Your admin rights then come from its") {
+		t.Fatal("linking doesn't warn about the admin role")
+	}
+	e.ssoFlow(idp, p, func() (int, string, string) { return p.post("/settings/sso/link", nil) }, "p-1", map[string]any{"groups": []string{"staff"}})
+	if isAdmin("pat") {
+		t.Fatal("linked outside the group, still admin")
+	}
+	// In the group, a password session of a linked account still has no
+	// admin rights: the group can't be checked there.
+	ps := e.client()
+	e.ssoFlow(idp, ps, getStart(ps, "/login/oidc"), "p-1", map[string]any{"groups": []string{"anchor-admins"}})
+	if code, _, _ := ps.get("/admin/users"); code != http.StatusOK || !isAdmin("pat") {
+		t.Fatalf("linked admin through the provider: %d", code)
+	}
+	if code, _, _ := p.get("/admin/users"); code != http.StatusNotFound {
+		t.Fatalf("linked admin with a password session: %d", code)
+	}
+	// Unlinking takes the group's role away.
+	if _, body, _ := p.get("/settings/security"); !strings.Contains(body, "Unlinking takes away your admin rights") {
+		t.Fatal("unlinking doesn't warn about the admin role")
+	}
+	if code, _, _ := p.post("/settings/sso/unlink", nil); code != http.StatusSeeOther || isAdmin("pat") {
+		t.Fatalf("unlink kept the group's role: %d", code)
 	}
 
 	// Later on, the provider confirms the group without asking her anything.
@@ -463,8 +506,7 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
 		t.Fatalf("admin pages after a while: %d", code)
 	}
-	// She left the group: that takes the role away, even from the last admin.
-	e.store.SyncAdmin(ctx, e.userID("root"), false)
+	// She left the group: that takes the role away.
 	idp.mu.Lock()
 	idp.groups["g-1"] = []string{"staff"}
 	idp.mu.Unlock()
@@ -477,9 +519,9 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	if code, _, _ := g.get("/admin/users"); code != http.StatusOK {
 		t.Fatalf("admin pages after rejoining: %d", code)
 	}
-	// Unlinked, the group can't vouch for her any more.
-	e.store.UnlinkIdentity(ctx, e.userID("gina"), true)
-	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
+	// Unlinked from the command line, she doesn't keep the group's role.
+	e.store.UnlinkIdentity(ctx, e.userID("gina"), true, true)
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound || isAdmin("gina") {
 		t.Fatalf("admin pages after unlinking: %d", code)
 	}
 }

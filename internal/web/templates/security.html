@@ -32,7 +32,7 @@
   <section aria-labelledby="sso">
     <h2 id="sso">{{t "Single sign-on"}}</h2>
     {{if $.SSOLinked}}
-    <p class="muted">{{t "Your account is linked to %s: you sign in with it." .Name}}</p>
+    <p class="muted">{{t "Your account is linked to %s: you sign in with it." .Name}}{{if and $.GroupAdmins $.User.IsAdmin}} {{t "Unlinking takes away your admin rights."}}{{end}}</p>
     {{if not .Only}}
     <form method="post" action="/settings/sso/unlink">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
@@ -40,7 +40,7 @@
     </form>
     {{end}}
     {{else}}
-    <p class="muted">{{t "Link your account to %s to sign in with it instead of a password." .Name}}</p>
+    <p class="muted">{{t "Link your account to %s to sign in with it instead of a password." .Name}}{{if and $.GroupAdmins $.User.IsAdmin}} {{t "Your admin rights then come from its %s group." (code .AdminGroup)}}{{end}}</p>
     <form method="post" action="/settings/sso/link">
       <input type="hidden" name="csrf" value="{{$.CSRF}}">
       <button class="btn">{{icon "key" "sm"}}{{t "Link to %s" .Name}}</button>

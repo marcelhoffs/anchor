@@ -219,7 +219,7 @@ func (s *Server) oidcUnlink(w http.ResponseWriter, r *http.Request) {
 		s.renderSecurity(w, r, http.StatusConflict, data{"Error": i18n.M("Single sign-on is the only way to sign in here, so it can't be unlinked.")})
 		return
 	}
-	err := s.store.UnlinkIdentity(r.Context(), u.ID, false)
+	err := s.store.UnlinkIdentity(r.Context(), u.ID, false, s.groupAdmins())
 	if isValidation(err) {
 		s.renderSecurity(w, r, http.StatusConflict, data{"Error": errMsg(err)})
 		return
@@ -468,20 +468,13 @@ func (s *Server) syncAdmin(r *http.Request, u store.User, admin *bool) error {
 // groupAdmins reports whether the provider's group decides who is admin.
 func (s *Server) groupAdmins() bool { return s.cfg.OIDC != nil && s.cfg.OIDC.AdminGroup != "" }
 
-// isAdmin reports whether the request has admin rights. With an admin group
-// only a session signed in through the provider has them, while the account
-// is still linked: the group was checked there, and is again as the session
-// is used (see recheckGroup).
+// isAdmin reports whether the request has admin rights. With an admin
+// group, a linked account has them from the group, and only in a session
+// signed in through the provider, where the group is checked (see
+// recheckGroup); a local account has them as Anchor's admins decide.
 func (s *Server) isAdmin(r *http.Request) bool {
 	u, ss := currentUser(r), currentSession(r)
-	return s.accountAdmin(r.Context(), u) && (!s.groupAdmins() || ss.SSO)
-}
-
-// accountAdmin reports whether u's account is an admin's, whatever the
-// session: with an admin group, only a linked account can be (an unlinked
-// one may still carry the flag from before the group).
-func (s *Server) accountAdmin(ctx context.Context, u *store.User) bool {
-	return u != nil && u.IsAdmin && (!s.groupAdmins() || s.ssoLinked(ctx, u))
+	return u != nil && u.IsAdmin && (!s.groupAdmins() || ss.SSO || !s.ssoLinked(r.Context(), u))
 }
 
 // groupStale reports whether the session's admin rights rest on a group
@@ -555,7 +548,7 @@ func (s *Server) checkGroup(r *http.Request) error {
 	ss, u := currentSession(r), currentUser(r)
 	subject, err := s.store.IdentityOf(r.Context(), u.ID, s.cfg.OIDC.Issuer)
 	if errors.Is(err, store.ErrNotFound) {
-		return nil // unlinked: no admin rights to check (see accountAdmin)
+		return nil // a local account: Anchor decides (see isAdmin)
 	} else if err != nil {
 		return err
 	}

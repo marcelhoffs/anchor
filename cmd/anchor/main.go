@@ -283,7 +283,13 @@ func userCmd(ctx context.Context, args []string) error {
 			if err != nil {
 				return err
 			}
-			if err := st.UnlinkIdentity(ctx, u.ID, true); errors.Is(err, store.ErrNotFound) {
+			// With an admin group, the role came from it.
+			cfg, err := config.Load(false)
+			if err != nil {
+				return err
+			}
+			groupAdmin := cfg.OIDC != nil && cfg.OIDC.AdminGroup != ""
+			if err := st.UnlinkIdentity(ctx, u.ID, true, groupAdmin); errors.Is(err, store.ErrNotFound) {
 				return fmt.Errorf("%s has no single sign-on linked", u.Username)
 			} else if err != nil {
 				return err
