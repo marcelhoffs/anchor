@@ -514,10 +514,14 @@ func (s *Server) groupAdmins() bool { return s.cfg.OIDC != nil && s.cfg.OIDC.Adm
 // (see ssoReauthOnly).
 func (s *Server) isAdmin(r *http.Request) bool {
 	u, ss := currentUser(r), currentSession(r)
-	if u == nil || !u.IsAdmin {
-		return false
-	}
-	return !s.groupAdmins() || ss.SSO && s.ssoLinked(r.Context(), u)
+	return s.accountAdmin(r.Context(), u) && (!s.groupAdmins() || ss.SSO)
+}
+
+// accountAdmin reports whether u's account is an admin's, whatever the
+// session: with an admin group, only a linked account can be (an unlinked
+// one may still carry the flag from before the group).
+func (s *Server) accountAdmin(ctx context.Context, u *store.User) bool {
+	return u != nil && u.IsAdmin && (!s.groupAdmins() || s.ssoLinked(ctx, u))
 }
 
 // groupStale reports whether the session's admin rights rest on a group

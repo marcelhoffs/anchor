@@ -250,7 +250,7 @@ func (s *Server) apiUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"id": c.user.ID, "username": c.user.Username, "is_admin": c.user.IsAdmin,
+		"id": c.user.ID, "username": c.user.Username, "is_admin": s.accountAdmin(r.Context(), &c.user),
 		"two_factor_enabled": m.Enabled(), "settings": c.user.Settings,
 		"token": map[string]any{"name": c.token.Name, "scopes": c.token.Scopes},
 	})

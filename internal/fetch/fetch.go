@@ -91,8 +91,15 @@ func NewWithTimeout(allowPrivate bool, timeout time.Duration) *Client {
 	}}
 }
 
-// cgnat is 100.64.0.0/10, used by carrier NAT and by Tailscale.
-var cgnat = netip.MustParsePrefix("100.64.0.0/10")
+// IPv4 ranges that aren't public yet pass IsGlobalUnicast: carrier NAT (and
+// Tailscale), IETF protocol assignments, benchmarking (RFC 2544), and the
+// reserved 240/4.
+var notPublic4 = []netip.Prefix{
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("240.0.0.0/4"),
+}
 
 // IPv6 addresses that carry an IPv4 one, and reach it: NAT64 (RFC 6052),
 // IPv4-compatible and 6to4. Local-use NAT64 and Teredo can't be read back
@@ -118,7 +125,8 @@ func public(ip netip.Addr) bool {
 			return public(netip.AddrFrom4([4]byte(b[2:6])))
 		}
 	}
-	return ip.IsGlobalUnicast() && !ip.IsPrivate() && !cgnat.Contains(ip) &&
+	return ip.IsGlobalUnicast() && !ip.IsPrivate() &&
+		!slices.ContainsFunc(notPublic4, func(p netip.Prefix) bool { return p.Contains(ip) }) &&
 		!(ip.Is4() && ip.As4()[0] == 0)
 }
 

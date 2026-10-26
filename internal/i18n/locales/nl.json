@@ -482,6 +482,8 @@
  "Choose a bookmark file to import.": "Kies een bladwijzerbestand om te importeren.",
  "Couldn't read that file. Try uploading it again.": "Dat bestand kon niet worden gelezen. Probeer het opnieuw te uploaden.",
  "Couldn't import that file: it's larger than %d MB.": "Dat bestand kon niet worden geïmporteerd: het is groter dan %d MB.",
+ "Your previous import is still running. Try again when it's done.": "Je vorige import loopt nog. Probeer het opnieuw als die klaar is.",
+ "Couldn't import that file: it has more than %d bookmarks. Split it into smaller files.": "Kon dat bestand niet importeren: het bevat meer dan %d bladwijzers. Splits het op in kleinere bestanden.",
  "That export comes from a newer version of Anchor. Update this Anchor to import it.": "Die export komt uit een nieuwere versie van Anchor. Werk deze Anchor bij om hem te importeren.",
  "That file isn't a valid Anchor JSON export. Export it from Anchor again.": "Dat bestand is geen geldige JSON-export van Anchor. Exporteer het opnieuw uit Anchor.",
  "Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.": "Dat bestand kon niet worden geïmporteerd. Exporteer je bladwijzers als HTML uit een browser, of als JSON uit Anchor.",

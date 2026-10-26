@@ -234,7 +234,11 @@ func (s *Server) loadSession(next http.Handler) http.Handler {
 			return
 		}
 		if now := time.Now(); now.Sub(ss.LastSeenAt) > sessionTouchEvery {
-			if err := s.store.TouchSession(r.Context(), ss.TokenHash, now, now.Add(sessionTTL)); err != nil {
+			expires := now.Add(sessionTTL)
+			if end := ss.CreatedAt.Add(sessionMaxAge); end.Before(expires) {
+				expires = end
+			}
+			if err := s.store.TouchSession(r.Context(), ss.TokenHash, now, expires); err != nil {
 				s.log.Error("touch session", "err", err)
 			} else {
 				s.setSessionCookie(w, c.Value)

@@ -46,11 +46,18 @@ func Parse(data []byte) ([]Item, error) {
 	return nil, ErrNotBookmarkFile
 }
 
+// MaxItems is the most bookmarks one file may hold. Parsing keeps them all
+// in memory, so a file of tiny links (3 million fit in 32 MB) must stop
+// early rather than take the server's memory.
+const MaxItems = 100_000
+
 // Why Parse refused a file: ErrNotBookmarkFile, ErrNotAnchorJSON (JSON, but
-// not an Anchor export), or a VersionError (an export from a newer Anchor).
+// not an Anchor export), ErrTooManyItems, or a VersionError (an export from
+// a newer Anchor).
 var (
 	ErrNotBookmarkFile = errors.New("not a bookmark file: expected Netscape bookmark HTML or Anchor JSON")
 	ErrNotAnchorJSON   = errors.New("not an Anchor JSON export")
+	ErrTooManyItems    = fmt.Errorf("more than %d bookmarks in one file", MaxItems)
 )
 
 type VersionError struct{ Version int }
@@ -105,6 +112,9 @@ func ParseNetscape(r io.Reader) ([]Item, error) {
 				folders = append(folders, pendingDir)
 				pendingDir, inDD = "", false
 			case "a":
+				if len(items) == MaxItems {
+					return nil, ErrTooManyItems
+				}
 				inA, inDD = true, false
 				text.Reset()
 				items = append(items, itemFromAttrs(attrs, folders))
@@ -200,28 +210,64 @@ func unixAttr(vals ...string) time.Time {
 	return time.Time{}
 }
 
-// jsonFile is Anchor's JSON export format.
-type jsonFile struct {
-	Format     string    `json:"format"`
-	Version    int       `json:"version"`
-	ExportedAt time.Time `json:"exported_at"`
-	Bookmarks  []Item    `json:"bookmarks"`
-}
-
+// Anchor's JSON export is {"format": jsonFormat, "version": 1,
+// "exported_at": …, "bookmarks": [Item…]}.
 const jsonFormat = "anchor-bookmarks"
 
+// ParseJSON reads an Anchor JSON export. Bookmarks are decoded one at a
+// time, so a file with too many stops at MaxItems.
 func ParseJSON(data []byte) ([]Item, error) {
-	var f jsonFile
-	if err := json.Unmarshal(data, &f); err != nil {
-		return nil, fmt.Errorf("%w: invalid JSON: %v", ErrNotAnchorJSON, err)
+	invalid := func(err error) error { return fmt.Errorf("%w: invalid JSON: %v", ErrNotAnchorJSON, err) }
+	dec := json.NewDecoder(bytes.NewReader(data))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return nil, invalid(cmp.Or(err, errors.New("not an object")))
 	}
-	if f.Format != jsonFormat {
+	var (
+		format  string
+		version int
+		items   []Item
+	)
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return nil, invalid(err)
+		}
+		switch key {
+		case "format":
+			err = dec.Decode(&format)
+		case "version":
+			err = dec.Decode(&version)
+		case "bookmarks":
+			if t, terr := dec.Token(); terr != nil || t != json.Delim('[') {
+				return nil, invalid(cmp.Or(terr, errors.New("bookmarks is not a list")))
+			}
+			for err == nil && dec.More() {
+				if len(items) == MaxItems {
+					return nil, ErrTooManyItems
+				}
+				var it Item
+				if err = dec.Decode(&it); err == nil {
+					items = append(items, it)
+				}
+			}
+			if err == nil {
+				_, err = dec.Token() // ]
+			}
+		default:
+			var skip json.RawMessage
+			err = dec.Decode(&skip)
+		}
+		if err != nil {
+			return nil, invalid(err)
+		}
+	}
+	if format != jsonFormat {
 		return nil, ErrNotAnchorJSON
 	}
-	if f.Version != 1 {
-		return nil, VersionError{f.Version}
+	if version != 1 {
+		return nil, VersionError{version}
 	}
-	return f.Bookmarks, nil
+	return items, nil
 }
 
 // Writer streams bookmarks into an export file.
@@ -298,7 +344,7 @@ func writeNetscapeItem(b *strings.Builder, it Item) {
 	if len(it.Tags) > 0 {
 		fmt.Fprintf(b, ` TAGS="%s"`, html.EscapeString(strings.Join(it.Tags, ",")))
 	}
-	fmt.Fprintf(b, ">%s</A>\n", html.EscapeString(cmpOr(it.Title, it.URL)))
+	fmt.Fprintf(b, ">%s</A>\n", html.EscapeString(cmp.Or(it.Title, it.URL)))
 	if it.Description != "" {
 		fmt.Fprintf(b, "<DD>%s\n", html.EscapeString(it.Description))
 	}
@@ -337,11 +383,4 @@ func (j *jsonWriter) Write(it Item) error {
 func (j *jsonWriter) Close() error {
 	_, err := io.WriteString(j.w, "]}\n")
 	return err
-}
-
-func cmpOr(a, b string) string {
-	if a != "" {
-		return a
-	}
-	return b
 }

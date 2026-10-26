@@ -33,6 +33,10 @@ const (
 	sessionCookie = "anchor_session"
 	csrfCookie    = "anchor_csrf"
 	sessionTTL    = 30 * 24 * time.Hour
+	// However much it's used, a session ends this long after signing in, so
+	// someone removed elsewhere (at the SSO provider) or a stolen cookie
+	// doesn't keep access for good.
+	sessionMaxAge = 90 * 24 * time.Hour
 	// A password-checked session waiting for its second factor lives this long.
 	pendingTTL = 5 * time.Minute
 	// Sensitive actions (2FA changes, API tokens, admin actions) need the
