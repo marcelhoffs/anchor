@@ -535,11 +535,12 @@ func (s *Server) endSSOSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // pageLoad reports whether r is the browser loading a page, not a script's
-// call. Through the service worker a page load's mode is same-origin, but
-// its destination is still a document.
+// call: it asks for HTML. (Sec-Fetch-Mode won't do: through the service
+// worker, a page load isn't "navigate".) Without any Sec-Fetch headers, it's
+// not a browser's script either.
 func pageLoad(r *http.Request) bool {
-	mode := r.Header.Get("Sec-Fetch-Mode")
-	return r.Method == http.MethodGet && (mode == "navigate" || mode == "" || r.Header.Get("Sec-Fetch-Dest") == "document")
+	return r.Method == http.MethodGet &&
+		(strings.Contains(r.Header.Get("Accept"), "text/html") || r.Header.Get("Sec-Fetch-Mode") == "")
 }
 
 func adminPath(r *http.Request) bool {

@@ -348,13 +348,13 @@ func (s *Server) pendingLogin(r *http.Request) (*http.Request, store.Session, st
 	return withUserLang(r, u), ss, u, true
 }
 
-// requireAdmin lets only admins in (see isAdmin). With an admin group, a
-// session signed in through the provider asks it on every request here,
-// and is refused when the provider can't answer.
+// requireAdmin lets only admins in (see isAdmin); anyone else gets the
+// same not-found page as for any page that isn't theirs. With an admin
+// group, a session signed in through the provider asks it on every request
+// here, and is refused when the provider can't answer.
 func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if s.groupAdmins() && currentSession(r).SSO {
-			was := currentUser(r).IsAdmin
 			switch err := s.checkGroup(r); {
 			case errors.Is(err, errSSOEnded):
 				s.endSSOSession(w, r)
@@ -363,10 +363,6 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 				s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
 				http.Error(w, langOf(r).T("%s couldn't confirm your admin rights. Try again in a moment.", s.cfg.OIDC.Name),
 					http.StatusServiceUnavailable)
-				return
-			}
-			if was && !currentUser(r).IsAdmin {
-				http.Error(w, langOf(r).T("%s no longer gives you admin rights.", s.cfg.OIDC.Name), http.StatusForbidden)
 				return
 			}
 		}

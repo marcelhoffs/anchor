@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -467,11 +468,8 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	idp.mu.Lock()
 	idp.groups["g-1"] = []string{"staff"}
 	idp.mu.Unlock()
-	if code, _, _ := g.get("/admin/users"); code != http.StatusForbidden {
-		t.Fatalf("admin pages after leaving the group: %d", code)
-	}
 	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
-		t.Fatalf("admin pages for a non-admin: %d", code)
+		t.Fatalf("admin pages after leaving the group: %d", code)
 	}
 	// Back in the group, her next sign-in makes her admin again.
 	g = e.client()
@@ -511,25 +509,37 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	}
 
 	// Removed from the group: opening the admin pages asks the provider, even
-	// right after a check, and says why they're shut.
+	// right after a check, and they're not found, as for anyone else.
 	setGroups("staff")
-	if code, body, _ := g.get("/admin/users"); code != http.StatusForbidden || !strings.Contains(body, "Authentik no longer gives you admin rights") || isAdmin() {
+	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound || isAdmin() {
 		t.Fatalf("admin pages after leaving the group: %d", code)
 	}
-	setGroups("anchor-admins")
-	g.get("/")
 
-	// A page load through the service worker counts as one.
-	setGroups("staff")
-	req, _ := http.NewRequest(http.MethodGet, e.srv.URL+"/", nil)
-	req.Header.Set("Sec-Fetch-Mode", "same-origin")
-	req.Header.Set("Sec-Fetch-Dest", "document")
-	if res, err := g.http.Do(req); err != nil {
-		t.Fatal(err)
-	} else {
-		res.Body.Close()
+	// Page loads through the service worker count, both ways; a script's
+	// call doesn't.
+	browser := func(accept string) string {
+		req, _ := http.NewRequest(http.MethodGet, e.srv.URL+"/", nil)
+		req.Header.Set("Sec-Fetch-Mode", "same-origin")
+		req.Header.Set("Sec-Fetch-Dest", "empty")
+		req.Header.Set("Accept", accept)
+		res, err := g.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return string(b)
 	}
+	setGroups("anchor-admins")
+	browser("*/*")
 	if isAdmin() {
+		t.Fatal("a script's call checked")
+	}
+	if body := browser("text/html,application/xhtml+xml"); !isAdmin() || !strings.Contains(body, `href="/admin/"`) {
+		t.Fatal("rejoining the group didn't show the admin menu at the next page load")
+	}
+	setGroups("staff")
+	if browser("text/html"); isAdmin() {
 		t.Fatal("a page load through the service worker didn't check")
 	}
 

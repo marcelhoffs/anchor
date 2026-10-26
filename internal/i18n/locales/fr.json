@@ -428,7 +428,6 @@
  "Recovery code": "Code de récupération",
  "Use recovery code": "Utiliser le code de récupération",
  "%s couldn't confirm your admin rights. Try again in a moment.": "%s n'a pas pu confirmer vos droits d'administrateur. Réessayez dans un instant.",
- "%s no longer gives you admin rights.": "%s ne vous donne plus de droits d'administrateur.",
  "Cancel and sign in as someone else": "Annuler et se connecter avec un autre compte",
  "User disabled and signed out everywhere.": "Utilisateur désactivé et déconnecté partout.",
  "User enabled.": "Utilisateur activé.",
