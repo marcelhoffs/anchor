@@ -4,9 +4,10 @@ package web
 // Entra ID…), configured by ANCHOR_OIDC_*. An identity at the provider is
 // the pair (issuer, subject); it's never matched to an account by email or
 // name. A sign-in through the provider counts as complete: the provider
-// does its own second factor. It counts as a recent check of who it is (see
-// requireRecentAuth) only when the provider really asked: its auth_time
-// claim says so, not merely that it had a session.
+// does its own second factor, and its sessions never ask to confirm it's
+// them (see confirmed). A password session confirming through the provider
+// counts only when the provider really asked: its auth_time claim says so,
+// not merely that it had a session.
 
 import (
 	"context"

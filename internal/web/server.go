@@ -39,8 +39,8 @@ const (
 	sessionMaxAge = 90 * 24 * time.Hour
 	// A password-checked session waiting for its second factor lives this long.
 	pendingTTL = 5 * time.Minute
-	// Sensitive actions (2FA changes, API tokens, admin actions without an
-	// admin group) need the session to have proved itself this recently.
+	// Sensitive actions (2FA changes, API tokens, admin actions) need a
+	// password session to have proved itself this recently.
 	reauthWindow = 10 * time.Minute
 	// A session's sliding expiry is pushed forward at most this often, so
 	// browsing doesn't turn every page view into a database write.
@@ -255,7 +255,7 @@ func (s *Server) Handler() http.Handler {
 				r.Get("/invites", s.adminInvites)
 				r.Get("/spaces", s.adminSpaces)
 				r.Group(func(r chi.Router) {
-					r.Use(s.requireAdminAuth)
+					r.Use(s.requireRecentAuth)
 					r.Post("/users/{id}/{action}", s.adminUserAction)
 					r.Post("/invites", s.adminCreateInvite)
 					r.Post("/invites/{id}/delete", s.adminDeleteInvite)

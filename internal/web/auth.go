@@ -361,8 +361,8 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	if !u.HasPassword() {
 		// An account made by single sign-on sets its first password: there's
-		// no current one to check, so it proves itself at the provider.
-		if time.Since(cur.VerifiedAt) > reauthWindow {
+		// no current one to check, so the session must be confirmed.
+		if !confirmed(cur) {
 			http.Redirect(w, r, "/reauth?next=%2Fsettings%2Fsecurity", http.StatusSeeOther)
 			return
 		}

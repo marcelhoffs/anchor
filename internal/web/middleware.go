@@ -367,20 +367,6 @@ func (s *Server) requireAdmin(next http.Handler) http.Handler {
 	})
 }
 
-// requireAdminAuth guards admin actions: with an admin group, requireAdmin's
-// recent check at the provider is enough; otherwise they need a recent
-// confirmation, as other sensitive actions do.
-func (s *Server) requireAdminAuth(next http.Handler) http.Handler {
-	confirmed := s.requireRecentAuth(next)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.groupAdmins() {
-			next.ServeHTTP(w, r)
-			return
-		}
-		confirmed.ServeHTTP(w, r)
-	})
-}
-
 // enforce2FA sends users without a second factor to set one up while the
 // instance requires 2FA. Only the pages needed to do that stay reachable.
 func (s *Server) enforce2FA(next http.Handler) http.Handler {
@@ -411,12 +397,19 @@ func (s *Server) enforce2FA(next http.Handler) http.Handler {
 	})
 }
 
+// confirmed reports whether a session needn't prove who it is before a
+// sensitive action: one signed in through the provider never asks (the
+// provider decides how long its sign-ins last); another proved itself in
+// the last reauthWindow.
+func confirmed(ss *store.Session) bool {
+	return ss.SSO || time.Since(ss.VerifiedAt) <= reauthWindow
+}
+
 // requireRecentAuth makes sensitive actions ask for the password (or a
-// second factor, for users who have one) if the session hasn't proved itself
-// in the last reauthWindow.
+// second factor, for users who have one) unless the session is confirmed.
 func (s *Server) requireRecentAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if time.Since(currentSession(r).VerifiedAt) <= reauthWindow {
+		if confirmed(currentSession(r)) {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -384,8 +384,9 @@ func TestSSOAdminGroupAndPolicy(t *testing.T) {
 	}
 }
 
-// A sign-in through the provider confirms it's you only when the provider
-// really asked (auth_time), not when it reused its session; a reauth must.
+// A session signed in through the provider never asks to confirm it's you.
+// A password session confirming through the provider counts only when the
+// provider really asked (auth_time), not when it reused its session.
 func TestSSOFreshAuth(t *testing.T) {
 	e, idp := oidcEnv(t, nil)
 	e.admin()
@@ -395,34 +396,37 @@ func TestSSOFreshAuth(t *testing.T) {
 		_, _, loc := c.post("/settings/tokens", url.Values{"name": {"t"}})
 		return strings.HasPrefix(loc, "/reauth")
 	}
-	silent := e.client()
-	e.ssoFlow(idp, silent, getStart(silent, "/login/oidc"), "sam-sub", map[string]any{"preferred_username": "sam", "auth_time": hourAgo})
-	if !needsReauth(silent) {
-		t.Fatal("a sign-in on the provider's old session counts as confirmed")
+	sso := e.client()
+	e.ssoFlow(idp, sso, getStart(sso, "/login/oidc"), "sam-sub", map[string]any{"preferred_username": "sam", "auth_time": hourAgo})
+	e.expireReauth()
+	if needsReauth(sso) {
+		t.Fatal("a session through the provider asked to confirm")
+	}
+
+	e.user("alice")
+	a := e.login("alice")
+	e.ssoFlow(idp, a, func() (int, string, string) { return a.post("/settings/sso/link", nil) }, "alice-sub", nil)
+	e.expireReauth()
+	if !needsReauth(a) {
+		t.Fatal("a password session didn't ask to confirm")
 	}
 	reauth := func() (int, string, string) {
-		return silent.post("/reauth/sso", url.Values{"next": {"/settings/tokens"}})
+		return a.post("/reauth/sso", url.Values{"next": {"/settings/tokens"}})
 	}
 	for name, at := range map[string]any{"stale": hourAgo, "missing": nil, "ahead": time.Now().Add(time.Hour).Unix()} {
-		if code, body, _ := e.ssoFlow(idp, silent, reauth, "sam-sub", map[string]any{"auth_time": at}); code != http.StatusForbidden ||
+		if code, body, _ := e.ssoFlow(idp, a, reauth, "alice-sub", map[string]any{"auth_time": at}); code != http.StatusForbidden ||
 			!strings.Contains(body, "ask you to sign in again") {
 			t.Errorf("reauth with %s auth_time: %d", name, code)
 		}
 	}
-	if !needsReauth(silent) {
+	if !needsReauth(a) {
 		t.Fatal("refused reauths confirmed the session")
 	}
-	if code, _, loc := e.ssoFlow(idp, silent, reauth, "sam-sub", nil); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
+	if code, _, loc := e.ssoFlow(idp, a, reauth, "alice-sub", nil); code != http.StatusSeeOther || loc != "/settings/tokens?done=confirmed" {
 		t.Fatalf("fresh reauth: %d %q", code, loc)
 	}
-	if needsReauth(silent) {
+	if needsReauth(a) {
 		t.Fatal("fresh reauth didn't confirm")
-	}
-	// A sign-in where the provider just asked counts.
-	fresh := e.client()
-	e.ssoFlow(idp, fresh, getStart(fresh, "/login/oidc"), "sam-sub", nil)
-	if needsReauth(fresh) {
-		t.Fatal("fresh sign-in not confirmed")
 	}
 }
 
@@ -510,7 +514,7 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	if strings.Contains(body, `<strong>root</strong> <span class="badge on">`) || !strings.Contains(body, `<strong>gina</strong> <span class="badge on">`) {
 		t.Fatal("admin badges don't follow the group")
 	}
-	// Admin actions don't ask to confirm: the group check is recent.
+	// Admin actions don't ask to confirm.
 	e.expireReauth()
 	if code, _, loc := g.post("/admin/settings", url.Values{"signup": {"open"}}); code != http.StatusSeeOther || strings.HasPrefix(loc, "/reauth") {
 		t.Fatalf("admin action with a recent group check: %d %q", code, loc)
