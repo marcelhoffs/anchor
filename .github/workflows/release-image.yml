@@ -3,7 +3,8 @@ name: Release image
 # Tests a release tag, then builds its Docker image for amd64 and arm64 and
 # pushes it to the GitHub Container Registry as ghcr.io/<owner>/anchor with
 # the tags <version>, <major>.<minor> and, unless it's a pre-release
-# (v1.2.0-rc.1), latest. Run it by hand to build an existing tag.
+# (v1.2.0-rc.1), latest. It also publishes the tag's GitHub Release with
+# the binary archives. Run it by hand to build an existing tag.
 
 on:
   push:
@@ -32,6 +33,30 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test ./...
+
+  # Builds the linux amd64 and arm64 archives with GoReleaser
+  # (.goreleaser.yaml) and publishes them on the tag's GitHub Release.
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+          # The changelog needs the previous tag.
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ env.TAG }}
 
   image:
     needs: test

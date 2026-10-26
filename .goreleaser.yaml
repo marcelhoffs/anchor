@@ -1,0 +1,41 @@
+# Builds the release binaries and archives and publishes the GitHub Release.
+# The Docker image is built separately, by the image job in release-image.yml.
+version: 2
+
+before:
+  hooks:
+    - sh scripts/licenses.sh
+
+builds:
+  - main: ./cmd/anchor
+    binary: anchor
+    env: [CGO_ENABLED=0]
+    goos: [linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X github.com/marcelhoffs/anchor/internal/web.Version={{ .Tag }}
+
+archives:
+  - formats: [tar.gz]
+    files:
+      - README.md
+      - docker-compose.yml
+      - .env.example
+      - licenses/**/*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^Merge "
+
+release:
+  # v1.2.0-rc.1 and the like are marked as pre-releases.
+  prerelease: auto
+  # Lets a hand-run of the workflow rebuild an existing release.
+  replace_existing_artifacts: true

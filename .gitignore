@@ -6,3 +6,5 @@
 *.db-wal
 .env
 /docs/screenshots/out/
+/licenses/
+/dist/
