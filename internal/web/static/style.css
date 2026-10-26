@@ -430,6 +430,7 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
 .drawer::backdrop { background: rgb(15 23 42 / 0.45); backdrop-filter: blur(2px); }
 .drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
 .drawer-head .side-heading { margin: 0 12px; }
+.drawer-head .side-heading-row { flex: 1; }
 @media (prefers-reduced-motion: no-preference) {
   .drawer:popover-open { animation: drawer-in 180ms ease-out; }
   @keyframes drawer-in { from { transform: translateX(100%); } }
@@ -558,14 +559,14 @@ td.actions { text-align: right; white-space: nowrap; }
 
 /* The list and the sidebar need about 840px side by side (560 + 200 + gaps
    and margins). Below that, as on tablets in portrait and phones in
-   landscape, the views move to a bar under the search box, the bundles
+   landscape, the views move to a bar under the search box, the saved searches
    under the list and the tags into the drawer that the Tags button next to
    the search box opens. */
 @media (max-width: 899px) {
   .sidebar { flex-basis: 100%; max-width: none; order: 2; }
   .side-views, .side-tags { display: none; }
-  .sidebar:not(:has(.side-bundles)) { display: none; }
-  .side-bundles .side-heading { margin-top: 0; }
+  .sidebar:not(:has(.side-searches)) { display: none; }
+  .side-searches .side-heading { margin-top: 0; }
   .view-bar { display: flex; }
   .tags-btn { display: inline-flex; }
   /* The search box is narrower here, so the help spans the whole row. */

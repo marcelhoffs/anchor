@@ -36,7 +36,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, r, err)
 		return
 	}
-	bundles, err := s.store.ListBundles(r.Context(), sc)
+	searches, err := s.store.ListSavedSearches(r.Context(), sc)
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -59,9 +59,9 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, pageURL(pages), http.StatusSeeOther)
 		return
 	}
-	view, heading := listView(q, bundles)
+	view, heading := listView(q, searches)
 	d := data{
-		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "Bundles": bundles, "Here": r.URL.RequestURI(),
+		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": r.URL.RequestURI(),
 		"View": view, "Heading": heading,
 	}
 	if pages > 1 {
@@ -90,9 +90,9 @@ func newPager(page, pages, total int, pageURL func(int) string) pager {
 }
 
 // listView names the sidebar entry a query corresponds to ("all", "fav",
-// "archive", "#<tag>", "bundle:<id>", or "" for any other search) and the
+// "archive", "#<tag>", "search:<id>", or "" for any other search) and the
 // page heading.
-func listView(q string, bundles []store.Bundle) (view string, heading i18n.Msg) {
+func listView(q string, searches []store.SavedSearch) (view string, heading i18n.Msg) {
 	switch q = strings.TrimSpace(q); {
 	case q == "":
 		return "all", i18n.M("All bookmarks")
@@ -106,9 +106,9 @@ func listView(q string, bundles []store.Bundle) (view string, heading i18n.Msg) 
 	if p := search.Parse(q); len(p.Tags) == 1 && search.TagQuery(p.Tags[0]) == q {
 		return "#" + p.Tags[0], i18n.Raw(p.Tags[0])
 	}
-	for _, b := range bundles {
+	for _, b := range searches {
 		if b.Query == q {
-			return "bundle:" + strconv.FormatInt(b.ID, 10), i18n.Raw(b.Name)
+			return "search:" + strconv.FormatInt(b.ID, 10), i18n.Raw(b.Name)
 		}
 	}
 	return "", i18n.M("Search results")

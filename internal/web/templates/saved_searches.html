@@ -1,0 +1,46 @@
+{{define "title"}}{{t "Saved searches"}}{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>{{t "Saved searches"}}</h1>
+  {{if .SavedSearchList}}
+  <p class="muted intro">{{t "Saved searches are listed in the sidebar and stay up to date as you add bookmarks."}}</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th scope="col">{{t "Name"}}</th><th scope="col" class="hide-sm">{{t "Query"}}</th><th scope="col"><span class="visually-hidden">{{t "Actions"}}</span></th></tr></thead>
+    <tbody>
+    {{range .SavedSearchList}}
+      <tr>
+        <td><a href="{{savedSearchURL .}}">{{.Name}}</a></td>
+        <td class="mono hide-sm">{{.Query}}</td>
+        <td class="actions">
+          <button type="button" class="icon-btn" popovertarget="rename-search-{{.ID}}" title="{{t "Rename"}}" aria-label="{{t "Rename saved search %s" .Name}}">{{icon "pencil"}}</button>
+          <div id="rename-search-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="rename-search-{{.ID}}-title">
+            <p class="confirm-title" id="rename-search-{{.ID}}-title">{{t "Rename saved search"}}</p>
+            <form method="post" action="/saved-searches/{{.ID}}/rename">
+              <input type="hidden" name="csrf" value="{{$.CSRF}}">
+              <label>{{t "New name for %s" .Name}} <input name="name" value="{{.Name}}" required maxlength="100"></label>
+              <div class="confirm-actions">
+                <button type="button" class="btn" popovertarget="rename-search-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
+                <button class="btn btn-primary">{{t "Rename"}}</button>
+              </div>
+            </form>
+          </div>
+          <button type="button" class="icon-btn danger" popovertarget="delete-search-{{.ID}}" aria-label="{{t "Delete saved search %s" .Name}}">{{icon "trash"}}</button>
+          {{template "confirm" dict "ID" (print "delete-search-" .ID) "Title" (t "Delete this saved search?")
+            "Text" (t "%s is removed from the sidebar. Your bookmarks aren't affected." (strong .Name)) "Action" (print "/saved-searches/" .ID "/delete") "Button" (t "Delete saved search") "CSRF" $.CSRF}}
+        </td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  </div>
+  {{else}}
+  <div class="empty-state">
+    <span class="badge-icon">{{icon "layers"}}</span>
+    <p class="title">{{t "No saved searches yet"}}</p>
+    <p>{{t "Search your bookmarks, for example %s, then choose Save search to keep it in the sidebar." (strong "#homelab site:github.com")}}</p>
+    <a class="btn btn-primary" href="/">{{t "Go to bookmarks"}}</a>
+  </div>
+  {{end}}
+</div>
+{{end}}

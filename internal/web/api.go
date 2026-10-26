@@ -52,7 +52,7 @@ func (s *Server) apiRoutes(r chi.Router) {
 	r.Get("/bookmarks/check", s.apiCheckBookmark)
 	r.Get("/bookmarks/{id}", s.apiGetBookmark)
 	r.Get("/tags", s.apiListTags)
-	r.Get("/bundles", s.apiListBundles)
+	r.Get("/saved-searches", s.apiListSavedSearches)
 	r.Get("/export", s.apiExport)
 	r.Get("/jobs/{id}", s.apiGetJob)
 	r.Group(func(r chi.Router) {
@@ -466,8 +466,8 @@ func (s *Server) apiShareBookmark(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.toAPI(b))
 }
 
-func (s *Server) apiListBundles(w http.ResponseWriter, r *http.Request) {
-	list, err := s.store.ListBundles(r.Context(), apiCaller(r).scope)
+func (s *Server) apiListSavedSearches(w http.ResponseWriter, r *http.Request) {
+	list, err := s.store.ListSavedSearches(r.Context(), apiCaller(r).scope)
 	if !s.apiStoreError(w, err) {
 		return
 	}

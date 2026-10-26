@@ -7,7 +7,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 - [Bookmarks](#bookmarks)
 - [Tags](#tags)
 - [Search](#search)
-- [Bundles and sharing](#bundles-and-sharing)
+- [Saved searches and sharing](#saved-searches-and-sharing)
 - [Page details and icons](#page-details-and-icons)
 - [Import and export](#import-and-export)
 - [Accounts and sign-in](#accounts-and-sign-in)
@@ -86,9 +86,9 @@ Words are searched in titles, descriptions, notes, URLs and tags, ignoring case 
 
 Search uses SQLite's full-text index (FTS5), which is kept up to date as bookmarks change.
 
-## Bundles and sharing
+## Saved searches and sharing
 
-**Bundles** are saved searches. Run a search, choose "Save search", and the bundle appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically.
+**Saved searches** keep a search one click away. Run a search, choose "Save search", and it appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically.
 
 **Public links** make one bookmark readable by anyone with the link, at `/s/<token>`. The page shows the bookmark's title, site and description; never your notes, tags or other bookmarks. The token is random and unguessable. Turning sharing off breaks the link for good; turning it on again makes a new one. Links from a personal space stop working when its owner's account is disabled; links from a shared space work as long as the space exists.
 

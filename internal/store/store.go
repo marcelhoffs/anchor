@@ -1,4 +1,4 @@
-// Package store is Anchor's data access layer. Bookmarks, tags and bundles
+// Package store is Anchor's data access layer. Bookmarks, tags and saved searches
 // live in spaces (a user's personal space, or a shared one), and every
 // method that touches them takes a Scope, which only Access and its siblings
 // hand out after checking the user is a member; writes also check the

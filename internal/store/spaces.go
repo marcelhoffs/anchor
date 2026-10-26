@@ -21,7 +21,7 @@ const (
 	RoleOwner Role = "owner" // write, and manage the space
 )
 
-// Scope is one user's access to one space: the bookmarks, tags and bundles
+// Scope is one user's access to one space: the bookmarks, tags and saved searches
 // it holds. Its fields are unexported, so the only way to get one is from
 // this package, after checking the membership; the zero Scope matches
 // nothing. Methods that read take a Scope, and those that write also check
@@ -198,7 +198,7 @@ func (s *Store) RenameSpace(ctx context.Context, sc Scope, name string) error {
 	return err
 }
 
-// DeleteSpace removes a shared space with its bookmarks, tags, bundles and
+// DeleteSpace removes a shared space with its bookmarks, tags, saved searches and
 // memberships; owner only.
 func (s *Store) DeleteSpace(ctx context.Context, sc Scope) error {
 	if err := sc.mustOwnShared(); err != nil {
@@ -352,7 +352,7 @@ func (s *Store) dropMember(ctx context.Context, spaceID, userID int64) error {
 		if err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "DELETE FROM bundles WHERE space_id = ? AND user_id = ?", spaceID, userID)
+		_, err = tx.ExecContext(ctx, "DELETE FROM saved_searches WHERE space_id = ? AND user_id = ?", spaceID, userID)
 		return err
 	})
 }
