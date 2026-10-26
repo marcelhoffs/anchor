@@ -239,7 +239,8 @@ func TestFetchIgnoresCrossSiteRedirect(t *testing.T) {
 	}
 }
 
-// Dropping a bookmark's icon on a tag tags it; readers get neither the
+// Dropping a bookmark's icon on a tag tags it, and on Favourites or Archive
+// flags it (the flag form's endpoint); readers get neither the
 // draggable icons nor the endpoint.
 func TestDragToTag(t *testing.T) {
 	e := newEnv(t)
@@ -248,6 +249,7 @@ func TestDragToTag(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}})
 	_, body, _ := c.get("/")
 	if !strings.Contains(body, `draggable="true" data-drag-bookmark="1"`) || !strings.Contains(body, `data-tag-drop="2"`) ||
+		!strings.Contains(body, `data-flag-drop="favourite"`) || !strings.Contains(body, `data-flag-drop="archived"`) ||
 		!strings.Contains(body, "dragtag.js") {
 		t.Fatal("list page lacks the drag and drop hooks")
 	}
@@ -274,6 +276,21 @@ func TestDragToTag(t *testing.T) {
 		t.Fatalf("unknown tag: %d", code)
 	}
 
+	// What dragtag.js sends on a drop on Favourites, then on Archive.
+	for _, flag := range []string{"favourite", "archived"} {
+		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/bookmarks/1/flag", strings.NewReader("flag="+flag+"&on=1&next=%2F"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-CSRF-Token", c.csrf())
+		res, err := c.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+	}
+	if b, _ := e.store.GetBookmark(context.Background(), personal(e.store, e.userID("root")), 1); !b.IsFavourite || !b.IsArchived {
+		t.Fatalf("after drops: favourite %v, archived %v", b.IsFavourite, b.IsArchived)
+	}
+
 	// A reader of a shared space sees no drag hooks and can't tag.
 	e.user("alice")
 	ctx := context.Background()
@@ -283,7 +300,8 @@ func TestDragToTag(t *testing.T) {
 	e.store.AddMember(ctx, space, "alice", store.RoleRead)
 	alice := e.login("alice")
 	alice.post("/space", url.Values{"space": {strconv.FormatInt(space.SpaceID(), 10)}})
-	if _, body, _ := alice.get("/"); strings.Contains(body, "data-drag-bookmark") || strings.Contains(body, "data-tag-drop") {
+	if _, body, _ := alice.get("/"); strings.Contains(body, "data-drag-bookmark") || strings.Contains(body, "data-tag-drop") ||
+		strings.Contains(body, "data-flag-drop") {
 		t.Fatal("reader gets drag and drop")
 	}
 	tags, _ := e.store.ListTags(ctx, space)

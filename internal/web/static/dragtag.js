@@ -1,10 +1,14 @@
-// Drag a bookmark's icon onto a tag in the sidebar to tag it. Loaded on the
-// list page only when the space can be edited. Markup contract:
+// Drag a bookmark's icon onto a tag in the sidebar to tag it, or onto
+// Favourites or Archive to favourite or archive it. Loaded on the list page
+// only when the space can be edited. Markup contract:
 //   <… data-drag-bookmark="<id>" draggable="true">  the icon, in li.bookmark
 //   <a data-tag-drop="<tag id>"><span class="count">  a tag in the sidebar
+//   <a data-flag-drop="favourite|archived">          a view in the sidebar
 // POST /bookmarks/<id>/tags answers {tags: [{name, url}], count}; the row's
-// tags and the tag's count are redrawn from it. Without this script the
-// icons just don't drag; the edit form still sets tags.
+// tags and the tag's count are redrawn from it. A flag changes the row's
+// star, menu, the counts and whether it's listed at all, so the page
+// reloads. Without this script the icons just don't drag; the edit form
+// and the row's buttons still do the same.
 (function () {
   "use strict";
 
@@ -32,7 +36,7 @@
   });
 
   function target(e) {
-    return e.target.closest && e.target.closest("[data-tag-drop]");
+    return e.target.closest && e.target.closest("[data-tag-drop], [data-flag-drop]");
   }
 
   document.addEventListener("dragover", function (e) {
@@ -53,10 +57,16 @@
     if (!tag || !carriesBookmark(e)) return;
     e.preventDefault(); // don't follow the tag's link
     tag.classList.remove("drop-over");
+    var id = encodeURIComponent(e.dataTransfer.getData(TYPE));
+    var flag = tag.getAttribute("data-flag-drop");
+    if (flag) {
+      setFlag(id, flag);
+      return;
+    }
     var row = dragged.closest("li.bookmark");
     var tagID = tag.getAttribute("data-tag-drop");
     var body = new URLSearchParams({ tag: tagID });
-    fetch("/bookmarks/" + encodeURIComponent(e.dataTransfer.getData(TYPE)) + "/tags", {
+    fetch("/bookmarks/" + id + "/tags", {
       method: "POST",
       credentials: "same-origin",
       headers: { "X-CSRF-Token": csrf },
@@ -74,6 +84,20 @@
       window.location.reload(); // show what the server has
     });
   });
+
+  // setFlag turns a flag on. The redirect the server answers with isn't
+  // followed: the reload shows the result, or what the server has.
+  function setFlag(id, flag) {
+    fetch("/bookmarks/" + id + "/flag", {
+      method: "POST",
+      credentials: "same-origin",
+      redirect: "manual",
+      headers: { "X-CSRF-Token": csrf },
+      body: new URLSearchParams({ flag: flag, on: "1", next: "/" })
+    }).finally(function () {
+      window.location.reload();
+    });
+  }
 
   // redrawTags replaces a row's tag links, keeping the domain and badges.
   function redrawTags(row, tags) {
