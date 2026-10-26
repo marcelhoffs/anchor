@@ -2,6 +2,7 @@ package importexport
 
 import (
 	"bytes"
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
@@ -115,6 +116,23 @@ func TestNetscapeFolders(t *testing.T) {
 `
 	if got := buf.String(); !strings.HasSuffix(got, want) {
 		t.Fatalf("export:\n%s", got)
+	}
+}
+
+// A file with more than MaxItems bookmarks is refused, in either format,
+// before it's all in memory.
+func TestParseMaxItems(t *testing.T) {
+	html := "<!DOCTYPE NETSCAPE-Bookmark-file-1><DL>" + strings.Repeat("<DT><A HREF=x>", MaxItems+1)
+	if _, err := Parse([]byte(html)); !errors.Is(err, ErrTooManyItems) {
+		t.Fatalf("HTML: %v", err)
+	}
+	js := `{"format":"anchor-bookmarks","version":1,"bookmarks":[` + strings.Repeat(`{"url":"x"},`, MaxItems) + `{"url":"x"}]}`
+	if _, err := Parse([]byte(js)); !errors.Is(err, ErrTooManyItems) {
+		t.Fatalf("JSON: %v", err)
+	}
+	items, err := Parse([]byte(`{"bookmarks":[{"url":"https://a.example/"}],"version":1,"format":"anchor-bookmarks","extra":{}}`))
+	if err != nil || len(items) != 1 || items[0].URL != "https://a.example/" {
+		t.Fatalf("keys in another order: %+v %v", items, err)
 	}
 }
 

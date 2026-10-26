@@ -453,6 +453,10 @@ func TestSSOAdminGroupIsTheSourceOfTruth(t *testing.T) {
 	if code != http.StatusOK || strings.Contains(body, "/make-admin") || strings.Contains(body, "/remove-admin") || !strings.Contains(body, "anchor-admins") {
 		t.Fatalf("admin pages: %d", code)
 	}
+	// root still has the flag from before the group, but isn't an admin.
+	if strings.Contains(body, `<strong>root</strong> <span class="badge on">`) || !strings.Contains(body, `<strong>gina</strong> <span class="badge on">`) {
+		t.Fatal("admin badges don't follow the group")
+	}
 	// Anchor doesn't hand out or take away the role.
 	if code, body, _ := g.post("/admin/users/"+strconv.FormatInt(e.userID("root"), 10)+"/remove-admin", nil); code != http.StatusConflict ||
 		!strings.Contains(body, "Admin rights come from the anchor-admins group") {

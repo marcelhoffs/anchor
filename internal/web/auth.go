@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/marcelhoffs/anchor/internal/auth"
 	"github.com/marcelhoffs/anchor/internal/i18n"
@@ -424,9 +425,13 @@ func (s *Server) bookmarklet() template.URL {
 		"+encodeURIComponent(location.href)+'&title='+encodeURIComponent(document.title)))")
 }
 
+// truncate cuts s to at most n bytes, at a character boundary.
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
+	}
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
 	}
 	return s[:n]
 }

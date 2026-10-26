@@ -482,6 +482,8 @@
  "Choose a bookmark file to import.": "Choisis un fichier de signets à importer.",
  "Couldn't read that file. Try uploading it again.": "Impossible de lire ce fichier. Réessaie de l'envoyer.",
  "Couldn't import that file: it's larger than %d MB.": "Impossible d'importer ce fichier : il dépasse %d Mo.",
+ "Your previous import is still running. Try again when it's done.": "Ton import précédent est encore en cours. Réessaie quand il sera terminé.",
+ "Couldn't import that file: it has more than %d bookmarks. Split it into smaller files.": "Impossible d'importer ce fichier : il contient plus de %d signets. Découpe-le en fichiers plus petits.",
  "That export comes from a newer version of Anchor. Update this Anchor to import it.": "Cet export vient d'une version plus récente d'Anchor. Mets cet Anchor à jour pour l'importer.",
  "That file isn't a valid Anchor JSON export. Export it from Anchor again.": "Ce fichier n'est pas un export JSON valide d'Anchor. Exporte-le à nouveau depuis Anchor.",
  "Couldn't import that file. Export your bookmarks from a browser as HTML, or from Anchor as JSON.": "Impossible d'importer ce fichier. Exporte tes signets depuis un navigateur en HTML, ou depuis Anchor en JSON.",

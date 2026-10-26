@@ -44,7 +44,9 @@ func scanJob(row interface{ Scan(...any) error }) (Job, error) {
 }
 
 // CreateJob queues a job for the scope's user. Jobs change their space (an
-// import adds bookmarks), so they need write access.
+// import adds bookmarks), so they need write access. A user has one job of
+// a kind in the queue at a time: an import keeps its whole file until it
+// ran, so queueing them without end would fill the disk.
 func (s *Store) CreateJob(ctx context.Context, sc Scope, kind, payload string) (int64, error) {
 	if err := sc.mustWrite(); err != nil {
 		return 0, err
@@ -52,8 +54,14 @@ func (s *Store) CreateJob(ctx context.Context, sc Scope, kind, payload string) (
 	now := unix(s.now())
 	var id int64
 	err := s.w.QueryRowContext(ctx,
-		"INSERT INTO jobs (user_id, space_id, kind, payload, run_after, created_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
-		sc.userID, sc.spaceID, kind, payload, now, now).Scan(&id)
+		`INSERT INTO jobs (user_id, space_id, kind, payload, run_after, created_at)
+		 SELECT ?, ?, ?, ?, ?, ? WHERE NOT EXISTS
+		   (SELECT 1 FROM jobs WHERE user_id = ? AND kind = ? AND status IN ('queued', 'running'))
+		 RETURNING id`,
+		sc.userID, sc.spaceID, kind, payload, now, now, sc.userID, kind).Scan(&id)
+	if err == sql.ErrNoRows {
+		return 0, invalid("Your previous import is still running. Try again when it's done.")
+	}
 	return id, err
 }
 

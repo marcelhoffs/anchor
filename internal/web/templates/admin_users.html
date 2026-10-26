@@ -21,7 +21,7 @@
       <tbody>
       {{range .Users}}
         <tr>
-          <td><strong>{{.Username}}</strong>{{if .IsAdmin}} <span class="badge on">{{t "Admin"}}</span>{{end}}{{if index $.Linked .ID}} <span class="badge">{{t "SSO"}}</span>{{end}}{{if not .IsActive}} <span class="badge danger">{{t "Disabled"}}</span>{{end}}{{if eq .ID $.User.ID}} <span class="badge">{{t "You"}}</span>{{end}}</td>
+          <td><strong>{{.Username}}</strong>{{if and .IsAdmin (or (not $.GroupAdmins) (index $.Linked .ID))}} <span class="badge on">{{t "Admin"}}</span>{{end}}{{if index $.Linked .ID}} <span class="badge">{{t "SSO"}}</span>{{end}}{{if not .IsActive}} <span class="badge danger">{{t "Disabled"}}</span>{{end}}{{if eq .ID $.User.ID}} <span class="badge">{{t "You"}}</span>{{end}}</td>
           <td>{{if or .TOTPEnabled .Passkeys}}{{if .TOTPEnabled}}{{t "App"}}{{end}}{{if and .TOTPEnabled .Passkeys}} + {{end}}{{if .Passkeys}}{{tn .Passkeys "%d passkey" "%d passkeys"}}{{end}}{{else}}<span class="muted">{{t "Off"}}</span>{{end}}</td>
           <td>{{if .LastLoginAt.IsZero}}<span class="muted">{{t "Never"}}</span>{{else}}{{ago .LastLoginAt}}{{end}}</td>
           <td>{{date .CreatedAt}}</td>

@@ -14,6 +14,37 @@ import (
 	"github.com/marcelhoffs/anchor/internal/config"
 )
 
+// Use keeps a session going, but not past sessionMaxAge from its sign-in.
+func TestSessionMaxAge(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+	// Signed in 91 days ago, last seen two hours ago: the next request still
+	// counts, and pushes the expiry no later than the 90 days.
+	if _, err := e.db.W.Exec("UPDATE sessions SET created_at = ?, last_seen_at = ?",
+		time.Now().Add(-91*24*time.Hour).Unix(), time.Now().Add(-2*time.Hour).Unix()); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, _ := c.get("/"); code != http.StatusOK {
+		t.Fatalf("first request: %d", code)
+	}
+	if code, _, loc := c.get("/"); code != http.StatusSeeOther || !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("session past its maximum age: %d %q", code, loc)
+	}
+}
+
+func TestTruncate(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		n    int
+		want string
+	}{{"abc", 5, "abc"}, {"abcdef", 3, "abc"}, {"Clé", 3, "Cl"}, {"Clé", 4, "Clé"}, {"🙂🙂", 5, "🙂"}} {
+		if got := truncate(c.in, c.n); got != c.want {
+			t.Errorf("truncate(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
+		}
+	}
+}
+
 func TestSafeNext(t *testing.T) {
 	for in, want := range map[string]string{
 		"/":                  "/",

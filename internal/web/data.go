@@ -87,6 +87,8 @@ func (s *Server) importFile(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.As(err, &tooBig):
 			msg = i18n.M("Couldn't import that file: it's larger than %d MB.", maxImportBody>>20)
+		case errors.Is(err, importexport.ErrTooManyItems):
+			msg = i18n.M("Couldn't import that file: it has more than %d bookmarks. Split it into smaller files.", importexport.MaxItems)
 		case errors.As(err, &version):
 			msg = i18n.M("That export comes from a newer version of Anchor. Update this Anchor to import it.")
 		case errors.Is(err, importexport.ErrNotAnchorJSON):
@@ -97,7 +99,12 @@ func (s *Server) importFile(w http.ResponseWriter, r *http.Request) {
 		s.renderData(w, r, http.StatusUnprocessableEntity, data{"Error": msg})
 		return
 	}
-	if _, err := s.queueImport(r.Context(), currentScope(r), b); !s.storeError(w, r, err) {
+	_, err = s.queueImport(r.Context(), currentScope(r), b)
+	if isValidation(err) {
+		s.renderData(w, r, http.StatusConflict, data{"Error": errMsg(err)})
+		return
+	}
+	if !s.storeError(w, r, err) {
 		return
 	}
 	http.Redirect(w, r, "/settings/data", http.StatusSeeOther)

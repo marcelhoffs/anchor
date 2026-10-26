@@ -115,7 +115,7 @@ Icons are stored once per host and shared by every bookmark, and every user, on 
 - Netscape bookmark HTML, as exported by every browser, linkding, Pocket and Pinboard. Folders become tags (except browsers' own root folders such as "Bookmarks bar", which would tag almost everything), and the files' own tags, descriptions and dates are kept.
 - Anchor's JSON export.
 
-Files up to 32 MiB are accepted. The import runs in the background in small batches, so it doesn't slow down other users, and the page shows its progress. A URL the space already has isn't duplicated: the existing bookmark gains the imported tags, empty fields are filled in, and favourite or archived can be turned on but never off. Links that aren't http or https are skipped and counted. Imported bookmarks then join the page-details queue.
+Files up to 32 MiB and 100,000 bookmarks are accepted, one import at a time per person. The import runs in the background in small batches, so it doesn't slow down other users, and the page shows its progress. A URL the space already has isn't duplicated: the existing bookmark gains the imported tags, empty fields are filled in, and favourite or archived can be turned on but never off. Links that aren't http or https are skipped and counted. Imported bookmarks then join the page-details queue.
 
 **Export** writes all the bookmarks in the space you're in as Netscape HTML, which any browser can import, or as Anchor JSON, which keeps everything Anchor knows, including notes and flags. In the HTML, each tag is a folder: a bookmark with several tags is in each of their folders, and untagged bookmarks sit at the top level. Importing that file back into Anchor merges the copies again.
 
@@ -135,7 +135,7 @@ Admins can require two-factor authentication for everyone. Users without it are 
 
 **Single sign-on.** With an OpenID Connect provider configured, people can sign in through it (the authorization code flow with PKCE; Anchor checks the ID token's signature, issuer, audience, expiry and nonce). An account at the provider is linked to one Anchor user by its issuer and subject, never by email address or name. A first sign-in creates an account only as far as the sign-up mode allows, and an optional provider group decides who is admin (checked again at least hourly while the admin pages are in use). The provider handles the second factor for these sign-ins; confirming a sensitive action sends you to the provider to sign in again, and only counts when its `auth_time` shows it did. Starting a sign-in is limited per IP address. See [Deployment](deployment.md#single-sign-on-oidc).
 
-**Sessions** last 30 days from the last visit and are listed under Settings → Security, where each can be signed out. Changing or resetting a password signs out every session. Sensitive actions (changing second factors, creating API tokens, admin actions) ask you to confirm your identity again if you haven't in the last 10 minutes.
+**Sessions** last 30 days from the last visit, and at most 90 days from signing in. They are listed under Settings → Security, where each can be signed out. Changing or resetting a password signs out every session. Sensitive actions (changing second factors, creating API tokens, admin actions) ask you to confirm your identity again if you haven't in the last 10 minutes.
 
 **API tokens** are personal, read-only or read & write, and can expire. See [REST API](api.md).
 

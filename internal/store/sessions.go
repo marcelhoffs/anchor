@@ -62,12 +62,6 @@ func (s *Store) SelectSpace(ctx context.Context, hash []byte, sc Scope) error {
 	return err
 }
 
-// DeleteUserSessions signs a user out everywhere.
-func (s *Store) DeleteUserSessions(ctx context.Context, userID int64) error {
-	_, err := s.w.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID)
-	return err
-}
-
 // SessionByHash returns an unexpired session and its active user.
 func (s *Store) SessionByHash(ctx context.Context, hash []byte) (Session, User, error) {
 	ss, err := scanSession(s.r.QueryRowContext(ctx,

@@ -161,6 +161,10 @@ func TestJobsAndImport(t *testing.T) {
 		t.Fatalf("empty queue: %v", err)
 	}
 	id, _ := s.CreateJob(ctx, personal(s, u.ID), JobImport, "payload")
+	// One import at a time per user: each keeps its whole file until it ran.
+	if _, err := s.CreateJob(ctx, personal(s, u.ID), JobImport, "another"); err == nil {
+		t.Fatal("second import queued while the first waits")
+	}
 	j, payload, err := s.ClaimJob(ctx)
 	if err != nil || j.ID != id || payload != "payload" || j.Status != "running" {
 		t.Fatalf("claim: %+v %q %v", j, payload, err)
