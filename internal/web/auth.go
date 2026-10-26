@@ -306,7 +306,7 @@ var accentLabels = map[string]i18n.Msg{
 // System is a word to translate.
 var fontLabels = map[string]i18n.Msg{
 	"inter": {Format: "Inter"}, "system": i18n.M("System"), "roboto": {Format: "Roboto"},
-	"open-sans": {Format: "Open Sans"}, "lato": {Format: "Lato"},
+	"open-sans": {Format: "Open Sans"},
 }
 
 // fontFiles are the files under /static/ each store.Fonts value loads,
@@ -315,7 +315,6 @@ var fontFiles = map[string][]string{
 	"inter":     {"fonts/inter-latin.woff2"},
 	"roboto":    {"fonts/roboto-latin.woff2"},
 	"open-sans": {"fonts/open-sans-latin.woff2"},
-	"lato":      {"fonts/lato-latin-400.woff2", "fonts/lato-latin-700.woff2"},
 }
 
 type choice struct{ Value, Label string }

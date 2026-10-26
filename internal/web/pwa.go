@@ -17,14 +17,18 @@ import (
 // icons in static/icons (see generate.sh there), and a service worker that
 // caches only static files and an offline page, never anyone's bookmarks.
 
-// pageBackground is --bg in light and dark mode (see style.css), which
-// Android's status and navigation bars take on so they blend with the page.
-// Terracotta has warmer neutrals; every other accent shares the slate ones.
-func pageBackground(accent string) [2]string {
-	if accent == "terracotta" {
-		return [2]string{"#fafaf9", "#100f0e"}
-	}
-	return [2]string{"#f8fafc", "#0c0d11"}
+// pageBackgrounds are each accent's --bg in light and dark mode (see
+// style.css), which Android's status and navigation bars take on so they
+// blend with the page.
+var pageBackgrounds = map[string][2]string{
+	"indigo":     {"#f5f9ff", "#0a0b1d"},
+	"terracotta": {"#fff7f2", "#1b0a03"},
+	"yellow":     {"#fcfaf2", "#120d02"},
+	"emerald":    {"#f3fcfb", "#00110d"},
+	"ocean":      {"#f3fbff", "#010f1a"},
+	"forest":     {"#f5fbfb", "#070f0e"},
+	"rose":       {"#fff6f8", "#19070c"},
+	"graphite":   {"#f7fafe", "#0c0d11"},
 }
 
 // themeColor is one <meta name="theme-color">; Media is empty when it
@@ -34,7 +38,7 @@ type themeColor struct{ Color, Media string }
 // themeColors follows the theme setting: one colour for light or dark, both
 // with a media query for system.
 func themeColors(accent, theme string) []themeColor {
-	c := pageBackground(accent)
+	c := pageBackgrounds[accent]
 	switch theme {
 	case "light":
 		return []themeColor{{Color: c[0]}}
@@ -108,9 +112,9 @@ func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 			"params": map[string]string{"url": "url", "title": "title", "text": "text"},
 		},
 	}
-	bg := pageBackground(accent)[1]
+	bg := pageBackgrounds[accent][1]
 	if q.Get("theme") == "light" {
-		bg = pageBackground(accent)[0]
+		bg = pageBackgrounds[accent][0]
 	}
 	m["theme_color"], m["background_color"] = bg, bg
 	w.Header().Set("Content-Type", "application/manifest+json")

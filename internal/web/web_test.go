@@ -473,16 +473,16 @@ func TestFontChoice(t *testing.T) {
 	if _, body, _ := c.get("/"); !strings.Contains(body, `data-font="inter"`) || len(preloads(body)) != 1 {
 		t.Fatalf("default font: preloads %v", preloads(body))
 	}
-	if code, _, _ := c.post("/settings/appearance", url.Values{"font": {"lato"}}); code != http.StatusSeeOther {
+	if code, _, _ := c.post("/settings/appearance", url.Values{"font": {"roboto"}}); code != http.StatusSeeOther {
 		t.Fatalf("save font: %d", code)
 	}
 	_, body, _ := c.get("/")
-	if !strings.Contains(body, `data-font="lato"`) || strings.Join(preloads(body), " ") != "fonts/lato-latin-400.woff2 fonts/lato-latin-700.woff2" {
-		t.Fatalf("lato: preloads %v", preloads(body))
+	if !strings.Contains(body, `data-font="roboto"`) || strings.Join(preloads(body), " ") != "fonts/roboto-latin.woff2" {
+		t.Fatalf("roboto: preloads %v", preloads(body))
 	}
 	// Saving another setting keeps the font.
 	c.post("/settings/appearance", url.Values{"theme": {"dark"}})
-	if _, body, _ := c.get("/"); !strings.Contains(body, `data-font="lato"`) {
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-font="roboto"`) {
 		t.Fatal("font lost when saving the theme")
 	}
 	c.post("/settings/appearance", url.Values{"font": {"system"}})
@@ -591,6 +591,10 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		// The favicon uses the accent's light-mode colour.
 		if c, ok := iconColours[a]; !ok || !strings.Contains(string(css), "--accent: light-dark("+c[0]+",") {
 			t.Errorf("accent %q has no favicon colours matching its CSS", a)
+		}
+		// Android's system bars use the accent's page background.
+		if c, ok := pageBackgrounds[a]; !ok || !strings.Contains(string(css), "--bg: light-dark("+c[0]+", "+c[1]+")") {
+			t.Errorf("accent %q has no page background matching its CSS", a)
 		}
 	}
 	e := newEnv(t)

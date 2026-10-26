@@ -274,10 +274,10 @@ func TestSettings(t *testing.T) {
 	if u.Settings != (Settings{Accent: "indigo", Theme: "system", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "lato", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Font: "lato", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
 		t.Fatalf("saved = %+v", got.Settings)
 	}
 	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {

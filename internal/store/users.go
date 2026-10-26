@@ -51,7 +51,7 @@ type Settings struct {
 var (
 	Accents          = []string{"indigo", "terracotta", "yellow", "emerald", "forest", "ocean", "rose", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
-	Fonts            = []string{"inter", "system", "roboto", "open-sans", "lato"}
+	Fonts            = []string{"inter", "system", "roboto", "open-sans"}
 	Languages        = languages()
 	Sidebars         = []string{"left", "right"}
 	Sorts            = []string{SortNewest, SortTitle}
