@@ -96,8 +96,11 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark">
-      {{/* With edit rights, the icon can be dropped on a tag, Favourites or Archive (dragtag.js). */}}
-      {{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{else}}<span class="avatar" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>{{initial .Domain}}</span>{{end}}
+      {{/* The icon opens the bookmark, like the title, which is the link screen readers and the keyboard get.
+           With edit rights, it can also be dropped on a tag, Favourites or Archive (dragtag.js). */}}
+      <a class="bm-icon" href="{{.URL}}" rel="noopener noreferrer" target="_blank" tabindex="-1" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>
+        {{- if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar">{{initial .Domain}}</span>{{end -}}
+      </a>
       <div class="bm-body">
         <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
