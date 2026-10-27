@@ -292,8 +292,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .side-link .count { color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
 .side-link[aria-current="page"] .count { color: var(--soft-text); }
 /* Dragging a bookmark's icon onto a tag tags it (dragtag.js): the tags that
-   take a drop show it while one is dragged, and the one under it lights up. */
-[data-drag-bookmark] { cursor: grab; }
+   take a drop show it while one is dragged, and the one under it lights up.
+   The icon keeps the link's pointer: a click opens the bookmark. */
 .dragging-bookmark :is([data-tag-drop], [data-flag-drop]) { outline: 1px dashed var(--border); outline-offset: -1px; }
 .dragging-bookmark :is([data-tag-drop], [data-flag-drop]).drop-over { background: var(--soft); color: var(--soft-text); outline: 2px solid var(--accent); }
 @media (prefers-reduced-motion: no-preference) {
@@ -353,6 +353,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .bookmarks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
 .bookmark { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; }
 .bookmark + .bookmark { border-top: 1px solid var(--border); }
+.bm-icon { flex-shrink: 0; display: flex; text-decoration: none; }
 .avatar {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-top: 2px;
   border-radius: var(--radius); background: var(--soft); color: var(--soft-text); font-size: var(--fs-md); font-weight: var(--fw-semibold);
