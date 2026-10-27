@@ -653,6 +653,7 @@ fieldset[disabled] { opacity: 0.6; }
 .method:first-of-type { border-top: 0; }
 .method > form, .method > .btn { flex-shrink: 0; }
 .method-icon { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius); background: var(--soft); color: var(--soft-text); }
+.method-icon.on { background: var(--notice-bg); color: var(--notice-text); }
 .method-body { flex-grow: 1; min-width: 0; }
 .method-title { font-weight: var(--fw-semibold); margin-bottom: 2px; }
 .method-body > .muted { font-size: var(--fs-md); }

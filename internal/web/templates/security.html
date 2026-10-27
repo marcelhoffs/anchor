@@ -54,9 +54,9 @@
     <p class="muted">{{if .MFA.Enabled}}{{t "On. Signing in needs your password and one of these."}}{{else}}{{t "Off. Add a second step to signing in, so a stolen password isn't enough."}}{{end}}</p>
 
     <div class="method">
-      <span class="method-icon">{{icon "smartphone"}}</span>
+      <span class="method-icon{{if .MFA.TOTP}} on{{end}}">{{icon "smartphone"}}</span>
       <div class="method-body">
-        <p class="method-title">{{t "Authenticator app"}} {{if .MFA.TOTP}}<span class="badge on">{{t "On"}}</span>{{end}}</p>
+        <p class="method-title">{{t "Authenticator app"}}{{if .MFA.TOTP}}<span class="visually-hidden"> ({{t "On"}})</span>{{end}}</p>
         <p class="muted">{{t "6-digit codes from an app like 1Password, Bitwarden, Aegis or Google Authenticator."}}</p>
       </div>
       {{if .MFA.TOTP}}
@@ -79,9 +79,9 @@
     </div>
 
     <div class="method" data-passkey-scope>
-      <span class="method-icon">{{icon "key"}}</span>
+      <span class="method-icon{{if .MFA.Passkeys}} on{{end}}">{{icon "key"}}</span>
       <div class="method-body">
-        <p class="method-title">{{t "Passkeys"}} {{if .MFA.Passkeys}}<span class="badge on">{{.MFA.Passkeys}}</span>{{end}}</p>
+        <p class="method-title">{{t "Passkeys"}}{{if .MFA.Passkeys}}<span class="visually-hidden"> ({{t "On"}})</span>{{end}}</p>
         <p class="muted">{{t "Your fingerprint, face, device PIN or a security key. Phishing-resistant."}}</p>
         {{if .Passkeys}}
         <ul class="plain keys">
@@ -117,7 +117,7 @@
 
     {{if .MFA.Enabled}}
     <div class="method">
-      <span class="method-icon">{{icon "shield"}}</span>
+      <span class="method-icon{{if .MFA.RecoveryLeft}} on{{end}}">{{icon "shield"}}</span>
       <div class="method-body">
         <p class="method-title">{{t "Recovery codes"}}</p>
         <p class="muted">{{if .MFA.RecoveryLeft}}{{t "%d unused. Each works once if you lose your device." .MFA.RecoveryLeft}}{{else}}{{t "None left. Generate a set now so a lost device can't lock you out."}}{{end}}</p>
