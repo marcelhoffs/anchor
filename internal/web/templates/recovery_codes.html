@@ -3,12 +3,15 @@
 <div class="card">
   <h1>{{t "Save your recovery codes"}}</h1>
   <p class="muted intro">{{t "If you lose your device, each of these codes signs you in once. They're shown only now: print them or store them in your password manager."}}</p>
-  <ul class="codes">
+  <ul id="recovery-codes" class="codes">
     {{range .Codes}}<li><code>{{.}}</code></li>{{end}}
   </ul>
   <p class="muted">{{t "Any older recovery codes no longer work."}}</p>
   <div class="form-actions">
     <a class="btn btn-primary" href="/settings/security">{{t "I've saved them"}}</a>
+    <button type="button" class="btn" data-copy="recovery-codes" data-copied="{{t "Copied"}}" hidden>{{icon "copy" "sm"}}{{t "Copy codes"}}</button>
+    <span class="copy-status" role="status" data-copy-status></span>
   </div>
 </div>
 {{end}}
+{{define "scripts"}}<script src="{{asset "copy.js"}}"></script>{{end}}

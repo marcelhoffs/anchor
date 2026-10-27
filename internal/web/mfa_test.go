@@ -74,6 +74,9 @@ func enableTOTP(t *testing.T, c *client) (string, []string) {
 	if code != http.StatusOK || !strings.Contains(body, "Save your recovery codes") {
 		t.Fatalf("totp enable: %d", code)
 	}
+	if !strings.Contains(body, `data-copy="recovery-codes"`) || !strings.Contains(body, "copy.js") {
+		t.Fatal("recovery codes have no copy button")
+	}
 	codes := regexp.MustCompile(`<li><code>([a-z0-9]{5}-[a-z0-9]{5})</code></li>`).FindAllStringSubmatch(body, -1)
 	var out []string
 	for _, m := range codes {

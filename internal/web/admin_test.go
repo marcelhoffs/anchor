@@ -73,6 +73,9 @@ func TestInvitesAndSignupModes(t *testing.T) {
 	root.post("/admin/settings", url.Values{"signup": {"invite"}})
 	_, body, _ := root.post("/admin/invites", url.Values{"note": {"for dana"}})
 	link := find(t, body, `value="(http[^"]+/signup\?invite=[^"]+)"`)
+	if !strings.Contains(body, `data-copy="secret"`) || !strings.Contains(body, "Copy link") {
+		t.Fatal("invite link has no copy button")
+	}
 	invite := link[strings.Index(link, "invite=")+7:]
 	// Closing signup again stops the link working.
 	root.post("/admin/settings", url.Values{"signup": {"closed"}})
