@@ -681,6 +681,10 @@ fieldset[disabled] { opacity: 0.6; }
 .reveal h2 { color: var(--soft-text); }
 .reveal .muted { margin-bottom: 10px; }
 :where(.secret-field) { font-family: var(--mono); font-size: var(--fs-md); }
+/* A once-shown value with its copy button (copy.js); the status announces "Copied". */
+.copy-row { display: flex; align-items: center; gap: 8px; }
+.copy-row .secret-field { flex: 1; min-width: 0; }
+.copy-status { font-size: var(--fs-sm); color: var(--muted); }
 
 .jobs li { padding: 12px 0; border-top: 1px solid var(--border); }
 .jobs li:first-child { border-top: 0; }

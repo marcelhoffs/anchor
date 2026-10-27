@@ -22,6 +22,9 @@ func apiToken(t *testing.T, c *client, scope string) string {
 	if code != http.StatusOK {
 		t.Fatalf("create token: %d", code)
 	}
+	if !strings.Contains(body, `data-copy="new-token-value"`) || !strings.Contains(body, "copy.js") {
+		t.Fatal("new token has no copy button")
+	}
 	return find(t, body, `value="(`+apiTokenPrefix+`[A-Za-z0-9_-]+)"`)
 }
 
