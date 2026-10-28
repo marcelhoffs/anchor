@@ -74,7 +74,7 @@
 {{template "content" .}}
 </main>
 <footer class="foot">
-  {{t "Anchor %s is free software under the %s" (versionLink) (licenseLink)}} · <a href="{{sourceURL}}">{{t "Source code"}}</a>
+  {{t "Anchor %s is free software under the %s" (versionLink) (licenseLink)}} · <a href="{{sourceURL}}" target="_blank" rel="noopener">{{t "Source code"}}</a>
 </footer>
 <script src="{{asset "menus.js"}}"></script>
 {{block "scripts" .}}{{end}}

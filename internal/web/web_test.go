@@ -906,7 +906,7 @@ func TestFooterShowsVersion(t *testing.T) {
 			if !strings.Contains(body, "Anchor "+v+" is free software") {
 				t.Errorf("%s: version not shown", v)
 			}
-		} else if !strings.Contains(body, `Anchor <a href="`+link+`">`+v+`</a>`) {
+		} else if !strings.Contains(body, `Anchor <a href="`+link+`" target="_blank" rel="noopener">`+v+`</a>`) {
 			t.Errorf("%s: no link to %s", v, link)
 		}
 	}
