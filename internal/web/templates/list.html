@@ -102,13 +102,15 @@
         {{- if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar">{{initial .Domain}}</span>{{end -}}
       </a>
       <div class="bm-body">
-        <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
+        <div class="bm-head">
+          <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
+          {{if .Tags}}<span class="bm-tags">{{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}</span>{{end}}
+        </div>
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
         <div class="bm-meta">
           <span class="domain">{{.Domain}}</span>
           {{if .IsArchived}}<span class="badge">{{t "Archived"}}</span>{{end}}
           {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}{{t "Shared"}}</a>{{end}}
-          {{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}
         </div>
       </div>
       {{if $.CanWrite}}
@@ -134,7 +136,7 @@
           {{end}}
         </form>
       </div>
-      {{/* On phones the actions fold into this menu, beside the title. */}}
+      {{/* On phones the actions fold into this menu, beside the title; on touch screens swipe.js slides them in instead. */}}
       <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="{{t "Actions for %s" (display .)}}">{{icon "more"}}</button>
       <div id="actions-{{.ID}}" class="menu row-menu" popover>
         <form method="post" action="/bookmarks/{{.ID}}/flag">
@@ -219,7 +221,7 @@
 
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
-{{define "scripts"}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}

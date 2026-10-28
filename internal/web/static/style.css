@@ -363,6 +363,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .bm-body { flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .bm-title { color: var(--text); font-size: var(--fs-lg); line-height: 1.35; font-weight: var(--fw-semibold); letter-spacing: -0.005em; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-title:hover { color: var(--accent-text); }
+/* Tags follow the title on its line and never wrap: the title keeps its
+   width, the tags get what is left and fade out where they run off. */
+.bm-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bm-head .bm-title { flex: 0 1 auto; min-width: 0; }
+.bm-tags {
+  flex: 1 1 0; min-width: 0; display: flex; gap: 6px; overflow: hidden;
+  mask-image: linear-gradient(to left, transparent, #000 24px);
+}
+.bm-tags > .tag { flex-shrink: 0; }
 .bm-desc { color: var(--muted); font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bm-desc:empty { display: none; }
 .bm-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 1px; color: var(--muted); font-size: var(--fs-sm); }
@@ -379,9 +388,17 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
 .bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
 .bm-more { display: none; flex-shrink: 0; }
 @media (hover: hover) {
-  /* On mouse devices, row actions appear on hover or keyboard focus. */
-  .bm-actions .icon-btn:not(.on) { opacity: 0; }
-  .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; }
+  /* On mouse devices, the row actions take no room: they float over the
+     right end of the row on hover or keyboard focus. */
+  .bookmark { position: relative; }
+  .bm-actions { position: absolute; top: 0; bottom: 0; right: 0; padding-right: 14px; }
+  .bm-actions .icon-btn { opacity: 0; pointer-events: none; } /* still reachable by Tab */
+  /* Shown, it covers the row's text under it, top to bottom, in the row's
+     colour, fading in from the left. */
+  .bookmark:hover .bm-actions, .bookmark:focus-within .bm-actions {
+    padding-left: 32px; background: linear-gradient(to right, transparent, var(--surface) 32px);
+  }
+  .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; pointer-events: auto; }
 }
 .pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .pager-range { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
@@ -584,9 +601,9 @@ td.actions { text-align: right; white-space: nowrap; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
   .avatar.favicon { padding: 6px; }
   .bm-body { gap: 2px; }
-  /* Every row is the same height: one line each for the title, the
-     description (kept when empty) and the meta, where only tags (last in
-     it) run off the edge, fading out. */
+  /* Every row is the same height: one line each for the title (with its
+     tags), the description (kept when empty) and the meta, which fades out
+     at the edge if it runs off. */
   .bm-desc:empty { display: block; }
   .bm-desc:empty::before { content: "\00a0"; }
   .bm-meta {
@@ -597,6 +614,7 @@ td.actions { text-align: right; white-space: nowrap; }
   /* The actions fold into a menu beside the title, so rows stay short. */
   .bm-actions { display: none; }
   .bm-more { display: inline-flex; width: 36px; height: 36px; margin-top: -2px; }
+  .swipe-rows .bookmark { padding-right: 10px; } /* no ⋯ menu to make room for */
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .top-ctl { width: 40px; padding: 0; }
@@ -609,6 +627,18 @@ td.actions { text-align: right; white-space: nowrap; }
   .search-btn { width: 36px; padding: 0; }
   .search-btn .icon { display: inline; }
 }
+/* On touch screens of any width (swipe.js), the row actions sit just off
+   the right edge instead, and slide in with the row when it's swiped left. */
+.swipe-rows .bookmark { position: relative; overflow: hidden; touch-action: pan-y; }
+.swipe-rows .bm-more { display: none; }
+.swipe-rows .bm-icon, .swipe-rows .bm-body { transform: translateX(var(--swipe, 0px)); }
+.swipe-rows .bookmark.settling :is(.bm-icon, .bm-body, .bm-actions) { transition: transform 200ms ease; }
+.swipe-rows .bookmark .bm-actions {
+  display: flex; position: absolute; top: 50%; right: auto; bottom: auto; left: 100%; width: max-content; gap: 2px;
+  transform: translate(var(--swipe, 0px), -50%); padding: 0; background: none;
+}
+.swipe-rows .bm-actions > * { flex-shrink: 0; }
+.swipe-rows .bookmark .bm-actions .icon-btn { opacity: 1; pointer-events: auto; background: none; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
