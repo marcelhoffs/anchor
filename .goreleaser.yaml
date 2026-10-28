@@ -30,6 +30,8 @@ checksum:
 changelog:
   use: github
   sort: asc
+  # Only the commit subject. GitHub links "#123" in it to that issue.
+  format: "{{ .Message }}"
   filters:
     exclude:
       - "^Merge "
