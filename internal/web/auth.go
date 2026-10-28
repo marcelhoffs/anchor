@@ -106,13 +106,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		s.renderLogin(w, r, status, data{"Error": msg, "Username": username, "Next": next})
 	}
 
-	// Attempts are limited per IP and username, and per IP overall. Each one
+	// Attempts are limited per IP overall, and per IP and username. Each one
 	// counts before the password is checked, so a burst of parallel guesses
 	// can't all slip in under the limit; signing in resets the username's.
+	// The IP's limit comes first: a blocked IP can't keep adding usernames.
 	for _, l := range []struct {
 		lim *ratelimit.Limiter
 		key string
-	}{{s.loginUser, userKey}, {s.loginIP, ip}} {
+	}{{s.loginIP, ip}, {s.loginUser, userKey}} {
 		if ok, retry := l.lim.Allow(l.key); !ok {
 			w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 			fail(http.StatusTooManyRequests, i18n.M("Too many failed attempts. Try again in %s.", retryText(langOf(r), retry)))

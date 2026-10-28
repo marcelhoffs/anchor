@@ -3,6 +3,7 @@ package importexport
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -133,6 +134,24 @@ func TestParseMaxItems(t *testing.T) {
 	items, err := Parse([]byte(`{"bookmarks":[{"url":"https://a.example/"}],"version":1,"format":"anchor-bookmarks","extra":{}}`))
 	if err != nil || len(items) != 1 || items[0].URL != "https://a.example/" {
 		t.Fatalf("keys in another order: %+v %v", items, err)
+	}
+}
+
+// Deeply nested folders give a bookmark at most maxFolderTags tags, the
+// outermost ones, so a small file can't take the server's memory.
+func TestParseDeepFolders(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<!DOCTYPE NETSCAPE-Bookmark-file-1><DL>")
+	for i := range 200_000 {
+		fmt.Fprintf(&b, "<DT><H3>f%d</H3><DL>", i)
+	}
+	b.WriteString(strings.Repeat("<DT><A HREF=https://a.example/>A</A>", 1000))
+	items, err := Parse([]byte(b.String()))
+	if err != nil || len(items) != 1000 {
+		t.Fatalf("got %d items, %v", len(items), err)
+	}
+	if tags := items[0].Tags; len(tags) != maxFolderTags-1 || tags[0] != "f0" {
+		t.Fatalf("tags: %d, first %q", len(tags), tags[0])
 	}
 }
 

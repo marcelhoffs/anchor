@@ -213,12 +213,5 @@ func (s *Store) DeleteTag(ctx context.Context, sc Scope, id int64) error {
 	if err := sc.mustWrite(); err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "DELETE FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, id))
 }

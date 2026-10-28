@@ -18,16 +18,9 @@ func (s *Store) SetShared(ctx context.Context, sc Scope, id int64, on bool) erro
 		rand.Read(b)
 		token = base64.RawURLEncoding.EncodeToString(b)
 	}
-	res, err := s.w.ExecContext(ctx,
+	return affected(s.w.ExecContext(ctx,
 		`UPDATE bookmarks SET share_token = CASE WHEN ? IS NULL THEN NULL ELSE coalesce(share_token, ?) END
-		 WHERE space_id = ? AND id = ?`, token, token, sc.spaceID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+		 WHERE space_id = ? AND id = ?`, token, token, sc.spaceID, id))
 }
 
 // SharedBookmark returns the bookmark behind a public link. A personal

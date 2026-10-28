@@ -67,15 +67,8 @@ func (s *Store) Refetch(ctx context.Context, sc Scope, id int64) error {
 	if err := sc.mustWrite(); err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET fetch_status = ? WHERE space_id = ? AND id = ?",
-		FetchPending, sc.spaceID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "UPDATE bookmarks SET fetch_status = ? WHERE space_id = ? AND id = ?",
+		FetchPending, sc.spaceID, id))
 }
 
 // RequeueIconless queues every bookmark that has no icon to be fetched again.

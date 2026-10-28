@@ -276,13 +276,18 @@ func (c *Client) Icon(ctx context.Context, rawURL string) (mime string, data []b
 // icons are at most 256 px.
 const maxBlankSide = 1024
 
+// maxBlankImages is the most images in an ICO file the blank check decodes.
+// Real icons hold a handful; a crafted one can point thousands of entries at
+// one large image and take minutes to check.
+const maxBlankImages = 16
+
 // blankICO reports whether every image in an ICO file is blank.
 func blankICO(data []byte) bool {
 	if len(data) < 6 {
 		return false
 	}
 	n := int(binary.LittleEndian.Uint16(data[4:]))
-	if n == 0 || len(data) < 6+16*n {
+	if n == 0 || n > maxBlankImages || len(data) < 6+16*n {
 		return false
 	}
 	for i := range n {
