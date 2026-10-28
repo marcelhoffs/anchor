@@ -63,16 +63,13 @@ func (s *Store) UnlinkIdentity(ctx context.Context, userID int64, force, dropAdm
 		if hash == "" && !force {
 			return invalid("Set a password first: without single sign-on it's your only way in.")
 		}
-		res, err := tx.ExecContext(ctx, "DELETE FROM oidc_identities WHERE user_id = ?", userID)
-		if err != nil {
+		if err := affected(tx.ExecContext(ctx, "DELETE FROM oidc_identities WHERE user_id = ?", userID)); err != nil {
 			return err
 		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
+		if !dropAdmin {
+			return nil
 		}
-		if dropAdmin {
-			_, err = tx.ExecContext(ctx, "UPDATE users SET is_admin = 0, updated_at = ? WHERE id = ?", unix(s.now()), userID)
-		}
+		_, err := tx.ExecContext(ctx, "UPDATE users SET is_admin = 0, updated_at = ? WHERE id = ?", unix(s.now()), userID)
 		return err
 	})
 }

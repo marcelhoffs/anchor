@@ -85,25 +85,11 @@ func (s *Store) RenameSavedSearch(ctx context.Context, sc Scope, id int64, name 
 	if err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE saved_searches SET name = ? WHERE space_id = ? AND user_id = ? AND id = ?",
-		name, sc.spaceID, sc.userID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "UPDATE saved_searches SET name = ? WHERE space_id = ? AND user_id = ? AND id = ?",
+		name, sc.spaceID, sc.userID, id))
 }
 
 func (s *Store) DeleteSavedSearch(ctx context.Context, sc Scope, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM saved_searches WHERE space_id = ? AND user_id = ? AND id = ?",
-		sc.spaceID, sc.userID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM saved_searches WHERE space_id = ? AND user_id = ? AND id = ?",
+		sc.spaceID, sc.userID, id))
 }

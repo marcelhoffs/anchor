@@ -159,28 +159,17 @@ func (s *Store) UpdatePasskeyUse(ctx context.Context, userID int64, credentialID
 }
 
 func (s *Store) DeletePasskey(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM webauthn_credentials WHERE user_id = ? AND id = ?", userID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM webauthn_credentials WHERE user_id = ? AND id = ?", userID, id))
 }
 
 // ResetMFA removes every second factor and API token and signs the user
 // out everywhere (admin recovery for a lost device).
 func (s *Store) ResetMFA(ctx context.Context, userID int64) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx,
+		if err := affected(tx.ExecContext(ctx,
 			"UPDATE users SET totp_enabled = 0, totp_secret = NULL, totp_last_step = 0, updated_at = ? WHERE id = ?",
-			unix(s.now()), userID)
-		if err != nil {
+			unix(s.now()), userID)); err != nil {
 			return err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
 		}
 		for _, q := range []string{
 			"DELETE FROM webauthn_credentials WHERE user_id = ?",

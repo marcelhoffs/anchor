@@ -197,29 +197,15 @@ func (s *Store) SetFlag(ctx context.Context, sc Scope, id int64, flag Flag, on b
 	if !ok {
 		return fmt.Errorf("unknown flag %q", flag)
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET "+col+" = ?, updated_at = ? WHERE space_id = ? AND id = ?",
-		on, unix(s.now()), sc.spaceID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "UPDATE bookmarks SET "+col+" = ?, updated_at = ? WHERE space_id = ? AND id = ?",
+		on, unix(s.now()), sc.spaceID, id))
 }
 
 func (s *Store) DeleteBookmark(ctx context.Context, sc Scope, id int64) error {
 	if err := sc.mustWrite(); err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE space_id = ? AND id = ?", sc.spaceID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE space_id = ? AND id = ?", sc.spaceID, id))
 }
 
 // List orders.

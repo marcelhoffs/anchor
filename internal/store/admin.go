@@ -55,14 +55,7 @@ func (s *Store) ListInvites(ctx context.Context) ([]Invite, error) {
 }
 
 func (s *Store) DeleteInvite(ctx context.Context, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM invites WHERE id = ? AND used_at IS NULL", id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM invites WHERE id = ? AND used_at IS NULL", id))
 }
 
 // InviteValid reports whether hash is an unused, unexpired invite.

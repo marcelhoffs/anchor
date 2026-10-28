@@ -77,14 +77,7 @@ func (s *Store) ListAPITokens(ctx context.Context, userID int64) ([]APIToken, er
 }
 
 func (s *Store) DeleteAPIToken(ctx context.Context, userID, id int64) error {
-	res, err := s.w.ExecContext(ctx, "DELETE FROM api_tokens WHERE user_id = ? AND id = ?", userID, id)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "DELETE FROM api_tokens WHERE user_id = ? AND id = ?", userID, id))
 }
 
 // TokenByHash returns an unexpired token and its active owner.

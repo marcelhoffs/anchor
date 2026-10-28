@@ -189,6 +189,10 @@ func TestBlank(t *testing.T) {
 		return out
 	}
 	none, red := color.NRGBA{}, color.NRGBA{R: 255, A: 255}
+	tooMany := make([][]byte, maxBlankImages+1)
+	for i := range tooMany {
+		tooMany[i] = bitmap(0, 0, 0, 0)
+	}
 	for name, c := range map[string]struct {
 		blank func([]byte) bool
 		data  []byte
@@ -203,6 +207,7 @@ func TestBlank(t *testing.T) {
 		"png ico":            {blankICO, ico(pngOf(2, none), bitmap(0, 0, 0, 0)), true},
 		"red png ico":        {blankICO, ico(pngOf(2, red)), false},
 		"truncated ico":      {blankICO, ico(bitmap(0, 0, 0, 0))[:30], false},
+		"too many images":    {blankICO, ico(tooMany...), false}, // not decoded
 	} {
 		if got := c.blank(c.data); got != c.want {
 			t.Errorf("%s: blank = %v, want %v", name, got, c.want)

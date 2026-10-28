@@ -66,6 +66,11 @@ func (e VersionError) Error() string {
 	return fmt.Sprintf("unsupported Anchor JSON version %d", e.Version)
 }
 
+// maxFolderTags is how many enclosing folders a bookmark takes as tags. Each
+// bookmark copies them all, so a file of a few MB with 200,000 nested
+// folders would otherwise need gigabytes.
+const maxFolderTags = 20
+
 // Browsers' built-in root folders; turning them into tags would tag almost
 // everything.
 var rootFolders = map[string]bool{
@@ -109,6 +114,9 @@ func ParseNetscape(r io.Reader) ([]Item, error) {
 				inH3, inDD = true, false
 				text.Reset()
 			case "dl":
+				if len(folders) >= maxFolderTags {
+					pendingDir = "" // deeper folders still nest, but add no tags
+				}
 				folders = append(folders, pendingDir)
 				pendingDir, inDD = "", false
 			case "a":

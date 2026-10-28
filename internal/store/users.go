@@ -115,14 +115,7 @@ func (s *Store) SaveSettings(ctx context.Context, userID int64, st Settings) err
 	if err != nil {
 		return err
 	}
-	res, err := s.w.ExecContext(ctx, "UPDATE users SET settings = ?, updated_at = ? WHERE id = ?", string(b), unix(s.now()), userID)
-	if err != nil {
-		return err
-	}
-	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
-	}
-	return nil
+	return affected(s.w.ExecContext(ctx, "UPDATE users SET settings = ?, updated_at = ? WHERE id = ?", string(b), unix(s.now()), userID))
 }
 
 func (s *Store) CountUsers(ctx context.Context) (int, error) {
@@ -172,18 +165,14 @@ func (s *Store) UserByID(ctx context.Context, id int64) (User, error) {
 // session): whoever got in before can't stay in.
 func (s *Store) SetPassword(ctx context.Context, userID int64, passwordHash string, keepSession []byte) error {
 	return s.tx(ctx, func(tx *sql.Tx) error {
-		res, err := tx.ExecContext(ctx, "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
-			passwordHash, unix(s.now()), userID)
-		if err != nil {
+		if err := affected(tx.ExecContext(ctx, "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+			passwordHash, unix(s.now()), userID)); err != nil {
 			return err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
 		}
 		if _, err := tx.ExecContext(ctx, "DELETE FROM api_tokens WHERE user_id = ?", userID); err != nil {
 			return err
 		}
-		_, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND token_hash IS NOT ?", userID, keepSession)
+		_, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ? AND token_hash IS NOT ?", userID, keepSession)
 		return err
 	})
 }
@@ -240,16 +229,13 @@ func (s *Store) SetActive(ctx context.Context, userID int64, active bool) error 
 				return err
 			}
 		}
-		res, err := tx.ExecContext(ctx, "UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?", active, unix(s.now()), userID)
-		if err != nil {
+		if err := affected(tx.ExecContext(ctx, "UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?", active, unix(s.now()), userID)); err != nil {
 			return err
 		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
+		if active {
+			return nil
 		}
-		if !active {
-			_, err = tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID)
-		}
+		_, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE user_id = ?", userID)
 		return err
 	})
 }
@@ -261,14 +247,7 @@ func (s *Store) SetAdmin(ctx context.Context, userID int64, admin bool) error {
 				return err
 			}
 		}
-		res, err := tx.ExecContext(ctx, "UPDATE users SET is_admin = ?, updated_at = ? WHERE id = ?", admin, unix(s.now()), userID)
-		if err != nil {
-			return err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ErrNotFound
-		}
-		return nil
+		return affected(tx.ExecContext(ctx, "UPDATE users SET is_admin = ?, updated_at = ? WHERE id = ?", admin, unix(s.now()), userID))
 	})
 }
 
