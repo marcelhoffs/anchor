@@ -99,17 +99,23 @@
     });
   }
 
-  // redrawTags replaces a row's tag links, keeping the domain and badges.
+  // redrawTags replaces a row's tag links, beside its title.
   function redrawTags(row, tags) {
-    var meta = row && row.querySelector(".bm-meta");
-    if (!meta) return;
-    meta.querySelectorAll("a.tag").forEach(function (a) { a.remove(); });
+    var head = row && row.querySelector(".bm-head");
+    if (!head) return;
+    var box = head.querySelector(".bm-tags");
+    if (!box) {
+      box = document.createElement("span");
+      box.className = "bm-tags";
+      head.appendChild(box);
+    }
+    box.textContent = "";
     tags.forEach(function (t) {
       var a = document.createElement("a");
       a.className = "tag";
       a.href = t.url;
       a.textContent = t.name;
-      meta.appendChild(a);
+      box.appendChild(a);
     });
     row.classList.remove("just-tagged");
     void row.offsetWidth; // restart the highlight
