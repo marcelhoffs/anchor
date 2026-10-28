@@ -53,15 +53,16 @@ var funcs = template.FuncMap{
 	"sourceURL":  func() string { return sourceURL },
 	"version":    func() string { return Version },
 	"releaseURL": releaseURL,
-	// The footer's links, as values for its translated sentence.
+	// The footer's links, as values for its translated sentence. Like the
+	// footer's other link, they open in a new tab.
 	"versionLink": func() template.HTML {
 		if u := releaseURL(); u != "" {
-			return template.HTML(`<a href="` + html.EscapeString(u) + `">` + html.EscapeString(Version) + `</a>`)
+			return template.HTML(`<a href="` + html.EscapeString(u) + `" target="_blank" rel="noopener">` + html.EscapeString(Version) + `</a>`)
 		}
 		return template.HTML(html.EscapeString(Version))
 	},
 	"licenseLink": func() template.HTML {
-		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" rel="license">AGPL-3.0</a>`)
+		return template.HTML(`<a href="` + sourceURL + `/blob/main/LICENSE" target="_blank" rel="license noopener">AGPL-3.0</a>`)
 	},
 	"tagURL":            tagURL,
 	"savedSearchURL":    savedSearchURL,
