@@ -56,7 +56,32 @@ Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, w
 | GET | `/api/v1/user` | The token's user |
 | GET | `/api/v1/spaces` | Your spaces: the personal one first, then the shared ones, with your `role` in each |
 
-The `q` parameter takes the same [search syntax](how-it-works.md#search) as the search box.
+The `q` parameter takes the same [search syntax](how-it-works.md#search) as the search box. `tag=` (repeatable), `archived=true` and `favourite=true` add the matching conditions to it.
+
+### Bookmarks and paging
+
+A bookmark looks like this:
+
+```json
+{
+  "id": 42,
+  "url": "https://go.dev/",
+  "title": "The Go Programming Language",
+  "description": "Go is an open source programming language…",
+  "notes": "",
+  "tags": ["go"],
+  "is_favourite": false,
+  "is_archived": false,
+  "share_url": null,
+  "domain": "go.dev",
+  "created_at": "2026-10-29T09:12:00Z",
+  "updated_at": "2026-10-29T09:12:00Z"
+}
+```
+
+`POST` and `PATCH` take `url`, `title`, `description`, `notes`, `tags`, `is_favourite` and `is_archived`; `share_url`, `domain` and the dates are Anchor's. Empty title, description and icon are fetched in the background, as in the web interface.
+
+The list answers `{"results": [...], "next": "<cursor>"}`, newest first, or by relevance for searches with words. `limit` is 1 to 100 (default 50); pass `next` as `cursor` for the following page, until `next` is `null`.
 
 ## Examples
 

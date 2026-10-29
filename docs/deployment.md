@@ -35,7 +35,7 @@ docker compose up -d
 `docker-compose.yml` uses the `latest` tag. To stay on one release series and upgrade only when you choose, pin it:
 
 ```sh
-sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.2|' docker-compose.yml
+sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.5|' docker-compose.yml
 ```
 
 While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.5.5 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
@@ -170,6 +170,7 @@ echo 'a-long-password' | docker compose exec -T anchor /anchor user create bob -
 docker compose exec anchor /anchor user create carol --admin      # an admin account
 docker compose exec anchor /anchor user reset-password alice      # also signs out every session
 docker compose exec anchor /anchor user reset-2fa alice           # lost phone: removes all second factors
+docker compose exec anchor /anchor user unlink-sso alice          # lost provider account: unlinks single sign-on
 docker compose exec anchor /anchor user delete alice              # for good; shared spaces go to an admin
 docker compose exec anchor /anchor backup /data/backups/anchor.db # a consistent snapshot, while running
 docker compose exec anchor /anchor migrate                        # apply database migrations and exit
@@ -210,7 +211,7 @@ docker compose pull
 docker compose up -d
 ```
 
-On a pinned series (`:0.2`) this brings that series' fixes; for a new series, change the tag in `docker-compose.yml` first. Old images stay on disk until `docker image prune` removes them.
+On a pinned series (`:0.5`) this brings that series' fixes; for a new series, change the tag in `docker-compose.yml` first. Old images stay on disk until `docker image prune` removes them.
 
 Building the image yourself:
 
