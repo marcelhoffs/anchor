@@ -37,7 +37,8 @@
     var row = e.target.closest("li.bookmark");
     if (open && open !== row) close(open);
     if (!row || !row.querySelector(".bm-actions")) return;
-    if (e.target.closest(".bm-actions")) return; // let the buttons be tapped
+    // Let the buttons be tapped, and the row's menu and confirm popovers, which sit inside it.
+    if (e.target.closest(".bm-actions, [popover]")) return;
     var t = e.touches[0];
     drag = { row: row, width: width(row), x: t.clientX, y: t.clientY, base: row === open ? -width(row) : 0, dx: 0, moved: false };
   }, { passive: true });
