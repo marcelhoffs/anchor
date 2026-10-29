@@ -86,6 +86,20 @@ Words are searched in titles, descriptions, notes, URLs and tags, ignoring case 
 
 Search uses SQLite's full-text index (FTS5), which is kept up to date as bookmarks change.
 
+### Web search
+
+The search box can also search the web. Turn it on under Settings → Search and the box gets a menu to choose between your bookmarks and the web; the box starts in whichever you chose last in that browser. A web search opens the engine's results in a new tab. The search syntax above only applies to bookmark searches.
+
+| Setting | Choices | Default |
+| --- | --- | --- |
+| Search engine | DuckDuckGo, Ecosia, Google, Qwant | DuckDuckGo |
+| SafeSearch | Hide explicit results, or not | On |
+| Region | The language and country of the results | Automatic: follows your browser's languages |
+
+Ecosia keeps its region and SafeSearch in its own settings, so Anchor leaves them out of its links. Qwant searches leave out news, sponsored links and other extras around the results.
+
+The query goes straight from your browser to the engine: Anchor never contacts the engine itself and doesn't keep the web searches you run. Web search is off by default and set per user.
+
 ## Saved searches and sharing
 
 **Saved searches** keep a search one click away. Run a search, choose "Save search", and it appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically.
