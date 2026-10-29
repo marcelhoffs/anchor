@@ -3,30 +3,8 @@
 {{define "top-actions"}}<button class="top-ctl tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}<span class="label-sm">{{t "Tags"}}</span></button>{{end}}
 {{define "content"}}
 <div class="columns">
-<aside class="sidebar">
-  <nav class="side-views" aria-label="{{t "Views"}}">
-    <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
-    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
-    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
-  </nav>
-  {{if .SavedSearches}}
-  <div class="side-searches">
-  <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage" title="{{t "Manage saved searches"}}" aria-label="{{t "Manage saved searches"}}">{{icon "pencil" "sm"}}</a></h2>
-  <nav aria-label="{{t "Saved searches"}}">
-    {{range .SavedSearches}}
-    <a class="side-link" href="{{savedSearchURL .}}"{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
-    {{end}}
-  </nav>
-  </div>
-  {{end}}
-  <div class="side-tags">
-    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
-    {{template "tag-links" .}}
-  </div>
-</aside>
-
-<div class="content">
-  {{/* Without room for the sidebar, the views sit above the search box. */}}
+  {{/* The search box spans the sidebar and the list. Without room for the
+     sidebar, the views sit above it. */}}
   <nav class="view-bar" aria-label="{{t "Views"}}">
     <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}{{t "All bookmarks"}}</a>
     <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}{{t "Favourites"}}</a>
@@ -71,6 +49,29 @@
       <button class="btn btn-primary search-btn">{{icon "search" "sm"}}<span class="label-sm">{{t "Search"}}</span></button>
     </form>
   </div>
+<aside class="sidebar">
+  <nav class="side-views" aria-label="{{t "Views"}}">
+    <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
+    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
+    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
+  </nav>
+  {{if .SavedSearches}}
+  <div class="side-searches">
+  <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage" title="{{t "Manage saved searches"}}" aria-label="{{t "Manage saved searches"}}">{{icon "pencil" "sm"}}</a></h2>
+  <nav aria-label="{{t "Saved searches"}}">
+    {{range .SavedSearches}}
+    <a class="side-link" href="{{savedSearchURL .}}"{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
+    {{end}}
+  </nav>
+  </div>
+  {{end}}
+  <div class="side-tags">
+    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
+    {{template "tag-links" .}}
+  </div>
+</aside>
+
+<div class="content">
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
     <div class="drawer-head">
