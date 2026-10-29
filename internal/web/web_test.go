@@ -1018,7 +1018,7 @@ func TestViewBarAboveSearch(t *testing.T) {
 	c := newEnv(t).admin()
 	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
 	bar := strings.Index(body, `<nav class="view-bar"`)
-	if bar < strings.Index(body, `class="content"`) || bar > strings.Index(body, `role="search"`) {
+	if bar < strings.Index(body, `class="columns"`) || bar > strings.Index(body, `role="search"`) {
 		t.Fatal("no view bar above the search box")
 	}
 	if !strings.Contains(body[bar:], `<a href="/?q=%21fav" aria-current="page">`) {
