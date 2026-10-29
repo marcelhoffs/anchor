@@ -322,6 +322,37 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .search:focus-within { border-color: var(--accent); }
 /* No clear button: the browser's own would only empty the box. */
 .search input::-webkit-search-cancel-button { display: none; }
+/* Search syntax help: shown while the ? button is hovered or focused, and
+   only while the box searches the bookmarks. */
+.search-help { display: flex; }
+.search:has(input[name="in"]:checked:not([value=""])) .search-help { display: none; }
+.search-help .icon-btn { width: 36px; height: 36px; flex-shrink: 0; }
+.tooltip {
+  position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; width: min(380px, calc(100vw - 32px)); padding: 14px 16px;
+  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text);
+  box-shadow: var(--shadow), 0 16px 40px rgb(0 0 0 / 0.2); font-size: var(--fs-sm); cursor: default;
+  visibility: hidden; opacity: 0; transition: opacity 120ms, visibility 120ms;
+}
+.search-help:hover .tooltip, .search-help:focus-within .tooltip { visibility: visible; opacity: 1; }
+.tooltip-title { margin-bottom: 10px; font-weight: var(--fw-semibold); }
+.tooltip dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; margin: 0; }
+.tooltip dt { white-space: nowrap; }
+.tooltip dd { margin: 0; color: var(--muted); }
+.tooltip-foot { margin-top: 12px; color: var(--muted); }
+/* The menu at the start of the box that picks bookmarks or the web: the
+   button shows only the choice's icon. */
+.search-in { flex-shrink: 0; min-width: 0; gap: 2px; width: auto; height: 36px; margin-left: -8px; padding: 0 6px; }
+.search-in .picker-current { display: flex; align-items: center; }
+.search-in .picker-current > span:not(.engine-mark) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* A web search engine's mark: its initial on its brand colour. */
+.engine-mark {
+  display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border-radius: 999px; color: #fff; font-size: 12px; font-weight: var(--fw-semibold); line-height: 1;
+}
+.engine-mark.duckduckgo { background: #de5833; }
+.engine-mark.ecosia { background: #008009; }
+.engine-mark.google { background: #4285f4; }
+.engine-mark.qwant { background: #5c4ee5; }
 .search input { flex-grow: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: none; background: transparent; box-shadow: none; color: var(--text); font: inherit; font-size: var(--fs-lg); }
 .search .btn { min-height: 36px; }
 .search-btn .icon { display: none; } /* phones show it instead of the label */
@@ -573,6 +604,9 @@ td.actions { text-align: right; white-space: nowrap; }
   .side-searches .side-heading { margin-top: 0; }
   .view-bar { display: flex; }
   .tags-btn { display: inline-flex; }
+  /* The search box is narrower here, so the help spans the whole row. */
+  .search { position: static; }
+  .tooltip { left: 0; width: auto; }
 }
 @media (max-width: 720px) {
   :root { --gutter: 16px; }

@@ -200,6 +200,8 @@ func (s *Server) Handler() http.Handler {
 			r.Get("/settings", s.settings)
 			r.Post("/settings/password", s.changePassword)
 			r.Post("/settings/appearance", s.saveAppearance)
+			r.Get("/settings/search", s.searchSettings)
+			r.Post("/settings/search", s.saveSearch)
 			r.Get("/settings/security", s.security)
 			r.Post("/settings/sessions/revoke", s.revokeSession)
 			r.Get("/settings/tokens", s.tokens)

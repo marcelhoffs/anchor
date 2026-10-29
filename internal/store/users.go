@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/marcelhoffs/anchor/internal/i18n"
+	"github.com/marcelhoffs/anchor/internal/websearch"
 )
 
 type User struct {
@@ -44,9 +45,18 @@ type Settings struct {
 	Sort string `json:"sort,omitempty"` // one of Sorts; "" = the first
 	// Descriptions shows or hides bookmark descriptions in the list.
 	Descriptions string `json:"descriptions,omitempty"` // one of DescriptionModes; "" = the first
+	// WebSearch lets the search box search the web with Engine as well as
+	// the bookmarks.
+	WebSearch string `json:"web_search,omitempty"` // one of Toggles; "" = the first
+	Engine    string `json:"engine,omitempty"`     // one of Engines; "" = the first
+	// SafeSearch asks the engine to hide explicit results.
+	SafeSearch string `json:"safe_search,omitempty"` // one of SafeSearchModes; "" = the first
+	// SearchLocale is the region the engine searches in; "auto" follows the browser.
+	SearchLocale string `json:"search_locale,omitempty"` // one of SearchLocales; "" = the first
 }
 
-// Accents, Themes, Fonts, Languages, Sidebars, Sorts and DescriptionModes list the allowed
+// Accents, Themes, Fonts, Languages, Sidebars, Sorts, DescriptionModes,
+// Toggles, Engines, SafeSearchModes and SearchLocales list the allowed
 // values, the default first.
 var (
 	Accents          = []string{"ocean", "indigo", "terracotta", "yellow", "emerald", "forest", "rose", "graphite"}
@@ -56,7 +66,28 @@ var (
 	Sidebars         = []string{"left", "right"}
 	Sorts            = []string{SortNewest, SortTitle}
 	DescriptionModes = []string{"show", "hide"}
+	Toggles          = []string{"off", "on"}
+	Engines          = engines()
+	SafeSearchModes  = []string{"on", "off"}
+	SearchLocales    = searchLocales()
 )
+
+func engines() []string {
+	var out []string
+	for _, e := range websearch.Engines {
+		out = append(out, e.ID)
+	}
+	return out
+}
+
+// searchLocales are "auto" (follow the browser) and every websearch locale.
+func searchLocales() []string {
+	out := []string{"auto"}
+	for _, l := range websearch.Locales {
+		out = append(out, l.Code)
+	}
+	return out
+}
 
 // languages are "auto" (follow the browser) and every language the
 // interface speaks.
@@ -82,6 +113,8 @@ func (st Settings) Normalized() Settings {
 		Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Font: pick(st.Font, Fonts),
 		Language: pick(st.Language, Languages),
 		Sidebar:  pick(st.Sidebar, Sidebars), Sort: pick(st.Sort, Sorts), Descriptions: pick(st.Descriptions, DescriptionModes),
+		WebSearch: pick(st.WebSearch, Toggles), Engine: pick(st.Engine, Engines),
+		SafeSearch: pick(st.SafeSearch, SafeSearchModes), SearchLocale: pick(st.SearchLocale, SearchLocales),
 	}
 }
 

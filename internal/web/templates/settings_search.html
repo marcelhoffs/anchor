@@ -1,0 +1,45 @@
+{{define "title"}}{{t "Search"}}{{end}}
+{{define "content"}}
+<div class="card">
+  <h1>{{t "Settings"}}</h1>
+  {{template "settings-nav" .}}
+
+  <section aria-labelledby="web-search">
+    <h2 id="web-search">{{t "Web search"}}</h2>
+    <p class="muted">{{t "Search the web from the search box, as well as your bookmarks."}}</p>
+    <form method="post" action="/settings/search">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <fieldset>
+        <label class="check"><input type="checkbox" name="web_search" value="1"{{if eq .Prefs.WebSearch "on"}} checked{{end}}>{{t "Search the web from the search box"}}</label>
+        <span class="hint">{{t "The search box gets a menu to choose between your bookmarks and the web."}}</span>
+      </fieldset>
+      <fieldset>
+        <legend>{{t "Search engine"}}</legend>
+        <button type="button" class="btn picker" popovertarget="engine-menu">
+          {{range .Engines}}{{if eq $.Prefs.Engine .ID}}<span class="picker-current">{{template "engine-mark" .}}{{.Name}}</span>{{end}}{{end}}
+          {{icon "chevron-down" "sm"}}
+        </button>
+        <div id="engine-menu" class="menu row-menu picker-menu" popover>
+          {{range .Engines}}
+          <label class="picker-option"><input type="radio" name="engine" value="{{.ID}}"{{if eq $.Prefs.Engine .ID}} checked{{end}}>{{template "engine-mark" .}}{{.Name}}</label>
+          {{end}}
+        </div>
+      </fieldset>
+      <fieldset>
+        <label class="check"><input type="checkbox" name="safe_search" value="1"{{if eq .Prefs.SafeSearch "on"}} checked{{end}}>{{t "SafeSearch: hide explicit results"}}</label>
+      </fieldset>
+      <label class="form-narrow">{{t "Region"}}
+        <select name="search_locale">
+          <option value="auto"{{if eq .Prefs.SearchLocale "auto"}} selected{{end}}>{{t "Automatic"}}</option>
+          {{range .Locales}}<option value="{{.Code}}"{{if eq $.Prefs.SearchLocale .Code}} selected{{end}}>{{.Name}}</option>
+          {{end}}
+        </select>
+        <span class="hint">{{t "The language and country of the results. Automatic follows your browser. Ecosia uses its own settings for the region and SafeSearch."}}</span>
+      </label>
+      <button class="btn btn-primary">{{t "Save search settings"}}</button>
+    </form>
+  </section>
+</div>
+{{end}}
+
+{{define "scripts"}}<script src="{{asset "picker.js"}}"></script>{{end}}

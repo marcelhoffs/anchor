@@ -271,29 +271,35 @@ func TestSettings(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	u := newUser(t, s, "alice")
-	if u.Settings != (Settings{Accent: "ocean", Theme: "system", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}) {
+	if u.Settings != (Settings{Accent: "ocean", Theme: "system", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}) {
 		t.Fatalf("defaults = %+v", u.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}); err != nil {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide", WebSearch: "on", Engine: "qwant", SafeSearch: "off", SearchLocale: "nl-BE"}); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide"}) {
+	if got, _ := s.UserByID(ctx, u.ID); got.Settings != (Settings{Accent: "terracotta", Theme: "dark", Font: "roboto", Language: "nl", Sidebar: "right", Sort: "title", Descriptions: "hide", WebSearch: "on", Engine: "qwant", SafeSearch: "off", SearchLocale: "nl-BE"}) {
 		t.Fatalf("saved = %+v", got.Settings)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "pink", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
 		t.Fatalf("unknown accent: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "top", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "top", Sort: "newest", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
 		t.Fatalf("unknown sidebar: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "random", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "random", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
 		t.Fatalf("unknown sort: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "papyrus", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "papyrus", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
 		t.Fatalf("unknown font: %v", err)
 	}
-	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "de", Sidebar: "left", Sort: "newest", Descriptions: "show"}); !isValidationErr(err) {
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "de", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "off", Engine: "duckduckgo", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
 		t.Fatalf("unknown language: %v", err)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "on", Engine: "bing", SafeSearch: "on", SearchLocale: "auto"}); !isValidationErr(err) {
+		t.Fatalf("unknown engine: %v", err)
+	}
+	if err := s.SaveSettings(ctx, u.ID, Settings{Accent: "indigo", Theme: "dark", Font: "inter", Language: "auto", Sidebar: "left", Sort: "newest", Descriptions: "show", WebSearch: "on", Engine: "google", SafeSearch: "on", SearchLocale: "xx-YY"}); !isValidationErr(err) {
+		t.Fatalf("unknown search locale: %v", err)
 	}
 	// A corrupt value falls back to defaults rather than failing the login.
 	s.w.Exec("UPDATE users SET settings = 'not json' WHERE id = ?", u.ID)

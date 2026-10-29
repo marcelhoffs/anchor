@@ -13,6 +13,7 @@ import (
 	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/search"
 	"github.com/marcelhoffs/anchor/internal/store"
+	"github.com/marcelhoffs/anchor/internal/websearch"
 )
 
 func (s *Server) list(w http.ResponseWriter, r *http.Request) {
@@ -20,6 +21,12 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	page = max(page, 1)
+	web := webSearchFor(r)
+	// search.js goes to the engine itself; this is for browsers without it.
+	if web != nil && q != "" && r.URL.Query().Get("in") == web.ID {
+		http.Redirect(w, r, web.URL+url.QueryEscape(q), http.StatusSeeOther)
+		return
+	}
 
 	list, total, err := s.store.Search(r.Context(), sc, search.Parse(q), currentUser(r).Settings.Sort, pageSize, (page-1)*pageSize)
 	if err != nil {
@@ -62,12 +69,32 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	view, heading := listView(q, searches)
 	d := data{
 		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": r.URL.RequestURI(),
-		"View": view, "Heading": heading,
+		"View": view, "Heading": heading, "WebSearch": web,
 	}
 	if pages > 1 {
 		d["Pager"] = newPager(page, pages, total, pageURL)
 	}
 	s.render(w, r, http.StatusOK, "list", d)
+}
+
+// webSearch is the search box's web option.
+type webSearch struct {
+	websearch.Engine
+	URL string // the engine's results page, to append the encoded query to
+}
+
+// webSearchFor is the user's web search, or nil while it is off.
+func webSearchFor(r *http.Request) *webSearch {
+	st := currentUser(r).Settings
+	if st.WebSearch != "on" {
+		return nil
+	}
+	e, _ := websearch.Lookup(st.Engine)
+	locale := st.SearchLocale
+	if locale == "auto" {
+		locale = websearch.Match(r.Header.Get("Accept-Language"))
+	}
+	return &webSearch{e, websearch.URL(e.ID, "", locale, st.SafeSearch == "on")}
 }
 
 // pager is what the list template needs to draw page controls.

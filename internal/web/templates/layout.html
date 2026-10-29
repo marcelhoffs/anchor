@@ -86,6 +86,7 @@
 {{define "settings-nav"}}
 <nav class="tabs" aria-label="{{t "Settings"}}">
   <a href="/settings"{{if eq .Tab "appearance"}} aria-current="page"{{end}}>{{t "Appearance"}}</a>
+  <a href="/settings/search"{{if eq .Tab "search"}} aria-current="page"{{end}}>{{t "Search"}}</a>
   <a href="/settings/security"{{if eq .Tab "security"}} aria-current="page"{{end}}>{{t "Security"}}</a>
   <a href="/settings/tokens"{{if eq .Tab "tokens"}} aria-current="page"{{end}}>{{t "API tokens"}}</a>
   <a href="/settings/data"{{if eq .Tab "data"}} aria-current="page"{{end}}>{{t "Import & export"}}</a>
@@ -125,3 +126,6 @@
   data-msg-failed="{{t "Something went wrong. Try again."}}"></p>{{end}}
 
 {{define "auth-brand"}}{{if .Bare}}<div class="auth-brand">{{brandMark}}<span>Anchor</span></div>{{end}}{{end}}
+
+{{/* A web search engine's mark: its initial in its colour (style.css). */}}
+{{define "engine-mark"}}<span class="engine-mark {{.ID}}" aria-hidden="true">{{initial .Name}}</span>{{end}}

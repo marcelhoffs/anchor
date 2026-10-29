@@ -179,6 +179,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 	c.post("/spaces", url.Values{"name": {"Team"}})
 	c.post("/admin/settings", url.Values{"signup": {"invite"}})
 	c.post("/admin/invites", url.Values{"note": {"friend"}})
+	c.post("/settings/search", url.Values{"web_search": {"1"}})
 	ctx := context.Background()
 	uid := e.userID("root")
 	e.store.CreateAPIToken(ctx, uid, "script", []byte("hash"), []string{"read"}, time.Now().Add(time.Hour))
@@ -188,7 +189,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 	b, _ := e.store.GetBookmark(ctx, personal(e.store, uid), 1)
 
 	pages := []string{"/", "/?q=%23go", "/?q=nothing", "/?q=%21archived", "/tags", "/saved-searches", "/bookmarks/new",
-		"/bookmarks/1/edit", "/settings", "/settings/security", "/settings/tokens", "/settings/data", "/spaces",
+		"/bookmarks/1/edit", "/settings", "/settings/search", "/settings/security", "/settings/tokens", "/settings/data", "/spaces",
 		spaceURL(spaces[0].ID), "/admin/", "/admin/users", "/admin/invites", "/admin/spaces",
 		"/s/" + b.ShareToken, "/no-such-page"}
 	anon := e.client()
