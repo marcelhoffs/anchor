@@ -339,10 +339,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .tooltip dt { white-space: nowrap; }
 .tooltip dd { margin: 0; color: var(--muted); }
 .tooltip-foot { margin-top: 12px; color: var(--muted); }
-/* The menu at the start of the box that picks bookmarks or the web: the
-   button shows only the choice's icon. */
-.search-in { flex-shrink: 0; min-width: 0; gap: 2px; width: auto; height: 36px; margin-left: -8px; padding: 0 6px; }
+/* The menu at the start of the box that picks bookmarks or the web: an
+   icon button showing only the choice's icon (.picker, later, would widen it). */
+.search-in.picker { flex-shrink: 0; justify-content: center; min-width: 0; width: 36px; height: 36px; margin-left: -8px; padding: 0; }
 .search-in .picker-current { display: flex; align-items: center; }
+/* It opens from its button's left edge, not the right like other menus. */
+.row-menu.search-in-menu { position-area: bottom span-right; }
 .search-in .picker-current > span:not(.engine-mark) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* A web search engine's mark: its initial on its brand colour. */
 .engine-mark {

@@ -38,9 +38,9 @@
       {{/* What to search: the bookmarks or the web. search.js swaps the
          placeholder and goes to the engine; the help is for bookmarks only. */}}
       <button type="button" class="icon-btn picker search-in" popovertarget="search-in-menu" aria-label="{{t "Search in"}}">
-        <span class="picker-current">{{icon "search"}}<span class="visually-hidden">{{t "Bookmarks"}}</span></span>{{icon "chevron-down" "sm"}}
+        <span class="picker-current">{{icon "search"}}<span class="visually-hidden">{{t "Bookmarks"}}</span></span>
       </button>
-      <div id="search-in-menu" class="menu row-menu picker-menu" popover>
+      <div id="search-in-menu" class="menu row-menu picker-menu search-in-menu" popover>
         <label class="picker-option"><input type="radio" name="in" value="" checked data-placeholder="{{t "Search titles, notes, URLs and tags"}}">{{icon "search"}}<span>{{t "Bookmarks"}}</span></label>
         <label class="picker-option"><input type="radio" name="in" value="{{.ID}}" data-placeholder="{{t "Search the web with %s" .Name}}" data-url="{{.URL}}">{{template "engine-mark" .Engine}}<span>{{.Name}}</span></label>
       </div>
