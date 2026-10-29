@@ -646,14 +646,15 @@ td.actions { text-align: right; white-space: nowrap; }
   .search-btn .icon { display: inline; }
 }
 /* On touch screens of any width (swipe.js), the row actions sit just off
-   the right edge instead, and slide in with the row when it's swiped left. */
+   the right edge instead, and slide in over the row when it's swiped left,
+   covering its text in the row's colour as on hover; the row stays put. */
 .swipe-rows .bookmark { position: relative; overflow: hidden; touch-action: pan-y; }
 .swipe-rows .bm-more { display: none; }
-.swipe-rows .bm-icon, .swipe-rows .bm-body { transform: translateX(var(--swipe, 0px)); }
-.swipe-rows .bookmark.settling :is(.bm-icon, .bm-body, .bm-actions) { transition: transform 200ms ease; }
+.swipe-rows .bookmark.settling .bm-actions { transition: transform 200ms ease; }
 .swipe-rows .bookmark .bm-actions {
-  display: flex; position: absolute; top: 50%; right: auto; bottom: auto; left: 100%; width: max-content; gap: 2px;
-  transform: translate(var(--swipe, 0px), -50%); padding: 0; background: none;
+  display: flex; position: absolute; top: 0; right: auto; bottom: 0; left: 100%; width: max-content; gap: 2px;
+  transform: translateX(var(--swipe, 0px)); padding: 0 10px 0 32px;
+  background: linear-gradient(to right, transparent, var(--surface) 32px);
 }
 .swipe-rows .bm-actions > * { flex-shrink: 0; }
 .swipe-rows .bookmark .bm-actions .icon-btn { opacity: 1; pointer-events: auto; background: none; }

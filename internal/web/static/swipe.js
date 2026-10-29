@@ -1,8 +1,8 @@
 // On touch screens (phones and tablets, either way up), swipe a bookmark row
 // left to reveal its actions, which slide in from the right edge as a
-// toolbar. Opening one row closes the others; a tap elsewhere or a swipe
-// right closes it again. Loaded on the list page only when the space can be
-// edited. Without this script (or with a mouse) the row keeps its ⋯ menu or
+// toolbar over the row, while the row stays put. Opening one row closes the
+// others; a tap elsewhere or a swipe right closes it again. Loaded on the
+// list page only when the space can be edited. Without this script (or with a mouse) the row keeps its ⋯ menu or
 // hover toolbar.
 (function () {
   "use strict";
@@ -13,11 +13,9 @@
   var open = null;  // the row whose actions are showing
   var drag = null;  // {row, width, x, y, base, dx, moved}
 
-  var GAP = 10; // between the open toolbar and the row's right edge
-
   function width(row) {
     var actions = row.querySelector(".bm-actions");
-    return actions ? actions.offsetWidth + GAP : 0;
+    return actions ? actions.offsetWidth : 0;
   }
 
   function place(row, x, settle) {
