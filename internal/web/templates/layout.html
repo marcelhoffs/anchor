@@ -31,6 +31,7 @@
        an icon-only square, its label kept for screen readers. */}}
     {{/* Always there: in a space you only read, it saves to your personal one. */}}
     <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">{{t "Add bookmark"}}</span></a>
+    {{block "top-actions" .}}{{end}}
     {{with .Nav}}{{if .Spaces}}
     <details class="top-menu space-menu">
       <summary class="top-ctl" aria-label="{{t "Space: %s" (or .Name (t "Personal"))}}">{{icon "space" "sm"}}<span class="label-sm space-name">{{or .Name (t "Personal")}}</span>{{icon "chevron-down" "sm chev"}}</summary>

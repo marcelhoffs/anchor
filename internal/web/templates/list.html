@@ -1,4 +1,6 @@
 {{define "title"}}{{.Heading}}{{end}}
+{{/* On phones the tags open from the top bar, next to Add bookmark. */}}
+{{define "top-actions"}}<button class="top-ctl tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}<span class="label-sm">{{t "Tags"}}</span></button>{{end}}
 {{define "content"}}
 <div class="columns">
 <aside class="sidebar">
@@ -35,31 +37,8 @@
       {{icon "search"}}
       <label class="visually-hidden" for="q">{{t "Search bookmarks"}}</label>
       <input id="q" type="search" name="q" value="{{.Query}}" placeholder="{{t "Search titles, notes, URLs and tags"}}">
-      {{if ne .View "all"}}<a class="icon-btn search-clear" href="/" aria-label="{{t "Clear filters"}}">{{icon "x"}}</a>{{end}}
-      <div class="search-help">
-        <button type="button" class="icon-btn" aria-label="{{t "Search syntax"}}" aria-describedby="search-tips">{{icon "help"}}</button>
-        <div id="search-tips" class="tooltip" role="tooltip">
-          <p class="tooltip-title">{{t "Search syntax"}}</p>
-          <dl>
-            <dt><code>kubernetes ingress</code></dt><dd>{{t "All of these words"}}</dd>
-            <dt><code>"exact phrase"</code></dt><dd>{{t "This exact phrase"}}</dd>
-            <dt><code>#homelab</code></dt><dd>{{t "Has the tag"}}</dd>
-            <dt><code>-#homelab</code></dt><dd>{{t "Doesn't have the tag"}}</dd>
-            <dt><code>#"home lab"</code></dt><dd>{{t "A tag with spaces"}}</dd>
-            <dt><code>site:github.com</code></dt><dd>{{t "On this site, including subdomains"}}</dd>
-            <dt><code>!fav</code></dt><dd>{{t "Favourites"}}</dd>
-            <dt><code>!shared</code></dt><dd>{{t "Shared with a public link"}}</dd>
-            <dt><code>!archived</code></dt><dd>{{t "Search the archive instead"}}</dd>
-            <dt><code>!untagged</code></dt><dd>{{t "Has no tags"}}</dd>
-            <dt><code>after:2026-01-01</code></dt><dd>{{t "Saved on or after a date"}}</dd>
-            <dt><code>before:2026-06-01</code></dt><dd>{{t "Saved before a date"}}</dd>
-          </dl>
-          <p class="tooltip-foot">{{t "Combine them, for example %s." (code "#go site:github.com")}}</p>
-        </div>
-      </div>
       <button class="btn btn-primary search-btn">{{icon "search" "sm"}}<span class="label-sm">{{t "Search"}}</span></button>
     </form>
-    <button class="btn tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}{{t "Tags"}}</button>
   </div>
   {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
   <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">

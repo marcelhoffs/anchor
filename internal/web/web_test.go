@@ -751,6 +751,10 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	if !strings.Contains(body, `popovertarget="tag-drawer"`) || !strings.Contains(body, `id="tag-drawer"`) {
 		t.Fatal("no Tags button and drawer")
 	}
+	nav := body[strings.Index(body, `<header class="top">`):strings.Index(body, "</header>")]
+	if !strings.Contains(nav, `<button class="top-ctl tags-btn" popovertarget="tag-drawer">`) || strings.Index(nav, "tags-btn") < strings.Index(nav, `href="/bookmarks/new"`) {
+		t.Fatal("Tags button isn't in the top bar after Add bookmark")
+	}
 	if n := strings.Count(body, `href="/?q=%23homelab"`); n < 2 {
 		t.Fatalf("tag listed %d times, want in the sidebar and the drawer", n)
 	}
@@ -760,20 +764,14 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	}
 }
 
-func TestSearchHelp(t *testing.T) {
-	e := newEnv(t)
-	e.user("alice")
-	_, body, _ := e.login("alice").get("/")
-	if !strings.Contains(body, `aria-describedby="search-tips"`) || !strings.Contains(body, `id="search-tips" class="tooltip" role="tooltip"`) {
-		t.Fatal("no search help")
-	}
-	for _, syntax := range []string{"#homelab", "-#homelab", "site:github.com", "!fav", "!shared", "!archived", "after:", "before:"} {
-		if !strings.Contains(body, "<code>"+syntax) {
-			t.Errorf("search help doesn't explain %s", syntax)
-		}
-	}
-	if strings.Contains(body, `class="hints"`) {
-		t.Fatal("the Try bar is still there")
+// The search box has only the field and its button: no clear link, no help.
+func TestSearchBoxIsBare(t *testing.T) {
+	c := newEnv(t).admin()
+	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
+	form := body[strings.Index(body, `role="search"`):]
+	form = form[:strings.Index(form, "</form>")]
+	if strings.Contains(form, "search-clear") || strings.Contains(form, "search-help") {
+		t.Fatal("search box still has its clear link or help")
 	}
 }
 
@@ -947,19 +945,6 @@ func TestViewBarAboveSearch(t *testing.T) {
 	}
 	if !strings.Contains(body[bar:], `<a href="/?q=%21fav" aria-current="page">`) {
 		t.Fatal("view bar doesn't mark Favourites")
-	}
-}
-
-func TestClearFiltersInSearchBox(t *testing.T) {
-	c := newEnv(t).admin()
-	if _, body, _ := c.get("/"); strings.Contains(body, `class="icon-btn search-clear"`) {
-		t.Fatal("clear filters with no filter")
-	}
-	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
-	form := body[strings.Index(body, `role="search"`):]
-	form = form[:strings.Index(form, "</form>")]
-	if !strings.Contains(form, `<a class="icon-btn search-clear" href="/" aria-label="Clear filters">`) {
-		t.Fatal("no clear filters in the search box")
 	}
 }
 
