@@ -25,6 +25,7 @@
 - Tag a bookmark by dragging its icon onto a tag in the sidebar; `!untagged` finds the ones without.
 - Full-text search over titles, descriptions, notes, URLs and tags, with filters for tags, sites, dates, favourites and shared links.
 - Saved searches: save a search and it stays in the sidebar, always up to date.
+- Search the web from the same box with DuckDuckGo, Ecosia, Google or Qwant, if you turn it on.
 
 <p align="center">
   <img src="docs/screenshots/dark.png" width="80%" alt="The bookmarks tagged Homelab, in the dark theme with a green accent">
