@@ -17,7 +17,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 
 ## Overview
 
-Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys and tag pickers), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
+Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys, pickers, dragging tags and web search), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
 
 Everything is stored in one SQLite database, `anchor.db`, in write-ahead-log mode. All writes go through one connection, so they never conflict; reads use a separate pool and don't wait for writes. Background work keeps its queue in the database too, so a restart picks up where it left off.
 
@@ -51,6 +51,8 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 **Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`.
 
+**The list.** Under Settings → Appearance you choose how the list looks: newest first or by title, with or without descriptions (hiding them makes the list more compact), and the sidebar on the left or the right. On phones the views sit above the search box and the tags open from the Tags button in the top bar. On touch screens, swipe a row to reveal its actions.
+
 **Saving from anywhere.** Besides the add form there is a bookmarklet (Settings → Appearance): a browser bookmark that opens Anchor's add form with the current page's address and title filled in. The [REST API](api.md) can save bookmarks too.
 
 ## Tags
@@ -82,7 +84,7 @@ The search box understands a small query language. Terms combine: every conditio
 | `after:2026-01-01` | Saved on or after this date (UTC) |
 | `before:2026-06-01` | Saved before this date (UTC) |
 
-Words are searched in titles, descriptions, notes, URLs and tags, ignoring case and accents (`cafe` finds `café`). Matches are ranked by relevance, with a match in the title counting three times as much as one elsewhere. Without search words, bookmarks are listed newest first, or by title if you chose that under Settings.
+Words are searched in titles, descriptions, notes, URLs and tags, ignoring case and accents (`cafe` finds `café`). Matches are ranked by relevance, with a match in the title counting three times as much as one elsewhere. Without search words, bookmarks are listed newest first, or by title if you chose that under Settings → Appearance.
 
 Search uses SQLite's full-text index (FTS5), which is kept up to date as bookmarks change.
 
@@ -102,7 +104,7 @@ The query goes straight from your browser to the engine: Anchor never contacts t
 
 ## Saved searches and sharing
 
-**Saved searches** keep a search one click away. Run a search, choose "Save search", and it appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically.
+**Saved searches** keep a search one click away. Run a search, choose "Save search", and it appears in the sidebar. It stores the query, not a list of bookmarks, so new bookmarks that match show up in it automatically. The Saved searches page lists them with their queries, to rename or delete them.
 
 **Public links** make one bookmark readable by anyone with the link, at `/s/<token>`. The page shows the bookmark's title, site and description; never your notes, tags or other bookmarks. The token is random and unguessable. Turning sharing off breaks the link for good; turning it on again makes a new one. Links from a personal space stop working when its owner's account is disabled; links from a shared space work as long as the space exists.
 
@@ -177,6 +179,6 @@ Messages are keyed by their English text, so English needs no translation file; 
 - **Cookies.** Over HTTPS, cookies use the `__Host-` prefix, Secure and HttpOnly, so they can't be read by scripts or set by other sites or subdomains.
 - **Cross-site requests.** Every form and state-changing request carries a CSRF token that is signed with a key derived from `ANCHOR_SECRET_KEY` and must match a cookie.
 - **Rate limits.** Logins are limited to 10 attempts per account and 100 per client address every 15 minutes, second-factor codes to 10 per account every 15 minutes, signups to 10 per address per hour, and each API token to 600 requests a minute.
-- **Response headers.** A strict Content Security Policy allows only Anchor's own scripts, styles and images, with no inline scripts; pages can't be framed; HSTS is sent over HTTPS; and referrers aren't sent to other sites.
+- **Response headers.** A strict Content Security Policy allows only Anchor's own scripts, styles and images, with no inline scripts; forms may only be sent to Anchor itself and to the [web search](#web-search) engines; pages can't be framed; HSTS is sent over HTTPS; and referrers aren't sent to other sites.
 - **Fetching.** Page details are fetched only from public addresses unless you allow more, and SVG icons are never accepted (see [Page details and icons](#page-details-and-icons)).
 - **Container.** The Docker image is distroless: no shell or package manager, and Anchor runs as an unprivileged user. The provided compose file also makes the container's file system read-only, so only the data volume is writable.
