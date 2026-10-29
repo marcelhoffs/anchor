@@ -14,6 +14,7 @@ import (
 	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/ratelimit"
 	"github.com/marcelhoffs/anchor/internal/store"
+	"github.com/marcelhoffs/anchor/internal/websearch"
 )
 
 var invalidLogin = i18n.M("Invalid username or password.")
@@ -297,6 +298,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 var settingsNotices = map[string]i18n.Msg{
 	"revoked":     i18n.M("Session revoked."),
 	"appearance":  i18n.M("Settings saved."),
+	"search":      i18n.M("Settings saved."),
 	"totp-off":    i18n.M("Authenticator app removed. Your other sessions were signed out."),
 	"passkey":     i18n.M("Passkey added."),
 	"passkey-off": i18n.M("Passkey removed. Your other sessions were signed out."),
@@ -396,15 +398,15 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		}
 		return cur
 	}
-	err := s.store.SaveSettings(r.Context(), u.ID, store.Settings{
-		Accent:       keep("accent", u.Settings.Accent),
-		Theme:        keep("theme", u.Settings.Theme),
-		Font:         keep("font", u.Settings.Font),
-		Language:     keep("language", u.Settings.Language),
-		Sidebar:      keep("sidebar", u.Settings.Sidebar),
-		Sort:         keep("sort", u.Settings.Sort),
-		Descriptions: keep("descriptions", u.Settings.Descriptions),
-	})
+	st := u.Settings
+	st.Accent = keep("accent", st.Accent)
+	st.Theme = keep("theme", st.Theme)
+	st.Font = keep("font", st.Font)
+	st.Language = keep("language", st.Language)
+	st.Sidebar = keep("sidebar", st.Sidebar)
+	st.Sort = keep("sort", st.Sort)
+	st.Descriptions = keep("descriptions", st.Descriptions)
+	err := s.store.SaveSettings(r.Context(), u.ID, st)
 	if isValidation(err) {
 		s.renderSettings(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
 		return
@@ -414,6 +416,47 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/settings?done=appearance", http.StatusSeeOther)
+}
+
+func (s *Server) searchSettings(w http.ResponseWriter, r *http.Request) {
+	s.renderSearchSettings(w, r, http.StatusOK, data{"Notice": settingsNotices[r.URL.Query().Get("done")]})
+}
+
+func (s *Server) renderSearchSettings(w http.ResponseWriter, r *http.Request, status int, d data) {
+	d["Engines"] = websearch.Engines
+	d["Locales"] = websearch.Locales
+	d["Tab"] = "search"
+	s.render(w, r, status, "settings_search", d)
+}
+
+func (s *Server) saveSearch(w http.ResponseWriter, r *http.Request) {
+	u := currentUser(r)
+	// An unticked checkbox isn't sent at all.
+	toggle := func(field string) string {
+		if r.PostFormValue(field) != "" {
+			return "on"
+		}
+		return "off"
+	}
+	st := u.Settings
+	st.WebSearch = toggle("web_search")
+	st.SafeSearch = toggle("safe_search")
+	if v := r.PostFormValue("engine"); v != "" {
+		st.Engine = v
+	}
+	if v := r.PostFormValue("search_locale"); v != "" {
+		st.SearchLocale = v
+	}
+	err := s.store.SaveSettings(r.Context(), u.ID, st)
+	if isValidation(err) {
+		s.renderSearchSettings(w, r, http.StatusUnprocessableEntity, data{"Error": errMsg(err)})
+		return
+	}
+	if err != nil {
+		s.serverError(w, r, err)
+		return
+	}
+	http.Redirect(w, r, "/settings/search?done=search", http.StatusSeeOther)
 }
 
 // bookmarklet returns a javascript: link that opens the add form prefilled

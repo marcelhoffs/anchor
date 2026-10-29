@@ -18,6 +18,7 @@ import (
 	"github.com/marcelhoffs/anchor/internal/auth"
 	"github.com/marcelhoffs/anchor/internal/i18n"
 	"github.com/marcelhoffs/anchor/internal/store"
+	"github.com/marcelhoffs/anchor/internal/websearch"
 )
 
 type ctxKey int
@@ -106,8 +107,10 @@ func csrfToken(r *http.Request) string {
 	return t
 }
 
-const csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; " +
-	"base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+// The search box's form is sent to the bookmark list, which sends a web
+// search on to its engine; form-action covers that redirect.
+var csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; " +
+	"base-uri 'none'; form-action 'self' " + strings.Join(websearch.Origins, " ") + "; frame-ancestors 'none'"
 
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	https := s.cfg.SecureCookies()

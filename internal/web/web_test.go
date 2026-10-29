@@ -764,14 +764,92 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	}
 }
 
-// The search box has only the field and its button: no clear link, no help.
-func TestSearchBoxIsBare(t *testing.T) {
+func TestSearchHelp(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	_, body, _ := e.login("alice").get("/")
+	if !strings.Contains(body, `aria-describedby="search-tips"`) || !strings.Contains(body, `id="search-tips" class="tooltip" role="tooltip"`) {
+		t.Fatal("no search help")
+	}
+	for _, syntax := range []string{"#homelab", "-#homelab", "site:github.com", "!fav", "!shared", "!archived", "after:", "before:"} {
+		if !strings.Contains(body, "<code>"+syntax) {
+			t.Errorf("search help doesn't explain %s", syntax)
+		}
+	}
+	if strings.Contains(body, "search-clear") {
+		t.Fatal("the search box still has a clear link")
+	}
+	// It's for searching the bookmarks, not the web.
+	css, _ := assets.ReadFile("static/style.css")
+	if !strings.Contains(string(css), `.search:has(input[name="in"]:checked:not([value=""])) .search-help { display: none; }`) {
+		t.Fatal("search help shown for web searches")
+	}
+}
+
+// With web search on, the search box can send a query to the engine chosen
+// in the settings instead of searching the bookmarks.
+func TestWebSearch(t *testing.T) {
 	c := newEnv(t).admin()
-	_, body, _ := c.get("/?q=" + url.QueryEscape("!fav"))
-	form := body[strings.Index(body, `role="search"`):]
-	form = form[:strings.Index(form, "</form>")]
-	if strings.Contains(form, "search-clear") || strings.Contains(form, "search-help") {
-		t.Fatal("search box still has its clear link or help")
+	getIn := func(path, acceptLanguage string) (int, string, string) {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodGet, c.e.srv.URL+path, nil)
+		req.Header.Set("Accept-Language", acceptLanguage)
+		res, err := c.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		b, _ := io.ReadAll(res.Body)
+		return res.StatusCode, string(b), res.Header.Get("Location")
+	}
+	if _, body, _ := c.get("/"); strings.Contains(body, `name="in"`) {
+		t.Fatal("web search menu while web search is off")
+	}
+	if code, _, _ := c.get("/?in=duckduckgo&q=go"); code != http.StatusOK {
+		t.Fatalf("web search while it's off: %d", code)
+	}
+	if code, _, loc := c.post("/settings/search", url.Values{"web_search": {"1"}, "engine": {"duckduckgo"}, "safe_search": {"1"}, "search_locale": {"auto"}}); code != http.StatusSeeOther || loc != "/settings/search?done=search" {
+		t.Fatalf("save: %d %s", code, loc)
+	}
+	c.post("/settings/appearance", url.Values{"language": {"en"}}) // keeps it, and the page stays English
+	_, body, _ := getIn("/", "nl-BE,nl;q=0.9,en;q=0.8")
+	for _, want := range []string{
+		`<input type="radio" name="in" value="" checked data-placeholder="Search titles, notes, URLs and tags">`,
+		`<input type="radio" name="in" value="duckduckgo" data-placeholder="Search the web with DuckDuckGo" data-url="https://duckduckgo.com/?kl=be-nl&amp;kp=1&amp;q=">`,
+		`src="/static/search.js`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("no %s", want)
+		}
+	}
+	// Without search.js the list page sends the query on.
+	if code, _, loc := getIn("/?in=duckduckgo&q=go+generics", ""); code != http.StatusSeeOther || loc != "https://duckduckgo.com/?kp=1&q=go+generics" {
+		t.Fatalf("redirect: %d %s", code, loc)
+	}
+	c.post("/settings/search", url.Values{"web_search": {"1"}, "engine": {"google"}, "search_locale": {"fr-BE"}})
+	if _, _, loc := c.get("/?in=google&q=go"); loc != "https://www.google.com/search?hl=fr&gl=BE&safe=off&q=go" {
+		t.Fatalf("redirect: %s", loc)
+	}
+	// Only the chosen engine, and only for a query.
+	for _, p := range []string{"/?in=qwant&q=go", "/?in=google&q="} {
+		if code, _, _ := c.get(p); code != http.StatusOK {
+			t.Errorf("%s: %d", p, code)
+		}
+	}
+	if code, _, _ := c.post("/settings/search", url.Values{"engine": {"bing"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown engine: %d", code)
+	}
+	_, body, _ = c.get("/settings/search")
+	if !strings.Contains(body, `<input type="radio" name="engine" value="google" checked>`) || !strings.Contains(body, `<option value="fr-BE" selected>Français (Belgique)</option>`) {
+		t.Fatal("settings don't show the saved choices")
+	}
+	res, err := c.http.Get(c.e.srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res.Body.Close()
+	if csp := res.Header.Get("Content-Security-Policy"); !strings.Contains(csp, "form-action 'self' https://duckduckgo.com https://www.ecosia.org https://www.google.com https://www.qwant.com;") {
+		t.Fatalf("CSP blocks the redirect: %s", csp)
 	}
 }
 
