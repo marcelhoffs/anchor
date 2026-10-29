@@ -532,17 +532,17 @@ func TestRowActionTooltips(t *testing.T) {
 	}
 }
 
-// Delete and archive submit only from inside a confirmation popover.
+// Delete submits only from inside a confirmation popover; archive and
+// unarchive are one click, and archiving offers an undo.
 func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	c := e.login("alice")
 	c.post("/bookmarks", url.Values{"url": {"https://a.example"}, "title": {"Keep"}})
 	c.post("/bookmarks", url.Values{"url": {"https://b.example"}, "title": {"Old"}})
-	c.post("/bookmarks/2/flag", url.Values{"flag": {"archived"}, "on": {"1"}})
 
-	// The submit buttons for delete/archive must sit inside the popover that
-	// the row's trigger button opens; the row itself must not post directly.
+	// The submit button for delete must sit inside the popover that the
+	// row's trigger button opens; the row itself must not post directly.
 	confirmed := func(body, id, action string) bool {
 		trigger := strings.Contains(body, `popovertarget="`+id+`"`)
 		start := strings.Index(body, `id="`+id+`"`)
@@ -553,12 +553,30 @@ func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 		return end > 0 && strings.Contains(body[start:start+end], `action="`+action+`"`)
 	}
 	_, body, _ := c.get("/")
-	if !confirmed(body, "delete-1", "/bookmarks/1/delete") || !confirmed(body, "archive-1", "/bookmarks/1/flag") {
-		t.Fatal("list: delete/archive are not behind a confirmation")
+	if !confirmed(body, "delete-1", "/bookmarks/1/delete") {
+		t.Fatal("list: delete is not behind a confirmation")
 	}
 	if n := strings.Count(body, `action="/bookmarks/1/delete"`); n != 1 {
 		t.Fatalf("list has %d delete forms for bookmark 1, want only the confirmed one", n)
 	}
+	if strings.Contains(body, `id="archive-1"`) || !strings.Contains(body, `aria-label="Archive Keep"`) {
+		t.Fatal("list: archive should be one click")
+	}
+
+	// Archiving comes back to the page with an undo, which isn't carried
+	// into the page's own links.
+	if _, _, loc := c.post("/bookmarks/2/flag", url.Values{"flag": {"archived"}, "on": {"1"}, "next": {"/?q=old"}}); loc != "/?archived=2&q=old" {
+		t.Fatalf("archive redirects to %q", loc)
+	}
+	_, body, _ = c.get("/?archived=2&q=old")
+	if !strings.Contains(body, `class="notice undo"`) || !strings.Contains(body, "<strong>Old</strong> moved to the Archive.") ||
+		strings.Contains(body, `value="/?archived=2&amp;q=old"`) {
+		t.Fatal("no undo after archiving, or it leaks into next")
+	}
+	if _, body, _ = c.get("/?archived=1"); strings.Contains(body, `class="notice undo"`) {
+		t.Fatal("undo offered for a bookmark that isn't archived")
+	}
+
 	_, body, _ = c.get("/?q=%21archived")
 	if strings.Contains(body, `id="archive-2"`) || !strings.Contains(body, `aria-label="Unarchive Old"`) {
 		t.Fatal("archive view: unarchive should be one click")

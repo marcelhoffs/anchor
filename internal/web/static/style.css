@@ -583,6 +583,7 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 .notice, .error { max-width: 1200px; margin: 0 auto 20px; padding: 12px 16px; border-radius: var(--radius); font-size: var(--fs-md); }
 .notice { background: var(--notice-bg); color: var(--notice-text); }
 .error { background: var(--error-bg); color: var(--error-text); }
+.notice.undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; }
 .card .notice, .card .error { margin: 0 0 20px; }
 
 /* Tables */

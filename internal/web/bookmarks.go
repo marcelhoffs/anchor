@@ -67,9 +67,19 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	view, heading := listView(q, searches)
+	here := *r.URL
+	query := here.Query()
+	query.Del("archived")
+	here.RawQuery = query.Encode()
 	d := data{
-		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": r.URL.RequestURI(),
+		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": here.RequestURI(),
 		"View": view, "Heading": heading, "WebSearch": web,
+	}
+	// Just archived from this page (see flagBookmark): offer to undo it.
+	if id, err := strconv.ParseInt(r.URL.Query().Get("archived"), 10, 64); err == nil && sc.CanWrite() {
+		if b, err := s.store.GetBookmark(r.Context(), sc, id); err == nil && b.IsArchived {
+			d["Undo"] = b
+		}
 	}
 	if pages > 1 {
 		d["Pager"] = newPager(page, pages, total, pageURL)
@@ -501,11 +511,21 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	err := s.store.SetFlag(r.Context(), sc, id, flag, r.PostFormValue("on") == "1")
+	on := r.PostFormValue("on") == "1"
+	err := s.store.SetFlag(r.Context(), sc, id, flag, on)
 	if !s.storeError(w, r, err) {
 		return
 	}
-	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
+	next := safeNext(r.PostFormValue("next"))
+	if flag == store.FlagArchived && on {
+		// The list offers to undo it.
+		u, _ := url.Parse(next) // safeNext parsed it already
+		v := u.Query()
+		v.Set("archived", strconv.FormatInt(id, 10))
+		u.RawQuery = v.Encode()
+		next = u.String()
+	}
+	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (s *Server) tags(w http.ResponseWriter, r *http.Request) {

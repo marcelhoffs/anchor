@@ -125,7 +125,7 @@ func escapeArgs(args []any) []any {
 	return out
 }
 
-// strong and code wrap a value for t: {{t "%s moves to the Archive." (strong .Title)}}.
+// strong and code wrap a value for t: {{t "%s moved to the Archive." (strong .Title)}}.
 // The value is a string, or HTML from t itself.
 func strong(v any) template.HTML { return wrap("strong", v) }
 func code(v any) template.HTML   { return wrap("code", v) }

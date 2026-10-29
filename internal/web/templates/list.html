@@ -2,6 +2,15 @@
 {{/* On phones the tags open from the top bar, next to Add bookmark. */}}
 {{define "top-actions"}}<button class="top-ctl tags-btn" popovertarget="tag-drawer">{{icon "tag" "sm"}}<span class="label-sm">{{t "Tags"}}</span></button>{{end}}
 {{define "content"}}
+{{/* Archiving takes one click; this undoes it. */}}
+{{with .Undo}}
+<form class="notice undo" role="status" method="post" action="/bookmarks/{{.ID}}/flag">
+  <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
+  <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
+  <span>{{t "%s moved to the Archive." (strong (display .))}}</span>
+  <button class="btn">{{t "Undo"}}</button>
+</form>
+{{end}}
 <div class="columns">
   {{/* The search box spans the sidebar and the list. Without room for the
      sidebar, the views sit above it. */}}
@@ -126,15 +135,15 @@
       </div>
       {{if $.CanWrite}}
       <div class="bm-actions">
-        {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
+          {{if .IsArchived}}
           <button class="icon-btn" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive %s" (display .)}}">{{icon "archive"}}</button>
+          {{else}}
+          <button class="icon-btn" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}</button>
+          {{end}}
         </form>
-        {{else}}
-        <button class="icon-btn" popovertarget="archive-{{.ID}}" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}</button>
-        {{end}}
         <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="{{t "Edit"}}" aria-label="{{t "Edit %s" (display .)}}">{{icon "pencil"}}</a>
         <button class="icon-btn danger" popovertarget="delete-{{.ID}}" title="{{t "Delete"}}" aria-label="{{t "Delete %s" (display .)}}">{{icon "trash"}}</button>
         <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
@@ -155,31 +164,15 @@
           <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
           <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}{{t "Remove from favourites"}}{{else}}{{icon "star" "sm"}}{{t "Add to favourites"}}{{end}}</button>
         </form>
-        {{if .IsArchived}}
         <form method="post" action="/bookmarks/{{.ID}}/flag">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
-          <button>{{icon "archive" "sm"}}{{t "Unarchive"}}</button>
+          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
+          <button>{{icon "archive" "sm"}}{{if .IsArchived}}{{t "Unarchive"}}{{else}}{{t "Archive"}}{{end}}</button>
         </form>
-        {{else}}
-        <button type="button" popovertarget="archive-{{.ID}}">{{icon "archive" "sm"}}{{t "Archive"}}</button>
-        {{end}}
         <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">{{icon "pencil" "sm"}}{{t "Edit"}}</a>
         <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{icon "trash" "sm"}}{{t "Delete"}}</button>
       </div>
 
-      {{if not .IsArchived}}
-      <div id="archive-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="archive-{{.ID}}-title">
-        <p class="confirm-title" id="archive-{{.ID}}-title">{{t "Archive this bookmark?"}}</p>
-        <p class="confirm-text">{{t "%s moves to the Archive. You can restore it from there." (strong (display .))}}</p>
-        <form method="post" action="/bookmarks/{{.ID}}/flag" class="confirm-actions">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="1">
-          <button type="button" class="btn" popovertarget="archive-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
-          <button class="btn btn-primary">{{icon "archive" "sm"}}{{t "Archive"}}</button>
-        </form>
-      </div>
-      {{end}}
       <div id="delete-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="delete-{{.ID}}-title">
         <p class="confirm-title" id="delete-{{.ID}}-title">{{t "Delete this bookmark?"}}</p>
         <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong (display .))}}</p>
@@ -232,7 +225,7 @@
 
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
-{{define "scripts"}}{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}

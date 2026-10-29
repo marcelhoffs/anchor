@@ -49,9 +49,11 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 **One bookmark per URL.** Before saving, Anchor normalises the URL: it adds `https://` if no scheme was given, lower-cases the scheme and host, drops the default port (`:443` for https, `:80` for http), and adds a `/` path if there is none. Only `http` and `https` links are accepted. Two spellings of the same address therefore become the same bookmark: saving a URL the space already has opens the existing bookmark instead of making a second one. Different spaces can each have the same URL.
 
-**Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`.
+**Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`. Archiving takes one click, and the list then offers to undo it.
 
 **The list.** Under Settings → Appearance you choose how the list looks: newest first or by title, with or without descriptions (hiding them makes the list more compact), and the sidebar on the left or the right. On phones the views sit above the search box and the tags open from the Tags button in the top bar. On touch screens, swipe a row to reveal its actions.
+
+**Keyboard shortcuts.** On the list, `/` jumps to the search box (Esc leaves it), `n` adds a bookmark, and `j` and `k` move down and up the rows. On the current row, Enter opens it, `e` edits it, `f` toggles favourite and `a` archives or unarchives it.
 
 **Saving from anywhere.** Besides the add form there is a bookmarklet (Settings → Appearance): a browser bookmark that opens Anchor's add form with the current page's address and title filled in. The [REST API](api.md) can save bookmarks too.
 
