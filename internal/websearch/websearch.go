@@ -103,6 +103,10 @@ func URL(engine, q, locale string, safe bool) string {
 			add("locale", lang+"_"+country)
 		}
 		add("s", map[bool]string{true: "2", false: "0"}[safe])
+		// No news, sponsored links or other extras around the results.
+		add("hti", "0")
+		add("hc", "0")
+		add("b", "0")
 	default:
 		return ""
 	}

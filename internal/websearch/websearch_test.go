@@ -15,8 +15,8 @@ func TestURL(t *testing.T) {
 		{"ecosia", "a&b", "fr-FR", true, "https://www.ecosia.org/search?q=a%26b"},
 		{"google", "x", "fr-BE", true, "https://www.google.com/search?hl=fr&gl=BE&safe=active&q=x"},
 		{"google", "x", "", false, "https://www.google.com/search?safe=off&q=x"},
-		{"qwant", "x", "de-AT", true, "https://www.qwant.com/?locale=de_AT&s=2&q=x"},
-		{"qwant", "", "", false, "https://www.qwant.com/?s=0&q="},
+		{"qwant", "x", "de-AT", true, "https://www.qwant.com/?locale=de_AT&s=2&hti=0&hc=0&b=0&q=x"},
+		{"qwant", "", "", false, "https://www.qwant.com/?s=0&hti=0&hc=0&b=0&q="},
 		{"bing", "x", "", true, ""},
 	} {
 		if got := URL(c.engine, c.q, c.locale, c.safe); got != c.want {
