@@ -313,30 +313,15 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .view-bar a { display: inline-flex; align-items: center; gap: 6px; padding: 4px 0; color: var(--muted); font-size: var(--fs-sm); font-weight: var(--fw-medium); text-decoration: none; white-space: nowrap; }
 .view-bar a:hover { color: var(--text); }
 .view-bar a[aria-current="page"] { color: var(--accent-text); font-weight: var(--fw-semibold); }
-.tags-btn { display: none; height: 52px; border-radius: 14px; box-shadow: var(--shadow); }
+.tags-btn { display: none; }
 .search {
   display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 8px 0 16px;
   border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow); color: var(--muted);
 }
 .search { position: relative; }
 .search:focus-within { border-color: var(--accent); }
-/* Search syntax help: shown while the ? button is hovered or focused. */
-.search-help { display: flex; }
-.search-help .icon-btn, .search-clear { width: 36px; height: 36px; flex-shrink: 0; }
-/* The clear link above replaces the browser's own, which only empties the box. */
+/* No clear button: the browser's own would only empty the box. */
 .search input::-webkit-search-cancel-button { display: none; }
-.tooltip {
-  position: absolute; top: calc(100% + 8px); right: 0; z-index: 20; width: min(380px, calc(100vw - 32px)); padding: 14px 16px;
-  border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text);
-  box-shadow: var(--shadow), 0 16px 40px rgb(0 0 0 / 0.2); font-size: var(--fs-sm); cursor: default;
-  visibility: hidden; opacity: 0; transition: opacity 120ms, visibility 120ms;
-}
-.search-help:hover .tooltip, .search-help:focus-within .tooltip { visibility: visible; opacity: 1; }
-.tooltip-title { margin-bottom: 10px; font-weight: var(--fw-semibold); }
-.tooltip dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 14px; margin: 0; }
-.tooltip dt { white-space: nowrap; }
-.tooltip dd { margin: 0; color: var(--muted); }
-.tooltip-foot { margin-top: 12px; color: var(--muted); }
 .search input { flex-grow: 1; min-width: 0; height: 100%; margin: 0; padding: 0; border: 0; outline: none; background: transparent; box-shadow: none; color: var(--text); font: inherit; font-size: var(--fs-lg); }
 .search .btn { min-height: 36px; }
 .search-btn .icon { display: none; } /* phones show it instead of the label */
@@ -579,8 +564,8 @@ td.actions { text-align: right; white-space: nowrap; }
 /* The list and the sidebar need about 840px side by side (560 + 200 + gaps
    and margins). Below that, as on tablets in portrait and phones in
    landscape, the views move to a bar under the search box, the saved searches
-   under the list and the tags into the drawer that the Tags button next to
-   the search box opens. */
+   under the list and the tags into the drawer that the Tags button in the
+   top bar opens. */
 @media (max-width: 899px) {
   .sidebar { flex-basis: 100%; max-width: none; order: 2; }
   .side-views, .side-tags { display: none; }
@@ -588,9 +573,6 @@ td.actions { text-align: right; white-space: nowrap; }
   .side-searches .side-heading { margin-top: 0; }
   .view-bar { display: flex; }
   .tags-btn { display: inline-flex; }
-  /* The search box is narrower here, so the help spans the whole row. */
-  .search { position: static; }
-  .tooltip { left: 0; width: auto; }
 }
 @media (max-width: 720px) {
   :root { --gutter: 16px; }
