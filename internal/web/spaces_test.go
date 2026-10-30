@@ -151,7 +151,7 @@ func TestSpaceSwitcher(t *testing.T) {
 	if !strings.Contains(body, "go.dev") {
 		t.Fatal("reader doesn't see the space's bookmarks")
 	}
-	for _, control := range []string{`action="/bookmarks/` + bid + `/flag"`, `/bookmarks/` + bid + `/edit`, `delete-` + bid} {
+	for _, control := range []string{`/bookmarks/` + bid + `/flag`, `/bookmarks/` + bid + `/edit`, `/bookmarks/` + bid + `/delete`, `id="row-form"`} {
 		if strings.Contains(body, control) {
 			t.Errorf("reader's list has %s", control)
 		}

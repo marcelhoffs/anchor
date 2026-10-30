@@ -134,53 +134,22 @@
         </div>
       </div>
       {{if $.CanWrite}}
-      <div class="bm-actions">
-        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
-          {{if .IsArchived}}
-          <button class="icon-btn" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive %s" (display .)}}">{{icon "archive"}}</button>
-          {{else}}
-          <button class="icon-btn" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}</button>
-          {{end}}
-        </form>
-        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="{{t "Edit"}}" aria-label="{{t "Edit %s" (display .)}}">{{icon "pencil"}}</a>
-        <button class="icon-btn danger" popovertarget="delete-{{.ID}}" title="{{t "Delete"}}" aria-label="{{t "Delete %s" (display .)}}">{{icon "trash"}}</button>
-        <form method="post" action="/bookmarks/{{.ID}}/flag" class="inline">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-          {{if .IsFavourite}}
-          <button class="icon-btn on" title="{{t "Remove from favourites"}}" aria-label="{{t "Remove %s from favourites" (display .)}}" aria-pressed="true">{{icon "star" "filled"}}</button>
-          {{else}}
-          <button class="icon-btn" title="{{t "Add to favourites"}}" aria-label="{{t "Add %s to favourites" (display .)}}" aria-pressed="false">{{icon "star"}}</button>
-          {{end}}
-        </form>
-      </div>
-      {{/* On phones the actions fold into this menu, beside the title; on touch screens swipe.js slides them in instead. */}}
+      {{/* The actions, once per row: they post through the page's row-form. A toolbar on wider screens;
+           on phones it is this ⋯ button's menu (the labels show); on touch screens swipe.js slides it in. */}}
       <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="{{t "Actions for %s" (display .)}}">{{icon "more"}}</button>
-      <div id="actions-{{.ID}}" class="menu row-menu" popover>
-        <form method="post" action="/bookmarks/{{.ID}}/flag">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="favourite"><input type="hidden" name="on" value="{{if .IsFavourite}}0{{else}}1{{end}}">
-          <button>{{if .IsFavourite}}{{icon "star" "sm filled"}}{{t "Remove from favourites"}}{{else}}{{icon "star" "sm"}}{{t "Add to favourites"}}{{end}}</button>
-        </form>
-        <form method="post" action="/bookmarks/{{.ID}}/flag">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="{{if .IsArchived}}0{{else}}1{{end}}">
-          <button>{{icon "archive" "sm"}}{{if .IsArchived}}{{t "Unarchive"}}{{else}}{{t "Archive"}}{{end}}</button>
-        </form>
-        <a href="/bookmarks/{{.ID}}/edit?next={{$.Here}}">{{icon "pencil" "sm"}}{{t "Edit"}}</a>
-        <button type="button" class="danger" popovertarget="delete-{{.ID}}">{{icon "trash" "sm"}}{{t "Delete"}}</button>
-      </div>
-
-      <div id="delete-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="delete-{{.ID}}-title">
-        <p class="confirm-title" id="delete-{{.ID}}-title">{{t "Delete this bookmark?"}}</p>
-        <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong (display .))}}</p>
-        <form method="post" action="/bookmarks/{{.ID}}/delete" class="confirm-actions">
-          <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-          <button type="button" class="btn" popovertarget="delete-{{.ID}}" popovertargetaction="hide">{{t "Cancel"}}</button>
-          <button class="btn btn-danger-solid">{{icon "trash" "sm"}}{{t "Delete"}}</button>
-        </form>
+      <div id="actions-{{.ID}}" class="bm-actions" popover>
+        {{if .IsArchived}}
+        <button class="icon-btn bm-archive" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=archived&on=0" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive %s" (display .)}}">{{icon "archive"}}<span class="bm-label">{{t "Unarchive"}}</span></button>
+        {{else}}
+        <button class="icon-btn bm-archive" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=archived&on=1" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}<span class="bm-label">{{t "Archive"}}</span></button>
+        {{end}}
+        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="{{t "Edit"}}" aria-label="{{t "Edit %s" (display .)}}">{{icon "pencil"}}<span class="bm-label">{{t "Edit"}}</span></a>
+        <button type="button" class="icon-btn danger" popovertarget="confirm-delete" data-action="/bookmarks/{{.ID}}/delete" title="{{t "Delete"}}" aria-label="{{t "Delete %s" (display .)}}">{{icon "trash"}}<span class="bm-label">{{t "Delete"}}</span></button>
+        {{if .IsFavourite}}
+        <button class="icon-btn bm-fav on" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=favourite&on=0" title="{{t "Remove from favourites"}}" aria-label="{{t "Remove %s from favourites" (display .)}}" aria-pressed="true">{{icon "star" "filled"}}<span class="bm-label">{{t "Remove from favourites"}}</span></button>
+        {{else}}
+        <button class="icon-btn bm-fav" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=favourite&on=1" title="{{t "Add to favourites"}}" aria-label="{{t "Add %s to favourites" (display .)}}" aria-pressed="false">{{icon "star"}}<span class="bm-label">{{t "Add to favourites"}}</span></button>
+        {{end}}
       </div>
       {{else if .IsFavourite}}
       <div class="bm-actions"><span class="icon-btn on" role="img" aria-label="{{t "Favourite"}}">{{icon "star" "filled"}}</span></div>
@@ -188,6 +157,21 @@
     </li>
   {{end}}
   </ul>
+  {{if .CanWrite}}
+  {{/* Every row's buttons post through this one form, so the page carries
+     the token once. The delete confirmation is shared too: rows.js fills it
+     in from the button that opens it, and until then its button stays
+     disabled. */}}
+  <form id="row-form" method="post" hidden><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Here}}"></form>
+  <div id="confirm-delete" class="confirm" popover role="dialog" aria-labelledby="confirm-delete-title">
+    <p class="confirm-title" id="confirm-delete-title">{{t "Delete this bookmark?"}}</p>
+    <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong "")}}</p>
+    <div class="confirm-actions">
+      <button type="button" class="btn" popovertarget="confirm-delete" popovertargetaction="hide">{{t "Cancel"}}</button>
+      <button class="btn btn-danger-solid" form="row-form" disabled>{{icon "trash" "sm"}}{{t "Delete"}}</button>
+    </div>
+  </div>
+  {{end}}
   {{else if .Query}}
   <div class="empty-state">
     <span class="badge-icon">{{icon "search"}}</span>
@@ -225,7 +209,7 @@
 
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
-{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "rows.js"}}"></script><script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}

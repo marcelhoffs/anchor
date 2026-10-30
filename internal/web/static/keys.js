@@ -21,7 +21,7 @@
     all[i].querySelector(".bm-title").focus();
   }
 
-  // The row's own button or link; the ⋯ menu has the same ones for phones.
+  // The row's own button or link (on phones they are its ⋯ menu).
   function act(selector) {
     var row = current();
     var el = row && row.querySelector(".bm-actions " + selector);
@@ -42,8 +42,8 @@
       case "j": move(1); break;
       case "k": move(-1); break;
       case "e": act('a[href*="/edit"]'); break;
-      case "f": act('input[value="favourite"] ~ button'); break;
-      case "a": act('input[value="archived"] ~ button'); break;
+      case "f": act(".bm-fav"); break;
+      case "a": act(".bm-archive"); break;
       default: return;
     }
     e.preventDefault();
