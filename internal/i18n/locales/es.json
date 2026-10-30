@@ -195,16 +195,9 @@
  "Archived": "Archivado",
  "Shared": "Compartido",
  "Unarchive": "Desarchivar",
- "Unarchive %s": "Desarchivar %s",
- "Archive %s": "Archivar %s",
  "Edit": "Editar",
- "Edit %s": "Editar %s",
- "Delete %s": "Eliminar %s",
  "Remove from favourites": "Quitar de favoritos",
- "Remove %s from favourites": "Quitar %s de favoritos",
  "Add to favourites": "Añadir a favoritos",
- "Add %s to favourites": "Añadir %s a favoritos",
- "Actions for %s": "Acciones para %s",
  "%s moved to the Archive.": "%s se ha movido al Archivo.",
  "Undo": "Deshacer",
  "Nothing matches": "No hay coincidencias",
@@ -619,5 +612,45 @@
  "Colour": "Color",
  "Colour of tag %s": "Color de la etiqueta %s",
  "Pick one of the tag colours.": "Elige uno de los colores de etiqueta.",
- "Remove tag %s": "Quitar la etiqueta %s"
+ "Remove tag %s": "Quitar la etiqueta %s",
+ "Selected bookmarks": "Marcadores seleccionados",
+ "Select all": "Seleccionar todo",
+ "Select none": "No seleccionar nada",
+ "Select %s": "Seleccionar %s",
+ "%d selected|%d selected": [
+  "%d seleccionado",
+  "%d seleccionados"
+ ],
+ "Copy to": "Copiar a",
+ "Move to": "Mover a",
+ "Delete the selected bookmarks?": "¿Eliminar los marcadores seleccionados?",
+ "Delete %d bookmark?|Delete %d bookmarks?": [
+  "¿Eliminar %d marcador?",
+  "¿Eliminar %d marcadores?"
+ ],
+ "They will be deleted permanently. This can't be undone.": "Se eliminarán para siempre. No se puede deshacer.",
+ "%d bookmark moved to the Archive.|%d bookmarks moved to the Archive.": [
+  "%d marcador se ha movido al Archivo.",
+  "%d marcadores se han movido al Archivo."
+ ],
+ "%d bookmark moved to %s.|%d bookmarks moved to %s.": [
+  "%d marcador movido a %s.",
+  "%d marcadores movidos a %s."
+ ],
+ "%d bookmark copied to %s.|%d bookmarks copied to %s.": [
+  "%d marcador copiado a %s.",
+  "%d marcadores copiados a %s."
+ ],
+ "%d was skipped: that space has it already.|%d were skipped: that space has them already.": [
+  "%d omitido: ese espacio ya lo tiene.",
+  "%d omitidos: ese espacio ya los tiene."
+ ],
+ "Select one or more bookmarks first.": "Selecciona primero uno o más marcadores.",
+ "Select one bookmark to edit.": "Selecciona un solo marcador para editarlo.",
+ "Unknown action": "Acción desconocida",
+ "Select at most %d bookmarks at a time.": "Selecciona como máximo %d marcadores a la vez.",
+ "The bookmarks are in that space already.": "Los marcadores ya están en ese espacio.",
+ "Copy to a space": "Copiar a un espacio",
+ "Move to a space": "Mover a un espacio",
+ "More actions": "Más acciones"
 }

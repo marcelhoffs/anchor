@@ -195,16 +195,9 @@
  "Archived": "Archivé",
  "Shared": "Partagé",
  "Unarchive": "Désarchiver",
- "Unarchive %s": "Désarchiver %s",
- "Archive %s": "Archiver %s",
  "Edit": "Modifier",
- "Edit %s": "Modifier %s",
- "Delete %s": "Supprimer %s",
  "Remove from favourites": "Retirer des favoris",
- "Remove %s from favourites": "Retirer %s des favoris",
  "Add to favourites": "Ajouter aux favoris",
- "Add %s to favourites": "Ajouter %s aux favoris",
- "Actions for %s": "Actions pour %s",
  "%s moved to the Archive.": "%s est parti dans les Archives.",
  "Undo": "Annuler",
  "Nothing matches": "Aucun résultat",
@@ -619,5 +612,45 @@
  "Colour": "Couleur",
  "Colour of tag %s": "Couleur de l'étiquette %s",
  "Pick one of the tag colours.": "Choisis une des couleurs d'étiquette.",
- "Remove tag %s": "Retirer l'étiquette %s"
+ "Remove tag %s": "Retirer l'étiquette %s",
+ "Selected bookmarks": "Signets sélectionnés",
+ "Select all": "Tout sélectionner",
+ "Select none": "Ne rien sélectionner",
+ "Select %s": "Sélectionner %s",
+ "%d selected|%d selected": [
+  "%d sélectionné",
+  "%d sélectionnés"
+ ],
+ "Copy to": "Copier vers",
+ "Move to": "Déplacer vers",
+ "Delete the selected bookmarks?": "Supprimer les signets sélectionnés ?",
+ "Delete %d bookmark?|Delete %d bookmarks?": [
+  "Supprimer %d signet ?",
+  "Supprimer %d signets ?"
+ ],
+ "They will be deleted permanently. This can't be undone.": "Ils seront supprimés définitivement. C'est irréversible.",
+ "%d bookmark moved to the Archive.|%d bookmarks moved to the Archive.": [
+  "%d signet est parti dans les Archives.",
+  "%d signets sont partis dans les Archives."
+ ],
+ "%d bookmark moved to %s.|%d bookmarks moved to %s.": [
+  "%d signet déplacé vers %s.",
+  "%d signets déplacés vers %s."
+ ],
+ "%d bookmark copied to %s.|%d bookmarks copied to %s.": [
+  "%d signet copié vers %s.",
+  "%d signets copiés vers %s."
+ ],
+ "%d was skipped: that space has it already.|%d were skipped: that space has them already.": [
+  "%d ignoré : cet espace l'a déjà.",
+  "%d ignorés : cet espace les a déjà."
+ ],
+ "Select one or more bookmarks first.": "Sélectionnez d'abord un ou plusieurs signets.",
+ "Select one bookmark to edit.": "Sélectionnez un seul signet à modifier.",
+ "Unknown action": "Action inconnue",
+ "Select at most %d bookmarks at a time.": "Sélectionnez au plus %d signets à la fois.",
+ "The bookmarks are in that space already.": "Les signets sont déjà dans cet espace.",
+ "Copy to a space": "Copier vers un espace",
+ "Move to a space": "Déplacer vers un espace",
+ "More actions": "Plus d’actions"
 }

@@ -195,16 +195,9 @@
  "Archived": "Gearchiveerd",
  "Shared": "Gedeeld",
  "Unarchive": "Uit archief halen",
- "Unarchive %s": "%s uit archief halen",
- "Archive %s": "%s archiveren",
  "Edit": "Bewerken",
- "Edit %s": "%s bewerken",
- "Delete %s": "%s verwijderen",
  "Remove from favourites": "Uit favorieten halen",
- "Remove %s from favourites": "%s uit favorieten halen",
  "Add to favourites": "Aan favorieten toevoegen",
- "Add %s to favourites": "%s aan favorieten toevoegen",
- "Actions for %s": "Acties voor %s",
  "%s moved to the Archive.": "%s is naar het Archief verplaatst.",
  "Undo": "Ongedaan maken",
  "Nothing matches": "Niets gevonden",
@@ -619,5 +612,45 @@
  "Colour": "Kleur",
  "Colour of tag %s": "Kleur van tag %s",
  "Pick one of the tag colours.": "Kies een van de tagkleuren.",
- "Remove tag %s": "Tag %s verwijderen"
+ "Remove tag %s": "Tag %s verwijderen",
+ "Selected bookmarks": "Geselecteerde bladwijzers",
+ "Select all": "Alles selecteren",
+ "Select none": "Niets selecteren",
+ "Select %s": "%s selecteren",
+ "%d selected|%d selected": [
+  "%d geselecteerd",
+  "%d geselecteerd"
+ ],
+ "Copy to": "Kopiëren naar",
+ "Move to": "Verplaatsen naar",
+ "Delete the selected bookmarks?": "De geselecteerde bladwijzers verwijderen?",
+ "Delete %d bookmark?|Delete %d bookmarks?": [
+  "%d bladwijzer verwijderen?",
+  "%d bladwijzers verwijderen?"
+ ],
+ "They will be deleted permanently. This can't be undone.": "Ze worden definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+ "%d bookmark moved to the Archive.|%d bookmarks moved to the Archive.": [
+  "%d bladwijzer is naar het Archief verplaatst.",
+  "%d bladwijzers zijn naar het Archief verplaatst."
+ ],
+ "%d bookmark moved to %s.|%d bookmarks moved to %s.": [
+  "%d bladwijzer verplaatst naar %s.",
+  "%d bladwijzers verplaatst naar %s."
+ ],
+ "%d bookmark copied to %s.|%d bookmarks copied to %s.": [
+  "%d bladwijzer gekopieerd naar %s.",
+  "%d bladwijzers gekopieerd naar %s."
+ ],
+ "%d was skipped: that space has it already.|%d were skipped: that space has them already.": [
+  "%d overgeslagen: die ruimte heeft hem al.",
+  "%d overgeslagen: die ruimte heeft ze al."
+ ],
+ "Select one or more bookmarks first.": "Selecteer eerst een of meer bladwijzers.",
+ "Select one bookmark to edit.": "Selecteer één bladwijzer om te bewerken.",
+ "Unknown action": "Onbekende actie",
+ "Select at most %d bookmarks at a time.": "Selecteer hoogstens %d bladwijzers tegelijk.",
+ "The bookmarks are in that space already.": "De bladwijzers staan al in die ruimte.",
+ "Copy to a space": "Kopiëren naar een ruimte",
+ "Move to a space": "Verplaatsen naar een ruimte",
+ "More actions": "Meer acties"
 }

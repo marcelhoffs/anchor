@@ -1,6 +1,7 @@
 // Keyboard shortcuts on the bookmark list: / searches, n adds a bookmark,
-// j and k move between rows, and on the current row e edits, f favourites
-// and a archives (or unarchives). Enter opens it, as the title link has focus.
+// j and k move between rows, x ticks the current row for the toolbar, and
+// on the current row alone e edits, f favourites (or unfavourites) and a
+// archives (or unarchives) it. Enter opens it, as the title link has focus.
 // Keys typed into a field, or with Ctrl, Alt or Cmd, are left alone.
 (function () {
   "use strict";
@@ -21,11 +22,24 @@
     all[i].querySelector(".bm-title").focus();
   }
 
-  // The row's own button or link (on phones they are its ⋯ menu).
-  function act(selector) {
+  function tick(box, on) {
+    box.checked = on;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  // Posts the toolbar's action for the current row only.
+  function act(value) {
     var row = current();
-    var el = row && row.querySelector(".bm-actions " + selector);
-    if (el) el.click();
+    var box = row && row.querySelector(".bm-check");
+    var button = document.querySelector('button[form="bulk-form"][value="' + value + '"]');
+    if (!box || !button) return;
+    rows().forEach(function (r) {
+      var b = r.querySelector(".bm-check");
+      if (b) b.checked = false;
+    });
+    tick(box, true);
+    button.disabled = false;
+    button.form.requestSubmit(button);
   }
 
   document.addEventListener("keydown", function (e) {
@@ -36,14 +50,20 @@
       return;
     }
     var add = document.querySelector('a[href="/bookmarks/new"]');
+    var row = current();
     switch (e.key) {
       case "/": var q = document.getElementById("q"); if (!q) return; q.focus(); q.select(); break;
       case "n": if (!add) return; add.click(); break;
       case "j": move(1); break;
       case "k": move(-1); break;
-      case "e": act('a[href*="/edit"]'); break;
-      case "f": act(".bm-fav"); break;
-      case "a": act(".bm-archive"); break;
+      case "x":
+        var box = row && row.querySelector(".bm-check");
+        if (!box) return;
+        tick(box, !box.checked);
+        break;
+      case "e": act("edit"); break;
+      case "f": act(row && row.hasAttribute("data-fav") ? "unfavourite" : "favourite"); break;
+      case "a": act(document.querySelector('button[form="bulk-form"][value="unarchive"]') ? "unarchive" : "archive"); break;
       default: return;
     }
     e.preventDefault();
