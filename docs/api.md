@@ -46,9 +46,9 @@ Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, w
 | POST | `/api/v1/bookmarks/{id}/archive` | Archive; `{"archived": false}` unarchives |
 | POST | `/api/v1/bookmarks/{id}/share` | Make a public link (`share_url`); `{"shared": false}` removes it |
 | GET | `/api/v1/saved-searches` | Saved searches; list the bookmarks of one with `?q=` set to its `query` |
-| GET | `/api/v1/tags` | Tags with their bookmark counts |
+| GET | `/api/v1/tags` | Tags with their colours and bookmark counts |
 | POST | `/api/v1/tags` | Create a tag (`{"name": "home lab"}`); bookmarks can only use tags that exist |
-| PATCH | `/api/v1/tags/{id}` | Rename (`{"name": …}`) or merge into another tag (`{"merge_into": id}`) |
+| PATCH | `/api/v1/tags/{id}` | Rename (`{"name": …}`), set the colour (`{"color": "teal"}`, one of `blue`, `teal`, `green`, `amber`, `orange`, `rose`, `purple`, `slate`), both, or merge into another tag (`{"merge_into": id}`) |
 | DELETE | `/api/v1/tags/{id}` | Delete a tag; its bookmarks stay |
 | POST | `/api/v1/import` | Upload a bookmark file (as the body, or as a multipart `file` field); returns a job |
 | GET | `/api/v1/jobs/{id}` | An import's progress and result |

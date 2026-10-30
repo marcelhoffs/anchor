@@ -195,6 +195,7 @@ func (s *Server) Handler() http.Handler {
 			r.Get("/tags", s.tags)
 			r.Post("/tags", s.createTag)
 			r.Post("/tags/{id}/rename", s.renameTag)
+			r.Post("/tags/{id}/color", s.colorTag)
 			r.Post("/tags/{id}/delete", s.deleteTag)
 
 			r.Get("/settings", s.settings)

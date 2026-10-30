@@ -1,10 +1,14 @@
-// Type-ahead for tag fields. Tags are separated by commas and may contain
-// spaces; this suggests the user's existing tags for the one being typed.
+// The tags field as coloured chips, with a type-ahead of the user's existing
+// tags. Tags are separated by commas and may contain spaces.
 // Markup contract:
-//   <input role="combobox" aria-controls="<list id>" data-tags="tag1,tag two,…">
+//   <input name="…" role="combobox" aria-controls="<list id>"
+//     data-tags="tag1,tag two,…" data-colors="blue,teal,…" data-remove="Remove tag %s">
 //   <ul id="<list id>" role="listbox" hidden></ul>
-// data-tags lists the tags most used first. Without this script the field
-// is a plain text box.
+// data-tags lists the tags most used first, data-colors their colours in the
+// same order. Only those tags can be chosen: typed text that isn't one is
+// dropped. The script takes the field's name for a hidden input that holds
+// the chips as "a, b"; the field itself is left for finding the next tag.
+// Without this script it is a plain text box.
 (function () {
   "use strict";
 
@@ -14,21 +18,68 @@
     return t.trim().replace(/^#/, "").replace(/\s+/g, " ").toLowerCase();
   }
 
+  function chip(name, color) {
+    var span = document.createElement("span");
+    span.className = "tag";
+    if (color) span.dataset.color = color;
+    span.appendChild(document.createTextNode(name));
+    return span;
+  }
+
   function setup(input) {
-    var all = input.dataset.tags.split(",").filter(Boolean);
+    var names = input.dataset.tags.split(",").filter(Boolean);
+    var colors = (input.dataset.colors || "").split(",");
     var list = document.getElementById(input.getAttribute("aria-controls"));
-    if (!all.length || !list) return;
+    if (!list) return;
+    var known = {}; // lower-cased name → {name, color}
+    names.forEach(function (n, i) { known[n.toLowerCase()] = { name: n, color: colors[i] }; });
     var shown = [], active = -1;
 
-    // The tag around the caret, between commas: [start, end) of input.value,
-    // with start past any leading spaces.
-    function word() {
-      var v = input.value, caret = input.selectionStart == null ? v.length : input.selectionStart;
-      var start = caret, end = caret;
-      while (start > 0 && v[start - 1] !== ",") start--;
-      while (start < caret && /\s/.test(v[start])) start++;
-      while (end < v.length && v[end] !== ",") end++;
-      return { start: start, end: end, text: norm(v.slice(start, end)) };
+    // The box the chips and the field sit in; the hidden input submits them.
+    var box = document.createElement("div");
+    box.className = "tag-input";
+    input.parentNode.insertBefore(box, input);
+    var chips = document.createElement("span");
+    chips.className = "tag-chips";
+    box.appendChild(chips);
+    box.appendChild(input);
+    var value = document.createElement("input");
+    value.type = "hidden";
+    value.name = input.name;
+    input.removeAttribute("name");
+    box.parentNode.insertBefore(value, box.nextSibling);
+    var placeholder = input.placeholder;
+
+    function tags() {
+      return Array.prototype.map.call(chips.children, function (c) { return c.dataset.name; });
+    }
+
+    function sync() {
+      value.value = tags().join(", ");
+      input.placeholder = chips.children.length ? "" : placeholder;
+    }
+
+    // add makes a chip of name, spelled and coloured as the existing tag. It
+    // reports whether name is one; an unknown name gets no chip.
+    function add(name) {
+      var key = norm(name), tag = known[key];
+      if (!tag) return false;
+      if (tags().some(function (t) { return norm(t) === key; })) return true;
+      var c = chip(tag.name, tag.color);
+      c.dataset.name = tag.name;
+      var remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "tag-remove";
+      remove.setAttribute("aria-label", (input.dataset.remove || "%s").replace("%s", tag.name));
+      remove.textContent = "×";
+      remove.addEventListener("click", function () {
+        c.remove();
+        sync();
+        input.focus();
+      });
+      c.appendChild(remove);
+      chips.appendChild(c);
+      return true;
     }
 
     function close() {
@@ -54,26 +105,26 @@
     }
 
     function update() {
-      var w = word();
-      if (!w.text) return close();
+      var text = norm(input.value);
+      if (!text) return close();
       var used = {};
-      input.value.split(",").forEach(function (t) { used[norm(t)] = true; });
+      tags().forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
-      all.forEach(function (t) {
-        var lt = t.toLowerCase();
-        if (lt === w.text || (used[lt] && lt !== w.text)) return;
-        if (lt.indexOf(w.text) === 0) starts.push(t);
-        else if (lt.indexOf(w.text) > 0) contains.push(t);
+      names.forEach(function (n, i) {
+        var ln = n.toLowerCase();
+        if (used[ln]) return;
+        if (ln.indexOf(text) === 0) starts.push(i);
+        else if (ln.indexOf(text) > 0) contains.push(i);
       });
       shown = starts.concat(contains).slice(0, MAX);
       if (!shown.length) return close();
       list.textContent = "";
-      shown.forEach(function (t, i) {
+      shown.forEach(function (n, i) {
         var li = document.createElement("li");
         li.id = list.id + "-" + i;
         li.setAttribute("role", "option");
         li.setAttribute("aria-selected", "false");
-        li.appendChild(document.createTextNode(t));
+        li.appendChild(chip(names[n], colors[n]));
         // mousedown, not click: keep focus in the input.
         li.addEventListener("mousedown", function (e) {
           e.preventDefault();
@@ -87,19 +138,57 @@
     }
 
     function accept(i) {
-      var w = word(), v = input.value, tag = shown[i];
-      var after = v.slice(w.end).replace(/^\s*,\s*/, "");
-      var before = v.slice(0, w.start) + tag + ", ";
-      input.value = before + after;
-      input.setSelectionRange(before.length, before.length);
+      add(names[shown[i]]);
+      input.value = "";
+      sync();
       close();
     }
 
-    input.addEventListener("input", update);
-    input.addEventListener("blur", close);
+    // commit makes a chip of what's typed if it names a tag, and reports
+    // whether anything was typed. Unknown text stays to be corrected, unless
+    // drop: then it goes.
+    function commit(drop) {
+      if (!norm(input.value)) return false;
+      if (add(input.value) || drop) input.value = "";
+      sync();
+      close();
+      return true;
+    }
+
+    // The field starts with the saved tags as text: they become chips.
+    input.value.split(",").forEach(add);
+    input.value = "";
+    sync();
+
+    box.addEventListener("mousedown", function (e) {
+      if (e.target === box || e.target === chips) {
+        e.preventDefault();
+        input.focus();
+      }
+    });
+    input.addEventListener("input", function () {
+      // A comma, typed or pasted, ends a tag; unknown names are dropped.
+      var parts = input.value.split(",");
+      if (parts.length > 1) {
+        input.value = parts.pop().replace(/^\s+/, "");
+        parts.forEach(add);
+      }
+      sync();
+      update();
+    });
+    input.addEventListener("blur", function () {
+      commit(true);
+    });
     input.addEventListener("keydown", function (e) {
+      if (e.key === "Backspace" && input.value === "" && chips.lastChild) {
+        chips.lastChild.remove();
+        sync();
+        return;
+      }
       if (list.hidden) {
-        if (e.key === "ArrowDown" && word().text) update();
+        if (e.key === "ArrowDown" && norm(input.value)) update();
+        // Enter makes a chip of a typed tag name; with nothing typed it submits.
+        if (e.key === "Enter" && commit()) e.preventDefault();
         return;
       }
       switch (e.key) {
@@ -112,13 +201,16 @@
           highlight(active <= 0 ? shown.length - 1 : active - 1);
           break;
         case "Enter":
+          // The highlighted suggestion, or else what's typed.
+          e.preventDefault();
+          if (active >= 0) accept(active);
+          else commit();
+          break;
         case "Tab":
-          // Tab takes the first suggestion; Enter only a highlighted one, so
-          // Enter on its own still submits the form.
-          if (active >= 0 || (e.key === "Tab" && !e.shiftKey)) {
-            e.preventDefault();
-            accept(active >= 0 ? active : 0);
-          }
+          // Tab takes the highlighted suggestion, or else the first.
+          if (e.shiftKey) break;
+          e.preventDefault();
+          accept(active >= 0 ? active : 0);
           break;
         case "Escape":
           e.preventDefault();

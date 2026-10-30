@@ -608,5 +608,16 @@
  "SafeSearch: hide explicit results": "SafeSearch: expliciete resultaten verbergen",
  "The language and country of the results. Automatic follows your browser. Ecosia uses its own settings for the region and SafeSearch.": "De taal en het land van de resultaten. Automatisch volgt je browser. Ecosia gebruikt zijn eigen instellingen voor de regio en SafeSearch.",
  "Save search settings": "Zoekinstellingen opslaan",
- "Search the web with %s": "Zoeken op het web met %s"
+ "Search the web with %s": "Zoeken op het web met %s",
+ "Blue": "Blauw",
+ "Teal": "Groenblauw",
+ "Green": "Groen",
+ "Amber": "Amber",
+ "Orange": "Oranje",
+ "Purple": "Paars",
+ "Slate": "Leisteen",
+ "Colour": "Kleur",
+ "Colour of tag %s": "Kleur van tag %s",
+ "Pick one of the tag colours.": "Kies een van de tagkleuren.",
+ "Remove tag %s": "Tag %s verwijderen"
 }

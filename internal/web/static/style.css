@@ -266,7 +266,7 @@ form.inline { display: inline; }
 /* The space switcher's menu: the spaces, the current one ticked. */
 .space-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-menu .menu { min-width: 230px; }
-.space-option { flex-grow: 1; overflow-wrap: anywhere; }
+.space-option, .menu-label { flex-grow: 1; overflow-wrap: anywhere; }
 .menu [aria-current="true"] { font-weight: var(--fw-semibold); }
 .menu-sep { position: relative; margin-top: 7px; }
 .menu-sep::before { content: ""; position: absolute; top: -4px; left: 4px; right: 4px; border-top: 1px solid var(--border); }
@@ -290,6 +290,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .side-link[aria-current="page"] { background: var(--soft); color: var(--soft-text); font-weight: var(--fw-semibold); }
 .side-link .label { flex-grow: 1; overflow-wrap: anywhere; }
 .side-link .count { color: var(--muted); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+/* A tag's dot stands in for the other links' icons, in the same width. */
+.side-link .tag-dot { margin: 0 4px; }
 .side-link[aria-current="page"] .count { color: var(--soft-text); }
 /* Dragging a bookmark's icon onto a tag tags it (dragtag.js): the tags that
    take a drop show it while one is dragged, and the one under it lights up.
@@ -402,6 +404,21 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
   white-space: nowrap; /* tag names can have spaces; a chip stays one line */
 }
 .tag:hover { color: var(--soft-text); text-decoration: underline; }
+/* A tag's colour (data-color, one of store.TagColors): a pill on a tint of
+   it, with a dot. The text passes WCAG AA on its tint, light and dark. */
+.tag[data-color] { gap: 5px; padding-left: 7px; background: var(--tag-tint); color: var(--tag-text); }
+.tag[data-color]::before { content: ""; width: 6px; height: 6px; border-radius: 999px; background: var(--tag-dot); flex-shrink: 0; }
+.tag[data-color]:hover { color: var(--tag-text); }
+.tag-dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; background: var(--tag-dot); flex-shrink: 0; }
+.icon-btn .tag-dot { width: 14px; height: 14px; }
+[data-color="blue"] { --tag-text: light-dark(#1e40af, #bfdbfe); --tag-tint: light-dark(#dbeafe, rgb(59 130 246 / 0.18)); --tag-dot: light-dark(#2563eb, #60a5fa); }
+[data-color="teal"] { --tag-text: light-dark(#115e59, #99f6e4); --tag-tint: light-dark(#ccfbf1, rgb(20 184 166 / 0.18)); --tag-dot: light-dark(#0d9488, #2dd4bf); }
+[data-color="green"] { --tag-text: light-dark(#166534, #bbf7d0); --tag-tint: light-dark(#dcfce7, rgb(34 197 94 / 0.18)); --tag-dot: light-dark(#16a34a, #4ade80); }
+[data-color="amber"] { --tag-text: light-dark(#854d0e, #fde68a); --tag-tint: light-dark(#fef3c7, rgb(245 158 11 / 0.18)); --tag-dot: light-dark(#d97706, #fbbf24); }
+[data-color="orange"] { --tag-text: light-dark(#9a3412, #fed7aa); --tag-tint: light-dark(#ffedd5, rgb(249 115 22 / 0.18)); --tag-dot: light-dark(#ea580c, #fb923c); }
+[data-color="rose"] { --tag-text: light-dark(#9f1239, #fecdd3); --tag-tint: light-dark(#ffe4e6, rgb(244 63 94 / 0.18)); --tag-dot: light-dark(#e11d48, #fb7185); }
+[data-color="purple"] { --tag-text: light-dark(#6b21a8, #e9d5ff); --tag-tint: light-dark(#f3e8ff, rgb(168 85 247 / 0.2)); --tag-dot: light-dark(#9333ea, #c084fc); }
+[data-color="slate"] { --tag-text: light-dark(#334155, #cbd5e1); --tag-tint: light-dark(#e2e8f0, rgb(148 163 184 / 0.2)); --tag-dot: light-dark(#64748b, #94a3b8); }
 .badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-medium); }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
@@ -536,7 +553,24 @@ textarea { resize: vertical; }
   border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow), 0 12px 32px rgb(0 0 0 / 0.16);
 }
 .suggestions li { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 10px; border-radius: 8px; font-size: var(--fs-md); cursor: pointer; }
-.suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--soft); color: var(--soft-text); }
+.suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--raised); }
+/* The chips and the field for the next tag, in a box that looks like an input. */
+.tag-input {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 44px; margin-top: 6px; padding: 7px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); cursor: text;
+  transition: border-color 120ms, box-shadow 120ms;
+}
+.tag-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+.tag-chips { display: contents; }
+.tag-input .tag { padding-right: 2px; }
+.tag-input .tag:hover, .suggestions .tag:hover { text-decoration: none; }
+.tag-input input { flex: 1 1 120px; min-width: 120px; margin: 0; padding: 0 2px; border: 0; background: none; box-shadow: none; line-height: 28px; }
+.tag-input input:focus { box-shadow: none; }
+.tag-remove {
+  display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 1px; padding: 0;
+  border: 0; border-radius: 999px; background: none; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; opacity: 0.7;
+}
+.tag-remove:hover { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
 label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
 .form-narrow { max-width: 400px; }

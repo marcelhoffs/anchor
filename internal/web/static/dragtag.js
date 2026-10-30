@@ -114,6 +114,7 @@
       var a = document.createElement("a");
       a.className = "tag";
       a.href = t.url;
+      a.dataset.color = t.color;
       a.textContent = t.name;
       box.appendChild(a);
     });

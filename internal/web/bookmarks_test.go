@@ -266,7 +266,7 @@ func TestDragToTag(t *testing.T) {
 		return res.StatusCode, string(b)
 	}
 	code, out := tagJSON(c, "1", "2") // "home lab"
-	if code != http.StatusOK || out != `{"tags":[{"name":"home lab","url":"/?q=%23%22home+lab%22"}],"count":1}`+"\n" {
+	if code != http.StatusOK || out != `{"tags":[{"name":"home lab","url":"/?q=%23%22home+lab%22","color":"`+store.TagColor("home lab", "")+`"}],"count":1}`+"\n" {
 		t.Fatalf("tag: %d %s", code, out)
 	}
 	if _, body, _ := c.get("/?q=%21untagged"); strings.Contains(body, ">Go</a>") || !strings.Contains(body, "Untagged bookmarks") {

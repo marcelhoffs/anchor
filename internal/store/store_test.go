@@ -457,6 +457,41 @@ func TestAddTag(t *testing.T) {
 	}
 }
 
+// Every tag has a colour: one picked from its name until one is chosen.
+func TestTagColors(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u := newUser(t, s, "alice")
+	sc := personal(s, u.ID)
+	created, err := s.CreateTag(ctx, sc, "Home Lab")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := TagColor("home lab", ""); created.Color != want || !slices.Contains(TagColors, want) {
+		t.Fatalf("new tag's colour = %q, want %q from its name, whatever its case", created.Color, want)
+	}
+	tags, _ := s.ListTags(ctx, sc)
+	if tags[0].Color != created.Color {
+		t.Fatalf("listed colour %q, created %q", tags[0].Color, created.Color)
+	}
+	pick := "purple"
+	if created.Color == pick {
+		pick = "teal"
+	}
+	if err := s.SetTagColor(ctx, sc, created.ID, pick); err != nil {
+		t.Fatal(err)
+	}
+	if tags, _ = s.ListTags(ctx, sc); tags[0].Color != pick {
+		t.Fatalf("chosen colour = %q, want %q", tags[0].Color, pick)
+	}
+	if err := s.SetTagColor(ctx, sc, created.ID, "chartreuse"); !isValidationErr(err) {
+		t.Fatalf("unknown colour: %v", err)
+	}
+	if err := s.SetTagColor(ctx, personal(s, newUser(t, s, "bob").ID), created.ID, "blue"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other space's tag: %v", err)
+	}
+}
+
 func TestOIDCIdentities(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)

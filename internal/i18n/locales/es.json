@@ -608,5 +608,16 @@
  "SafeSearch: hide explicit results": "SafeSearch: ocultar resultados explícitos",
  "The language and country of the results. Automatic follows your browser. Ecosia uses its own settings for the region and SafeSearch.": "El idioma y el país de los resultados. Automático sigue a tu navegador. Ecosia usa sus propios ajustes para la región y SafeSearch.",
  "Save search settings": "Guardar ajustes de búsqueda",
- "Search the web with %s": "Buscar en la web con %s"
+ "Search the web with %s": "Buscar en la web con %s",
+ "Blue": "Azul",
+ "Teal": "Verde azulado",
+ "Green": "Verde",
+ "Amber": "Ámbar",
+ "Orange": "Naranja",
+ "Purple": "Morado",
+ "Slate": "Pizarra",
+ "Colour": "Color",
+ "Colour of tag %s": "Color de la etiqueta %s",
+ "Pick one of the tag colours.": "Elige uno de los colores de etiqueta.",
+ "Remove tag %s": "Quitar la etiqueta %s"
 }
