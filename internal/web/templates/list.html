@@ -179,12 +179,15 @@
   <ul class="bookmarks">
   {{range .Bookmarks}}
     <li class="bookmark"{{if .IsFavourite}} data-fav{{end}}>
-      {{if $.CanWrite}}<input type="checkbox" class="bm-check" name="id" value="{{.ID}}" form="bulk-form" aria-label="{{t "Select %s" (display .)}}">{{end}}
-      {{/* The icon opens the bookmark, like the title, which is the link screen readers and the keyboard get.
-           With edit rights, it can also be dropped on a tag, Favourites or Archive (dragtag.js). */}}
-      <a class="bm-icon" href="{{.URL}}" rel="noopener noreferrer" target="_blank" tabindex="-1" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>
-        {{- if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar">{{initial .Domain}}</span>{{end -}}
-      </a>
+      {{/* With edit rights the icon is the row's checkbox: tapping it ticks the row (the box itself is hidden but
+           still takes the keyboard and screen readers), and it can be dropped on a tag, Favourites or Archive
+           (dragtag.js). Without, the icon opens the bookmark, like the title. */}}
+      {{if $.CanWrite}}
+      <input type="checkbox" class="bm-check" name="id" value="{{.ID}}" form="bulk-form" id="sel-{{.ID}}" aria-label="{{t "Select %s" (display .)}}">
+      <label class="bm-icon" for="sel-{{.ID}}"{{template "drag-attrs" dict "ID" .ID "On" true}}>{{template "bm-avatar" .}}</label>
+      {{else}}
+      <a class="bm-icon" href="{{.URL}}" rel="noopener noreferrer" target="_blank" tabindex="-1" aria-hidden="true">{{template "bm-avatar" .}}</a>
+      {{end}}
       <div class="bm-body">
         <div class="bm-head">
           <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
@@ -247,6 +250,8 @@
 {{end}}
 
 {{define "space-target"}}{{if .Name}}{{icon "space" "sm"}}<span class="menu-label">{{.Name}}</span>{{else}}{{icon "user" "sm"}}<span class="menu-label">{{t "Personal"}}</span>{{end}}{{end}}
+
+{{define "bm-avatar"}}{{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar">{{initial .Domain}}</span>{{end}}{{end}}
 
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
