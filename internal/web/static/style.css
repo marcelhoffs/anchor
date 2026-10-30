@@ -400,9 +400,10 @@ label.bm-icon .avatar { transition: background 120ms, filter 120ms; }
 /* The toolbar for the ticked rows sits on top of the list, as its header. */
 .bulk-bar {
   display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 4px 8px 4px 11px;
-  border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--raised);
+  border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--surface);
+  box-shadow: var(--shadow); clip-path: inset(-24px -24px 0 -24px); /* one card with the list: no shadow where they meet */
 }
-.bulk-bar + .bookmarks { margin-top: -14px; border-top-left-radius: 0; border-top-right-radius: 0; } /* no gap under the toolbar */
+.bulk-bar + .bookmarks { margin-top: -14px; border-top-left-radius: 0; border-top-right-radius: 0; clip-path: inset(0 -24px -24px -24px); } /* no gap under the toolbar */
 .bulk-all.on:hover { color: var(--accent-text); } /* all selected: it selects none */
 .bulk-count { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bulk-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
