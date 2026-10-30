@@ -122,6 +122,8 @@
   </div>
   {{end}}
   {{if .Bookmarks}}
+  {{/* One card: the toolbar, when there is one, on top of the list. */}}
+  <div class="bm-card">
   {{if .CanWrite}}
   {{/* The toolbar acts on the rows that are ticked: their checkboxes and
      the toolbar's buttons all belong to bulk-form, so it works without
@@ -202,6 +204,7 @@
     </li>
   {{end}}
   </ul>
+  </div>
   {{if .CanWrite}}
   {{/* select.js puts the number in the title. */}}
   <div id="confirm-delete" class="confirm" popover role="dialog" aria-labelledby="confirm-delete-title">
