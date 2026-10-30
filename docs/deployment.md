@@ -23,8 +23,8 @@ The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is 
 
 ```sh
 mkdir anchor && cd anchor
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.5.6/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.5.6/.env.example
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.6.0/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.6.0/.env.example
 cp .env.example .env
 sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
 # Set ANCHOR_BASE_URL in .env to the address people will use.
@@ -38,7 +38,7 @@ docker compose up -d
 sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.5|' docker-compose.yml
 ```
 
-While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.5.6 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
+While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.6.0 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
 
 ### Building the image yourself
 
