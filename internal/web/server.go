@@ -181,6 +181,7 @@ func (s *Server) Handler() http.Handler {
 			r.Get("/", s.list)
 			r.Get("/bookmarks/new", s.newBookmark)
 			r.Post("/bookmarks", s.createBookmark)
+			r.Post("/bookmarks/bulk", s.bulkBookmarks)
 			r.Get("/bookmarks/{id}/edit", s.editBookmark)
 			r.Post("/bookmarks/{id}", s.updateBookmark)
 			r.Post("/bookmarks/{id}/delete", s.deleteBookmark)

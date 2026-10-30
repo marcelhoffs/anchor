@@ -69,18 +69,24 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	view, heading := listView(q, searches)
 	here := *r.URL
 	query := here.Query()
-	query.Del("archived")
+	for _, p := range listParams {
+		query.Del(p)
+	}
 	here.RawQuery = query.Encode()
 	d := data{
 		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": here.RequestURI(),
 		"View": view, "Heading": heading, "WebSearch": web, "TagColors": tagColors(tags),
+		"Space": sc.SpaceID(), "InArchive": search.Parse(q).Archived,
 	}
-	// Just archived from this page (see flagBookmark): offer to undo it.
-	if id, err := strconv.ParseInt(r.URL.Query().Get("archived"), 10, 64); err == nil && sc.CanWrite() {
-		if b, err := s.store.GetBookmark(r.Context(), sc, id); err == nil && b.IsArchived {
-			d["Undo"] = b
+	if sc.CanWrite() {
+		targets, err := s.spaceTargets(r, sc)
+		if err != nil {
+			s.serverError(w, r, err)
+			return
 		}
+		d["Targets"] = targets
 	}
+	s.listNotice(r, sc, d)
 	if pages > 1 {
 		d["Pager"] = newPager(page, pages, total, pageURL)
 	}
@@ -453,6 +459,177 @@ func (s *Server) deleteBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, safeNext(r.PostFormValue("next")), http.StatusSeeOther)
+}
+
+// bulkFlags are the toolbar's flag actions: the flag and its new value.
+var bulkFlags = map[string]struct {
+	flag store.Flag
+	on   bool
+}{
+	"favourite":   {store.FlagFavourite, true},
+	"unfavourite": {store.FlagFavourite, false},
+	"archive":     {store.FlagArchived, true},
+	"unarchive":   {store.FlagArchived, false},
+}
+
+// listNotices are the list's notices after a toolbar action (?done=).
+var listNotices = map[string]i18n.Msg{
+	"none":     i18n.M("Select one or more bookmarks first."),
+	"edit-one": i18n.M("Select one bookmark to edit."),
+}
+
+// bulkBookmarks does one of the list toolbar's actions to the selected
+// bookmarks (the "id" fields), in the space the list showed ("from"), and
+// goes back to the list. The action is in "action"; copy and move name
+// their target in "space".
+func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
+	ctx, uid := r.Context(), currentUser(r).ID
+	fromID, _ := strconv.ParseInt(r.PostFormValue("from"), 10, 64)
+	sc, err := s.store.Access(ctx, uid, fromID)
+	if !s.storeError(w, r, err) {
+		return
+	}
+	var ids []int64
+	for _, v := range r.PostForm["id"] {
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	next := safeNext(r.PostFormValue("next"))
+	back := func(params url.Values) {
+		u, _ := url.Parse(next) // safeNext parsed it already
+		v := u.Query()
+		for k := range params {
+			v.Set(k, params.Get(k))
+		}
+		u.RawQuery = v.Encode()
+		http.Redirect(w, r, u.String(), http.StatusSeeOther)
+	}
+	action := r.FormValue("action")
+	if len(ids) == 0 && action != "" {
+		back(url.Values{"done": {"none"}})
+		return
+	}
+	switch action {
+	case "edit":
+		if len(ids) != 1 {
+			back(url.Values{"done": {"edit-one"}})
+			return
+		}
+		http.Redirect(w, r, "/bookmarks/"+strconv.FormatInt(ids[0], 10)+"/edit?next="+url.QueryEscape(next), http.StatusSeeOther)
+	case "favourite", "unfavourite", "archive", "unarchive":
+		f := bulkFlags[action]
+		if _, err := s.store.SetFlags(ctx, sc, ids, f.flag, f.on); !s.storeError(w, r, err) {
+			return
+		}
+		if action != "archive" {
+			back(nil)
+			return
+		}
+		// The list offers to undo it.
+		list := make([]string, len(ids))
+		for i, id := range ids {
+			list[i] = strconv.FormatInt(id, 10)
+		}
+		back(url.Values{"archived": {strings.Join(list, ",")}})
+	case "delete":
+		if _, err := s.store.DeleteBookmarks(ctx, sc, ids); !s.storeError(w, r, err) {
+			return
+		}
+		back(nil)
+	case "copy", "move":
+		toID, _ := strconv.ParseInt(r.FormValue("space"), 10, 64)
+		to, err := s.store.Access(ctx, uid, toID)
+		if !s.storeError(w, r, err) {
+			return
+		}
+		done, skipped, err := s.store.CopyBookmarks(ctx, sc, to, ids, action == "move")
+		if !s.storeError(w, r, err) {
+			return
+		}
+		back(url.Values{map[string]string{"copy": "copied", "move": "moved"}[action]: {strconv.Itoa(done)}, "skipped": {strconv.Itoa(skipped)}, "to": {strconv.FormatInt(toID, 10)}})
+	default:
+		http.Error(w, langOf(r).T("Unknown action"), http.StatusBadRequest)
+	}
+}
+
+// listParams are the query parameters that carry a notice to the list; its
+// own links leave them out.
+var listParams = []string{"archived", "done", "copied", "moved", "skipped", "to"}
+
+// spaceTarget is a space the list's bookmarks can be copied or moved to.
+type spaceTarget struct {
+	ID   int64
+	Name string // "" for the personal space
+}
+
+// spaceTargets are the spaces other than sc's that the user can add to:
+// their personal space first, then the shared ones by name.
+func (s *Server) spaceTargets(r *http.Request, sc store.Scope) ([]spaceTarget, error) {
+	var out []spaceTarget
+	if !sc.IsPersonal() {
+		own, err := s.store.PersonalScope(r.Context(), currentUser(r).ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, spaceTarget{ID: own.SpaceID()})
+	}
+	for _, sp := range currentNav(r).Spaces {
+		if sp.ID != sc.SpaceID() && (sp.Role == store.RoleWrite || sp.Role == store.RoleOwner) {
+			out = append(out, spaceTarget{sp.ID, sp.Name})
+		}
+	}
+	return out, nil
+}
+
+// copyNotice is the list's notice after copying or moving bookmarks.
+type copyNotice struct {
+	Moved         bool
+	Done, Skipped int
+	Space         spaceTarget
+}
+
+// listNotice fills in the list's notice after a toolbar action, from the
+// page's query: an undo after archiving, the outcome of a copy or move, or
+// a hint about the selection.
+func (s *Server) listNotice(r *http.Request, sc store.Scope, d data) {
+	q := r.URL.Query()
+	if n, ok := listNotices[q.Get("done")]; ok {
+		d["Notice"] = n
+	}
+	if !sc.CanWrite() {
+		return
+	}
+	// Just archived from this page (see bulkBookmarks and flagBookmark):
+	// offer to undo it, for those still archived.
+	var undo []store.Bookmark
+	for _, v := range strings.Split(q.Get("archived"), ",") {
+		id, err := strconv.ParseInt(v, 10, 64)
+		if err != nil || len(undo) == store.MaxBatch {
+			continue
+		}
+		if b, err := s.store.GetBookmark(r.Context(), sc, id); err == nil && b.IsArchived {
+			undo = append(undo, b)
+		}
+	}
+	if len(undo) > 0 {
+		d["Undo"] = undo
+	}
+	for _, action := range []string{"copied", "moved"} {
+		done, err := strconv.Atoi(q.Get(action))
+		if err != nil {
+			continue
+		}
+		skipped, _ := strconv.Atoi(q.Get("skipped"))
+		to, _ := strconv.ParseInt(q.Get("to"), 10, 64)
+		n := copyNotice{Moved: action == "moved", Done: done, Skipped: skipped, Space: spaceTarget{ID: to}}
+		for _, sp := range currentNav(r).Spaces {
+			if sp.ID == to {
+				n.Space.Name = sp.Name
+			}
+		}
+		d["Copied"] = n
+	}
 }
 
 // tagURL is the list filtered to one tag.

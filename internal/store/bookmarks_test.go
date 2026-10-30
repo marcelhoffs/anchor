@@ -160,3 +160,106 @@ func TestSavedSearches(t *testing.T) {
 		t.Fatalf("after delete = %+v", list)
 	}
 }
+
+func TestBatchFlagsAndDelete(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u, other := newUser(t, s, "alice"), newUser(t, s, "bob")
+	sc := personal(s, u.ID)
+	a, _, _ := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://a.com"})
+	b, _, _ := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://b.com"})
+	theirs, _, _ := s.CreateBookmark(ctx, personal(s, other.ID), BookmarkInput{URL: "https://c.com"})
+
+	// Another space's bookmark is skipped, not changed.
+	if n, err := s.SetFlags(ctx, sc, []int64{a.ID, b.ID, theirs.ID}, FlagFavourite, true); err != nil || n != 2 {
+		t.Fatalf("SetFlags = %d, %v", n, err)
+	}
+	if got, _ := s.GetBookmark(ctx, personal(s, other.ID), theirs.ID); got.IsFavourite {
+		t.Fatal("favourited another user's bookmark")
+	}
+	if got, _ := s.GetBookmark(ctx, sc, b.ID); !got.IsFavourite {
+		t.Fatal("not favourited")
+	}
+	if _, err := s.SetFlags(ctx, sc, make([]int64, MaxBatch+1), FlagArchived, true); !isValidationErr(err) {
+		t.Fatalf("too many ids: %v", err)
+	}
+	if n, err := s.DeleteBookmarks(ctx, sc, []int64{a.ID, theirs.ID}); err != nil || n != 1 {
+		t.Fatalf("DeleteBookmarks = %d, %v", n, err)
+	}
+	if _, err := s.GetBookmark(ctx, personal(s, other.ID), theirs.ID); err != nil {
+		t.Fatal("deleted another user's bookmark")
+	}
+	if _, err := s.GetBookmark(ctx, sc, a.ID); err != ErrNotFound {
+		t.Fatal("not deleted")
+	}
+}
+
+func TestCopyAndMoveBookmarks(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u, reader := newUser(t, s, "alice"), newUser(t, s, "bob")
+	from := personal(s, u.ID)
+	space := newShared(t, s, map[int64]Role{u.ID: RoleOwner, reader.ID: RoleRead})
+	to, _ := s.Access(ctx, u.ID, space)
+	readOnly, _ := s.Access(ctx, reader.ID, space)
+
+	mustTags(t, s, u.ID, "go", "docs")
+	tags, _ := s.ListTags(ctx, from)
+	s.SetTagColor(ctx, from, tags[1].ID, "rose") // go
+	a, _, _ := s.CreateBookmark(ctx, from, BookmarkInput{URL: "https://a.com", Title: "A", Tags: []string{"go", "docs"}, IsFavourite: true})
+	b, _, _ := s.CreateBookmark(ctx, from, BookmarkInput{URL: "https://b.com", Title: "B"})
+	dup, _, _ := s.CreateBookmark(ctx, from, BookmarkInput{URL: "https://dup.com"})
+	s.SetShared(ctx, from, b.ID, true)
+	b, _ = s.GetBookmark(ctx, from, b.ID)
+	s.CreateTag(ctx, to, "docs")
+	s.CreateBookmark(ctx, to, BookmarkInput{URL: "https://dup.com", Title: "Already here"})
+
+	if _, _, err := s.CopyBookmarks(ctx, from, from, []int64{a.ID}, false); !isValidationErr(err) {
+		t.Fatalf("copy into the same space: %v", err)
+	}
+	if _, _, err := s.CopyBookmarks(ctx, from, readOnly, []int64{a.ID}, false); err != ErrForbidden {
+		t.Fatalf("copy without write access to the target: %v", err)
+	}
+
+	// Copy: the source keeps it; tags come along, colour too; duplicates are skipped.
+	done, skipped, err := s.CopyBookmarks(ctx, from, to, []int64{a.ID, dup.ID}, false)
+	if err != nil || done != 1 || skipped != 1 {
+		t.Fatalf("copy = %d, %d, %v", done, skipped, err)
+	}
+	if _, err := s.GetBookmark(ctx, from, a.ID); err != nil {
+		t.Fatal("copy removed the original")
+	}
+	copied, err := s.FindBookmarkByURL(ctx, to, "https://a.com")
+	if err != nil || copied.ID == a.ID || copied.Title != "A" || !copied.IsFavourite || len(copied.Tags) != 2 {
+		t.Fatalf("copy = %+v, %v", copied, err)
+	}
+	toTags, _ := s.ListTags(ctx, to)
+	if len(toTags) != 2 || toTags[1].Name != "go" || toTags[1].Color != "rose" {
+		t.Fatalf("target tags = %+v", toTags)
+	}
+	if got, _ := s.FindBookmarkByURL(ctx, to, "https://dup.com"); got.Title != "Already here" {
+		t.Fatal("a duplicate overwrote the target's bookmark")
+	}
+
+	// Move: gone from the source, share link still works; a skipped one stays.
+	done, skipped, err = s.CopyBookmarks(ctx, from, to, []int64{b.ID, dup.ID}, true)
+	if err != nil || done != 1 || skipped != 1 {
+		t.Fatalf("move = %d, %d, %v", done, skipped, err)
+	}
+	if _, err := s.GetBookmark(ctx, from, b.ID); err != ErrNotFound {
+		t.Fatal("moved bookmark still in the source")
+	}
+	if _, err := s.GetBookmark(ctx, from, dup.ID); err != nil {
+		t.Fatal("skipped bookmark left the source")
+	}
+	if got, err := s.SharedBookmark(ctx, b.ShareToken); err != nil || got.ID != b.ID {
+		t.Fatalf("share link after a move: %+v, %v", got, err)
+	}
+	// A copy of a shared bookmark is private.
+	if _, _, err := s.CopyBookmarks(ctx, to, from, []int64{b.ID}, false); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := s.FindBookmarkByURL(ctx, from, "https://b.com"); got.IsShared {
+		t.Fatal("copy is shared")
+	}
+}

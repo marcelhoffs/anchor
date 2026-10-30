@@ -4,12 +4,21 @@
 {{define "content"}}
 {{/* Archiving takes one click; this undoes it. */}}
 {{with .Undo}}
-<form class="notice undo" role="status" method="post" action="/bookmarks/{{.ID}}/flag">
+<form class="notice undo" role="status" method="post" action="/bookmarks/bulk">
   <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
-  <input type="hidden" name="flag" value="archived"><input type="hidden" name="on" value="0">
-  <span>{{t "%s moved to the Archive." (strong (display .))}}</span>
+  <input type="hidden" name="from" value="{{$.Space}}"><input type="hidden" name="action" value="unarchive">
+  {{range .}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
+  <span>{{if eq (len .) 1}}{{t "%s moved to the Archive." (strong (display (index . 0)))}}{{else}}{{tn (len .) "%d bookmark moved to the Archive." "%d bookmarks moved to the Archive."}}{{end}}</span>
   <button class="btn">{{t "Undo"}}</button>
 </form>
+{{end}}
+{{with .Copied}}
+<p class="notice" role="status">
+  {{- $to := or .Space.Name (t "Personal")}}
+  {{- if .Moved}}{{tn .Done "%d bookmark moved to %s." "%d bookmarks moved to %s." .Done (strong $to)}}
+  {{- else}}{{tn .Done "%d bookmark copied to %s." "%d bookmarks copied to %s." .Done (strong $to)}}{{end}}
+  {{- with .Skipped}} {{tn . "%d was skipped: that space has it already." "%d were skipped: that space has them already."}}{{end -}}
+</p>
 {{end}}
 <div class="columns">
   {{/* The search box spans the sidebar and the list. Without room for the
@@ -113,9 +122,64 @@
   </div>
   {{end}}
   {{if .Bookmarks}}
+  {{if .CanWrite}}
+  {{/* The toolbar acts on the rows that are ticked: their checkboxes and
+     the toolbar's buttons all belong to bulk-form, so it works without
+     JavaScript too. select.js adds select all/none, the count, and turns
+     off what doesn't apply. */}}
+  <form id="bulk-form" method="post" action="/bookmarks/bulk" hidden>
+    <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Here}}"><input type="hidden" name="from" value="{{.Space}}">
+  </form>
+  <div class="bulk-bar" role="toolbar" aria-label="{{t "Selected bookmarks"}}">
+    <input type="checkbox" class="bulk-all" title="{{t "Select all"}}" aria-label="{{t "Select all"}}" data-none="{{t "Select none"}}" hidden>
+    <span class="bulk-count" aria-live="polite" data-single="{{tn 1 "%d selected" "%d selected"}}" data-plural="{{tn 2 "%d selected" "%d selected"}}"></span>
+    <div class="bulk-actions">
+      <button class="icon-btn" form="bulk-form" name="action" value="edit" data-needs="one" title="{{t "Edit"}}" aria-label="{{t "Edit"}}">{{icon "pencil"}}</button>
+      <button type="button" class="icon-btn" popovertarget="bulk-fav" title="{{t "Favourites"}}" aria-label="{{t "Favourites"}}">{{icon "star"}}</button>
+      <div id="bulk-fav" class="menu row-menu" popover>
+        <button form="bulk-form" name="action" value="favourite">{{icon "star" "sm filled"}}{{t "Add to favourites"}}</button>
+        <button form="bulk-form" name="action" value="unfavourite">{{icon "star" "sm"}}{{t "Remove from favourites"}}</button>
+      </div>
+      {{/* On a phone, the buttons marked hide-sm move into the More menu at the end. */}}
+      {{if .InArchive}}
+      <button class="icon-btn hide-sm" form="bulk-form" name="action" value="unarchive" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive"}}">{{icon "archive"}}</button>
+      {{else}}
+      <button class="icon-btn hide-sm" form="bulk-form" name="action" value="archive" title="{{t "Archive"}}" aria-label="{{t "Archive"}}">{{icon "archive"}}</button>
+      {{end}}
+      {{with .Targets}}
+      <button type="button" class="icon-btn hide-sm" popovertarget="bulk-copy" title="{{t "Copy to a space"}}" aria-label="{{t "Copy to a space"}}">{{icon "copy"}}</button>
+      <div id="bulk-copy" class="menu row-menu" popover>
+        <p class="menu-title">{{t "Copy to"}}</p>
+        {{range .}}<button form="bulk-form" name="action" value="copy" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
+      </div>
+      <button type="button" class="icon-btn hide-sm" popovertarget="bulk-move" title="{{t "Move to a space"}}" aria-label="{{t "Move to a space"}}">{{icon "move"}}</button>
+      <div id="bulk-move" class="menu row-menu" popover>
+        <p class="menu-title">{{t "Move to"}}</p>
+        {{range .}}<button form="bulk-form" name="action" value="move" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
+      </div>
+      {{end}}
+      <button type="button" class="icon-btn danger" popovertarget="confirm-delete" title="{{t "Delete"}}" aria-label="{{t "Delete"}}">{{icon "trash"}}</button>
+      <button type="button" class="icon-btn bulk-more" popovertarget="bulk-more" title="{{t "More actions"}}" aria-label="{{t "More actions"}}">{{icon "more"}}</button>
+      <div id="bulk-more" class="menu row-menu" popover>
+        {{if .InArchive}}
+        <button form="bulk-form" name="action" value="unarchive">{{icon "archive" "sm"}}{{t "Unarchive"}}</button>
+        {{else}}
+        <button form="bulk-form" name="action" value="archive">{{icon "archive" "sm"}}{{t "Archive"}}</button>
+        {{end}}
+        {{with .Targets}}
+        <p class="menu-title menu-sep">{{t "Copy to"}}</p>
+        {{range .}}<button form="bulk-form" name="action" value="copy" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
+        <p class="menu-title menu-sep">{{t "Move to"}}</p>
+        {{range .}}<button form="bulk-form" name="action" value="move" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
+        {{end}}
+      </div>
+    </div>
+  </div>
+  {{end}}
   <ul class="bookmarks">
   {{range .Bookmarks}}
-    <li class="bookmark">
+    <li class="bookmark"{{if .IsFavourite}} data-fav{{end}}>
+      {{if $.CanWrite}}<input type="checkbox" class="bm-check" name="id" value="{{.ID}}" form="bulk-form" aria-label="{{t "Select %s" (display .)}}">{{end}}
       {{/* The icon opens the bookmark, like the title, which is the link screen readers and the keyboard get.
            With edit rights, it can also be dropped on a tag, Favourites or Archive (dragtag.js). */}}
       <a class="bm-icon" href="{{.URL}}" rel="noopener noreferrer" target="_blank" tabindex="-1" aria-hidden="true"{{template "drag-attrs" dict "ID" .ID "On" $.CanWrite}}>
@@ -133,42 +197,17 @@
           {{if .IsShared}}<a class="badge" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}#sharing">{{icon "link" "xs"}}{{t "Shared"}}</a>{{end}}
         </div>
       </div>
-      {{if $.CanWrite}}
-      {{/* The actions, once per row: they post through the page's row-form. A toolbar on wider screens;
-           on phones it is this ⋯ button's menu (the labels show); on touch screens swipe.js slides it in. */}}
-      <button class="icon-btn bm-more" popovertarget="actions-{{.ID}}" aria-label="{{t "Actions for %s" (display .)}}">{{icon "more"}}</button>
-      <div id="actions-{{.ID}}" class="bm-actions" popover>
-        {{if .IsArchived}}
-        <button class="icon-btn bm-archive" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=archived&on=0" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive %s" (display .)}}">{{icon "archive"}}<span class="bm-label">{{t "Unarchive"}}</span></button>
-        {{else}}
-        <button class="icon-btn bm-archive" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=archived&on=1" title="{{t "Archive"}}" aria-label="{{t "Archive %s" (display .)}}">{{icon "archive"}}<span class="bm-label">{{t "Archive"}}</span></button>
-        {{end}}
-        <a class="icon-btn" href="/bookmarks/{{.ID}}/edit?next={{$.Here}}" title="{{t "Edit"}}" aria-label="{{t "Edit %s" (display .)}}">{{icon "pencil"}}<span class="bm-label">{{t "Edit"}}</span></a>
-        <button type="button" class="icon-btn danger" popovertarget="confirm-delete" data-action="/bookmarks/{{.ID}}/delete" title="{{t "Delete"}}" aria-label="{{t "Delete %s" (display .)}}">{{icon "trash"}}<span class="bm-label">{{t "Delete"}}</span></button>
-        {{if .IsFavourite}}
-        <button class="icon-btn bm-fav on" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=favourite&on=0" title="{{t "Remove from favourites"}}" aria-label="{{t "Remove %s from favourites" (display .)}}" aria-pressed="true">{{icon "star" "filled"}}<span class="bm-label">{{t "Remove from favourites"}}</span></button>
-        {{else}}
-        <button class="icon-btn bm-fav" form="row-form" formaction="/bookmarks/{{.ID}}/flag?flag=favourite&on=1" title="{{t "Add to favourites"}}" aria-label="{{t "Add %s to favourites" (display .)}}" aria-pressed="false">{{icon "star"}}<span class="bm-label">{{t "Add to favourites"}}</span></button>
-        {{end}}
-      </div>
-      {{else if .IsFavourite}}
-      <div class="bm-actions"><span class="icon-btn on" role="img" aria-label="{{t "Favourite"}}">{{icon "star" "filled"}}</span></div>
-      {{end}}
     </li>
   {{end}}
   </ul>
   {{if .CanWrite}}
-  {{/* Every row's buttons post through this one form, so the page carries
-     the token once. The delete confirmation is shared too: rows.js fills it
-     in from the button that opens it, and until then its button stays
-     disabled. */}}
-  <form id="row-form" method="post" hidden><input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Here}}"></form>
+  {{/* select.js puts the number in the title. */}}
   <div id="confirm-delete" class="confirm" popover role="dialog" aria-labelledby="confirm-delete-title">
-    <p class="confirm-title" id="confirm-delete-title">{{t "Delete this bookmark?"}}</p>
-    <p class="confirm-text">{{t "%s will be deleted permanently. This can't be undone." (strong "")}}</p>
+    <p class="confirm-title" id="confirm-delete-title" data-single="{{tn 1 "Delete %d bookmark?" "Delete %d bookmarks?"}}" data-plural="{{tn 2 "Delete %d bookmark?" "Delete %d bookmarks?"}}">{{t "Delete the selected bookmarks?"}}</p>
+    <p class="confirm-text">{{t "They will be deleted permanently. This can't be undone."}}</p>
     <div class="confirm-actions">
       <button type="button" class="btn" popovertarget="confirm-delete" popovertargetaction="hide">{{t "Cancel"}}</button>
-      <button class="btn btn-danger-solid" form="row-form" disabled>{{icon "trash" "sm"}}{{t "Delete"}}</button>
+      <button class="btn btn-danger-solid" form="bulk-form" name="action" value="delete">{{icon "trash" "sm"}}{{t "Delete"}}</button>
     </div>
   </div>
   {{end}}
@@ -207,9 +246,11 @@
 </nav>
 {{end}}
 
+{{define "space-target"}}{{if .Name}}{{icon "space" "sm"}}<span class="menu-label">{{.Name}}</span>{{else}}{{icon "user" "sm"}}<span class="menu-label">{{t "Personal"}}</span>{{end}}{{end}}
+
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
-{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "rows.js"}}"></script><script src="{{asset "dragtag.js"}}"></script><script src="{{asset "swipe.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "select.js"}}"></script><script src="{{asset "dragtag.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}

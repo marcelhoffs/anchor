@@ -254,15 +254,15 @@ form.inline { display: inline; }
   display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;
   border-radius: calc(var(--radius) - 4px); background: var(--soft); color: var(--soft-text); font-size: var(--fs-xs); font-weight: var(--fw-semibold);
 }
-.menu, .bm-actions:popover-open {
+.menu {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; padding: 6px;
   border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow), 0 12px 32px rgb(0 0 0 / 0.12);
 }
-.menu a, .menu button, .bm-actions:popover-open > * {
+.menu a, .menu button {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 10px;
   border: 0; border-radius: 8px; background: none; color: var(--text); font-size: var(--fs-md); text-align: left; text-decoration: none; cursor: pointer;
 }
-.menu a:hover, .menu button:hover, .bm-actions:popover-open > :hover { background: var(--raised); color: var(--text); }
+.menu a:hover, .menu button:hover { background: var(--raised); color: var(--text); }
 /* The space switcher's menu: the spaces, the current one ticked. */
 .space-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-menu .menu { min-width: 230px; }
@@ -375,6 +375,19 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .bookmarks { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
 .bookmark { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; }
 .bookmark + .bookmark { border-top: 1px solid var(--border); }
+.bookmark:has(.bm-check:checked) { background: var(--soft); }
+/* The row's box is as far from the top as from the left and the icon. */
+.bookmark .bm-check { flex-shrink: 0; margin-top: 2px; }
+/* The toolbar for the ticked rows sits on top of the list, as its header. */
+.bulk-bar {
+  display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 8px 4px 14px;
+  border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--raised);
+}
+.bulk-bar + .bookmarks { margin-top: -14px; border-top-left-radius: 0; border-top-right-radius: 0; } /* no gap under the toolbar */
+.bulk-count { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bulk-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.bulk-actions .bulk-more { display: none; } /* a phone's overflow menu */
+.icon-btn:disabled { opacity: 0.4; background: none; color: var(--muted); cursor: default; }
 .bm-icon { flex-shrink: 0; display: flex; text-decoration: none; }
 .avatar {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-top: 2px;
@@ -422,34 +435,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-medium); }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
-/* The actions are a popover, for the phone menu below, but a toolbar
-   otherwise: undo the browser's popover styles. */
-.bm-actions {
-  flex-shrink: 0; display: flex; align-items: center; gap: 2px;
-  position: static; inset: auto; width: auto; height: auto; margin: 0; padding: 0; border: 0;
-  overflow: visible; background: none; color: inherit;
-}
-.bm-label { display: none; }
-.bm-more { display: none; flex-shrink: 0; }
-/* Opened from ⋯, they are a menu (styled with .menu), labelled, favourite first. */
-.bm-actions:popover-open { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
-.bm-actions:popover-open .icon-btn { justify-content: flex-start; opacity: 1; pointer-events: auto; }
-.bm-actions:popover-open .icon { width: 16px; height: 16px; }
-.bm-actions:popover-open .bm-label { display: inline; }
-.bm-actions:popover-open .bm-fav { order: -1; }
-@media (hover: hover) {
-  /* On mouse devices, the row actions take no room: they float over the
-     right end of the row on hover or keyboard focus. */
-  .bookmark { position: relative; }
-  .bm-actions { position: absolute; top: 0; bottom: 0; right: 0; padding-right: 14px; }
-  .bm-actions .icon-btn { opacity: 0; pointer-events: none; } /* still reachable by Tab */
-  /* Shown, it covers the row's text under it, top to bottom, in the row's
-     colour, fading in from the left. */
-  .bookmark:hover .bm-actions:not(:popover-open), .bookmark:focus-within .bm-actions:not(:popover-open) {
-    padding-left: 32px; background: linear-gradient(to right, transparent, var(--surface) 32px);
-  }
-  .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; pointer-events: auto; }
-}
 .pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 .pager-range { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .pager-links { display: flex; align-items: center; gap: 6px; }
@@ -574,6 +559,20 @@ textarea { resize: vertical; }
 .tag-remove:hover { opacity: 1; background: color-mix(in srgb, currentColor 15%, transparent); }
 label.check { display: flex; align-items: center; gap: 10px; font-weight: 400; }
 input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+/* Checkboxes are drawn in the accent, ticked or not. */
+input[type="checkbox"] {
+  flex-shrink: 0; appearance: none; display: grid; place-content: center; cursor: pointer;
+  border: 2px solid var(--accent); border-radius: 4px; background: var(--surface);
+}
+input[type="checkbox"]::before {
+  content: ""; width: 12px; height: 12px; background: var(--on-accent);
+  mask: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  visibility: hidden;
+}
+input[type="checkbox"]:indeterminate::before { height: 2px; mask: none; }
+input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate { background: var(--accent); }
+input[type="checkbox"]:checked::before, input[type="checkbox"]:indeterminate::before { visibility: visible; }
+input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
 .form-narrow { max-width: 400px; }
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
 /* Save buttons sit the fieldset's 20px below the last setting, as on Settings. */
@@ -667,8 +666,11 @@ td.actions { text-align: right; white-space: nowrap; }
   main { padding-top: 20px; padding-bottom: 48px; }
   .search { gap: 8px; padding-left: 12px; }
   .card { padding: 20px; }
-  .bookmark { padding: 10px 4px 10px 10px; gap: 10px; }
+  .bookmark { padding: 10px; gap: 10px; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
+  .bookmark .bm-check { margin-top: 0; }
+  .bulk-bar { padding-left: 10px; }
+  .bulk-actions .bulk-more { display: inline-flex; }
   .avatar.favicon { padding: 6px; }
   .bm-body { gap: 2px; }
   /* Every row is the same height: one line each for the title (with its
@@ -681,10 +683,6 @@ td.actions { text-align: right; white-space: nowrap; }
     mask-image: linear-gradient(to left, transparent, #000 24px);
   }
   .bm-meta > * { flex-shrink: 0; }
-  /* The actions fold into a menu beside the title, so rows stay short. */
-  .bm-actions { display: none; }
-  .bm-more { display: inline-flex; width: 36px; height: 36px; margin-top: -2px; }
-  .swipe-rows .bookmark { padding-right: 10px; } /* no ⋯ menu to make room for */
   /* Header buttons shrink to icons; the label stays for screen readers. */
   .label-sm { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .top-ctl { width: 40px; padding: 0; }
@@ -697,19 +695,6 @@ td.actions { text-align: right; white-space: nowrap; }
   .search-btn { width: 36px; padding: 0; }
   .search-btn .icon { display: inline; }
 }
-/* On touch screens of any width (swipe.js), the row actions sit just off
-   the right edge instead, and slide in over the row when it's swiped left,
-   covering its text in the row's colour as on hover; the row stays put. */
-.swipe-rows .bookmark { position: relative; overflow: hidden; touch-action: pan-y; }
-.swipe-rows .bm-more { display: none; }
-.swipe-rows .bookmark.settling .bm-actions { transition: transform 200ms ease; }
-.swipe-rows .bookmark .bm-actions {
-  display: flex; position: absolute; top: 0; right: auto; bottom: 0; left: 100%; width: max-content; gap: 2px;
-  transform: translateX(var(--swipe, 0px)); padding: 0 10px 0 32px;
-  background: linear-gradient(to right, transparent, var(--surface) 32px);
-}
-.swipe-rows .bm-actions > * { flex-shrink: 0; }
-.swipe-rows .bookmark .bm-actions .icon-btn { opacity: 1; pointer-events: auto; background: none; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
@@ -802,12 +787,12 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 /* A table row's action menu is a popover: it sits in the top layer, so the
    table's scroll box can't clip it. It opens under its button where CSS
    anchor positioning is supported, and centred otherwise. */
-.row-menu, .bm-actions:popover-open { position: fixed; inset: auto; margin: 4px 0; position-area: bottom span-left; position-try-fallbacks: flip-block; text-align: left; }
+.row-menu { position: fixed; inset: auto; margin: 4px 0; position-area: bottom span-left; position-try-fallbacks: flip-block; text-align: left; }
 @supports not (position-area: bottom) {
-  .row-menu, .bm-actions:popover-open { inset: 0; height: fit-content; margin: auto; }
+  .row-menu { inset: 0; height: fit-content; margin: auto; }
 }
 .menu-title { padding: 6px 10px 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
-.menu .danger, .bm-actions:popover-open .danger { color: var(--danger); }
+.menu .danger { color: var(--danger); }
 /* The button stays beside the field, even on phones. */
 .new-tag { margin-bottom: 24px; flex-wrap: nowrap; }
 .new-tag input { min-width: 0; }

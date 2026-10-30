@@ -17,7 +17,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 
 ## Overview
 
-Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys, pickers, dragging tags, keyboard shortcuts, the list's delete confirmation and web search), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
+Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys, pickers, dragging tags, keyboard shortcuts, the list's toolbar and web search), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
 
 Everything is stored in one SQLite database, `anchor.db`, in write-ahead-log mode. All writes go through one connection, so they never conflict; reads use a separate pool and don't wait for writes. Background work keeps its queue in the database too, so a restart picks up where it left off.
 
@@ -51,7 +51,7 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 **Favourites and archive.** Favourites are a filter, not a separate list: they stay in the main list and also appear under Favourites. Archived bookmarks leave the main list and searches, and are found under Archive or with `!archived`. Archiving takes one click, and the list then offers to undo it.
 
-**The list.** Under Settings → Appearance you choose how the list looks: newest first or by title, with or without descriptions (hiding them makes the list more compact), and the sidebar on the left or the right. On phones the views sit above the search box and the tags open from the Tags button in the top bar. On touch screens, swipe a row to reveal its actions.
+**The list.** Under Settings → Appearance you choose how the list looks: newest first or by title, with or without descriptions (hiding them makes the list more compact), and the sidebar on the left or the right. On phones the views sit above the search box and the tags open from the Tags button in the top bar. Tick bookmarks to act on them from the toolbar above the list: edit one, favourite, archive or delete them, or copy or move them to another space. The box in the toolbar selects them all, or none.
 
 **Keyboard shortcuts.** On the list, `/` jumps to the search box (Esc leaves it), `n` adds a bookmark, and `j` and `k` move down and up the rows. On the current row, Enter opens it, `e` edits it, `f` toggles favourite and `a` archives or unarchives it.
 

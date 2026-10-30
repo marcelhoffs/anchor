@@ -208,6 +208,168 @@ func (s *Store) DeleteBookmark(ctx context.Context, sc Scope, id int64) error {
 	return affected(s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE space_id = ? AND id = ?", sc.spaceID, id))
 }
 
+// MaxBatch is the most bookmarks one batch call takes.
+const MaxBatch = 100
+
+// inIDs is "(?, ?, …)" for ids, and ids as query args after first.
+func inIDs(ids []int64, first ...any) (string, []any, error) {
+	if len(ids) > MaxBatch {
+		return "", nil, invalid("Select at most %d bookmarks at a time.", MaxBatch)
+	}
+	args := first
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	return "(?" + strings.Repeat(", ?", len(ids)-1) + ")", args, nil
+}
+
+// SetFlags is SetFlag for several bookmarks at once. Ids that aren't in sc's
+// space are skipped; n is how many there are.
+func (s *Store) SetFlags(ctx context.Context, sc Scope, ids []int64, flag Flag, on bool) (n int, err error) {
+	if err := sc.mustWrite(); err != nil {
+		return 0, err
+	}
+	col, ok := flagColumns[flag]
+	if !ok {
+		return 0, fmt.Errorf("unknown flag %q", flag)
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	in, args, err := inIDs(ids, on, unix(s.now()), sc.spaceID)
+	if err != nil {
+		return 0, err
+	}
+	res, err := s.w.ExecContext(ctx, "UPDATE bookmarks SET "+col+" = ?, updated_at = ? WHERE space_id = ? AND id IN "+in, args...)
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := res.RowsAffected()
+	return int(rows), nil
+}
+
+// DeleteBookmarks is DeleteBookmark for several bookmarks at once. Ids that
+// aren't in sc's space are skipped; n is how many were deleted.
+func (s *Store) DeleteBookmarks(ctx context.Context, sc Scope, ids []int64) (n int, err error) {
+	if err := sc.mustWrite(); err != nil {
+		return 0, err
+	}
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	in, args, err := inIDs(ids, sc.spaceID)
+	if err != nil {
+		return 0, err
+	}
+	res, err := s.w.ExecContext(ctx, "DELETE FROM bookmarks WHERE space_id = ? AND id IN "+in, args...)
+	if err != nil {
+		return 0, err
+	}
+	rows, _ := res.RowsAffected()
+	return int(rows), nil
+}
+
+// CopyBookmarks copies bookmarks from one space to another, or moves them
+// when move is set; the user needs to be able to change both. Tags go along
+// by name, created in the target space (in the same colour) if it hasn't got
+// them. A bookmark whose URL the target already has is skipped, and stays
+// where it is. A copy is private; a moved bookmark keeps its share link. Ids
+// that aren't in from's space are ignored.
+func (s *Store) CopyBookmarks(ctx context.Context, from, to Scope, ids []int64, move bool) (done, skipped int, err error) {
+	if err := from.mustWrite(); err != nil {
+		return 0, 0, err
+	}
+	if err := to.mustWrite(); err != nil {
+		return 0, 0, err
+	}
+	if from.spaceID == to.spaceID {
+		return 0, 0, invalid("The bookmarks are in that space already.")
+	}
+	if _, _, err := inIDs(ids); err != nil {
+		return 0, 0, err
+	}
+	err = s.tx(ctx, func(tx *sql.Tx) error {
+		now := unix(s.now())
+		for _, id := range ids {
+			var hash []byte
+			err := tx.QueryRowContext(ctx, "SELECT url_hash FROM bookmarks WHERE space_id = ? AND id = ?", from.spaceID, id).Scan(&hash)
+			if err == sql.ErrNoRows {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			var taken bool
+			err = tx.QueryRowContext(ctx, "SELECT 1 FROM bookmarks WHERE space_id = ? AND url_hash = ?", to.spaceID, hash).Scan(&taken)
+			if err == nil {
+				skipped++
+				continue
+			}
+			if err != sql.ErrNoRows {
+				return err
+			}
+			names, err := copyTags(ctx, tx, id, to.spaceID)
+			if err != nil {
+				return err
+			}
+			newID := id
+			if move {
+				_, err = tx.ExecContext(ctx, "UPDATE bookmarks SET space_id = ?, updated_at = ? WHERE id = ?", to.spaceID, now, id)
+			} else {
+				err = tx.QueryRowContext(ctx,
+					`INSERT INTO bookmarks (space_id, created_by, url, url_hash, domain, title, description, notes, favicon_id,
+					                        is_archived, is_favourite, fetch_status, created_at, updated_at)
+					 SELECT ?, ?, url, url_hash, domain, title, description, notes, favicon_id,
+					        is_archived, is_favourite, fetch_status, created_at, ?
+					 FROM bookmarks WHERE id = ? RETURNING id`,
+					to.spaceID, to.userID, now, id).Scan(&newID)
+			}
+			if err != nil {
+				return err
+			}
+			// For a move, this also drops the old space's tags.
+			if err := setTags(ctx, tx, to.spaceID, newID, names); err != nil {
+				return err
+			}
+			done++
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	return done, skipped, nil
+}
+
+// copyTags makes sure the space has the bookmark's tags, and returns their names.
+func copyTags(ctx context.Context, tx *sql.Tx, bookmarkID, spaceID int64) ([]string, error) {
+	rows, err := tx.QueryContext(ctx,
+		"SELECT t.name, t.color FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = ?", bookmarkID)
+	if err != nil {
+		return nil, err
+	}
+	var names, colors []string
+	for rows.Next() {
+		var name, color string
+		if err := rows.Scan(&name, &color); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		names, colors = append(names, name), append(colors, color)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i, name := range names {
+		if _, err := tx.ExecContext(ctx, "INSERT INTO tags (space_id, name, color) VALUES (?, ?, ?) ON CONFLICT (space_id, name) DO NOTHING",
+			spaceID, name, colors[i]); err != nil {
+			return nil, err
+		}
+	}
+	return names, nil
+}
+
 // List orders.
 const (
 	SortNewest = "newest"

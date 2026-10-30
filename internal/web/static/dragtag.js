@@ -6,9 +6,11 @@
 //   <a data-flag-drop="favourite|archived">          a view in the sidebar
 // POST /bookmarks/<id>/tags answers {tags: [{name, url}], count}; the row's
 // tags and the tag's count are redrawn from it. A flag changes the row's
-// star, menu, the counts and whether it's listed at all, so the page
-// reloads. Without this script the icons just don't drag; the edit form
-// and the row's buttons still do the same.
+// star, the counts and whether it's listed at all, so the page
+// reloads. Dragging a ticked row (select.js) does this to every ticked row:
+// a tag request per row, and the flag through the toolbar's form. Without
+// this script the icons just don't drag; the edit form and the list's
+// toolbar still do the same.
 (function () {
   "use strict";
 
@@ -57,43 +59,67 @@
     if (!tag || !carriesBookmark(e)) return;
     e.preventDefault(); // don't follow the tag's link
     tag.classList.remove("drop-over");
-    var id = encodeURIComponent(e.dataTransfer.getData(TYPE));
+    var rows = dropped(dragged.closest("li.bookmark"));
     var flag = tag.getAttribute("data-flag-drop");
     if (flag) {
-      setFlag(id, flag);
+      setFlag(rows, flag);
       return;
     }
-    var row = dragged.closest("li.bookmark");
     var tagID = tag.getAttribute("data-tag-drop");
-    var body = new URLSearchParams({ tag: tagID });
-    fetch("/bookmarks/" + id + "/tags", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "X-CSRF-Token": csrf },
-      body: body
-    }).then(function (res) {
-      if (!res.ok) throw new Error(res.status);
-      return res.json();
-    }).then(function (data) {
-      redrawTags(row, data.tags);
+    Promise.all(rows.map(function (row) {
+      return fetch("/bookmarks/" + encodeURIComponent(bookmarkID(row)) + "/tags", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "X-CSRF-Token": csrf },
+        body: new URLSearchParams({ tag: tagID })
+      }).then(function (res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.json();
+      }).then(function (data) {
+        redrawTags(row, data.tags);
+        return data.count;
+      });
+    })).then(function (counts) {
+      // The last request to finish saw them all tagged.
+      var count = Math.max.apply(null, counts);
       // The sidebar and the phone drawer both list the tag.
       document.querySelectorAll('[data-tag-drop="' + tagID + '"] .count').forEach(function (c) {
-        c.textContent = data.count;
+        c.textContent = count;
       });
     }).catch(function () {
       window.location.reload(); // show what the server has
     });
   });
 
-  // setFlag turns a flag on. The redirect the server answers with isn't
-  // followed: the reload shows the result, or what the server has.
-  function setFlag(id, flag) {
-    fetch("/bookmarks/" + id + "/flag", {
+  function bookmarkID(row) {
+    return row.querySelector("[data-drag-bookmark]").getAttribute("data-drag-bookmark");
+  }
+
+  // dropped is what a drop acts on: every ticked row when the dragged one
+  // is ticked, else just the dragged one.
+  function dropped(row) {
+    var box = row.querySelector(".bm-check");
+    if (!box || !box.checked) return [row];
+    return Array.prototype.slice.call(document.querySelectorAll("li.bookmark")).filter(function (r) {
+      var b = r.querySelector(".bm-check");
+      return b && b.checked;
+    });
+  }
+
+  // setFlag turns a flag on, through the toolbar's form. The redirect the
+  // server answers with isn't followed: the reload shows the result, or
+  // what the server has.
+  function setFlag(rows, flag) {
+    var form = document.getElementById("bulk-form");
+    var body = new URLSearchParams({ action: flag === "archived" ? "archive" : flag });
+    form.querySelectorAll("input[type=hidden]").forEach(function (input) { body.set(input.name, input.value); });
+    rows.forEach(function (row) { body.append("id", bookmarkID(row)); });
+    fetch(form.action, {
       method: "POST",
       credentials: "same-origin",
       redirect: "manual",
       headers: { "X-CSRF-Token": csrf },
-      body: new URLSearchParams({ flag: flag, on: "1", next: "/" })
+      body: body
     }).finally(function () {
       window.location.reload();
     });

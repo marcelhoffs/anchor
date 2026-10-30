@@ -151,10 +151,13 @@ func TestSpaceSwitcher(t *testing.T) {
 	if !strings.Contains(body, "go.dev") {
 		t.Fatal("reader doesn't see the space's bookmarks")
 	}
-	for _, control := range []string{`/bookmarks/` + bid + `/flag`, `/bookmarks/` + bid + `/edit`, `/bookmarks/` + bid + `/delete`, `id="row-form"`} {
+	for _, control := range []string{`/bookmarks/bulk`, `class="bm-check"`, `class="bulk-bar"`, `/bookmarks/` + bid + `/edit`} {
 		if strings.Contains(body, control) {
 			t.Errorf("reader's list has %s", control)
 		}
+	}
+	if code, _, _ := bob.post("/bookmarks/bulk", url.Values{"from": {teamID}, "action": {"favourite"}, "id": {bid}}); code != http.StatusForbidden {
+		t.Fatalf("reader starred a bookmark from the toolbar: %d", code)
 	}
 	if code, _, _ := bob.post("/bookmarks/"+bid+"/flag", url.Values{"flag": {"favourite"}, "on": {"1"}}); code != http.StatusForbidden {
 		t.Fatalf("reader starred a bookmark: %d", code)
