@@ -460,7 +460,6 @@
  "Anyone with the link can now see this bookmark's title, link and description.": "Toute personne ayant le lien voit maintenant le titre, le lien et la description de ce signet.",
  "The public link no longer works.": "Le lien public ne fonctionne plus.",
  "Fetching the page again. Empty fields and the icon are filled in when it's done.": "Nouvelle récupération de la page. Les champs vides et l'icône seront remplis une fois terminé.",
- "Unknown flag": "Indicateur inconnu",
  "Choose a bookmark file to import.": "Choisis un fichier de signets à importer.",
  "Couldn't read that file. Try uploading it again.": "Impossible de lire ce fichier. Réessaie de l'envoyer.",
  "Couldn't import that file: it's larger than %d MB.": "Impossible d'importer ce fichier : il dépasse %d Mo.",

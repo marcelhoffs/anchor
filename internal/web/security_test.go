@@ -5,6 +5,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -230,5 +232,35 @@ func TestCSRFTokenBoundToSession(t *testing.T) {
 	}
 	if alice.get("/"); alice.csrf() == planted || alice.csrf() == own {
 		t.Fatal("no new token after a page load")
+	}
+}
+
+// The address rate limits count: the peer's, or behind a trusted proxy the
+// right-most one in X-Forwarded-For that the proxies didn't add themselves.
+// An IPv6 client counts as its /64.
+func TestClientIP(t *testing.T) {
+	s := &Server{cfg: &config.Config{TrustedProxies: []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"), netip.MustParsePrefix("fd00::/8"),
+	}}}
+	for _, c := range []struct{ peer, xff, ip, key string }{
+		{"203.0.113.7:1234", "", "203.0.113.7", "203.0.113.7"},
+		// Not from a proxy: the header is the client's to make up.
+		{"203.0.113.7:1234", "198.51.100.1", "203.0.113.7", "203.0.113.7"},
+		{"10.0.0.2:1234", "198.51.100.1", "198.51.100.1", "198.51.100.1"},
+		// What the client sent sits left of what the proxies added.
+		{"10.0.0.2:1234", "1.2.3.4, 198.51.100.1, 10.0.0.3", "198.51.100.1", "198.51.100.1"},
+		{"10.0.0.2:1234", "junk", "10.0.0.2", "10.0.0.2"},
+		{"[::ffff:203.0.113.7]:1234", "", "203.0.113.7", "203.0.113.7"},
+		{"[2001:db8:1:2:aaaa::1]:1234", "", "2001:db8:1:2:aaaa::1", "2001:db8:1:2::/64"},
+		{"[fd00::2]:1234", "2001:db8:1:2:bbbb::9", "2001:db8:1:2:bbbb::9", "2001:db8:1:2::/64"},
+	} {
+		r := httptest.NewRequest("GET", "/", nil)
+		r.RemoteAddr = c.peer
+		if c.xff != "" {
+			r.Header.Set("X-Forwarded-For", c.xff)
+		}
+		if ip, key := s.clientIP(r), s.limitKey(r); ip != c.ip || key != c.key {
+			t.Errorf("peer %s, X-Forwarded-For %q: ip %s, key %s; want %s, %s", c.peer, c.xff, ip, key, c.ip, c.key)
+		}
 	}
 }

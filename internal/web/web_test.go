@@ -267,7 +267,7 @@ func TestBookmarkFlow(t *testing.T) {
 	if code, _, _ := c.post("/bookmarks/"+id[1], url.Values{"url": {"https://go.dev/doc"}, "title": {"Renamed"}, "tags": {"golang"}}); code != http.StatusSeeOther {
 		t.Fatalf("update: %d", code)
 	}
-	c.post("/bookmarks/"+id[1]+"/flag", url.Values{"flag": {"archived"}, "on": {"1"}})
+	c.post("/bookmarks/bulk", url.Values{"from": {itoa(personal(e.store, e.userID("alice")).SpaceID())}, "action": {"archive"}, "id": {id[1]}})
 	if _, body, _ := c.get("/"); strings.Contains(body, "Renamed") {
 		t.Fatal("archived bookmark still in the main list")
 	}
@@ -316,7 +316,7 @@ func TestCrossUserIsolation(t *testing.T) {
 	}
 	for path, form := range map[string]url.Values{
 		"/bookmarks/" + bid:             {"url": {"https://bob.example"}, "title": {"pwned"}},
-		"/bookmarks/" + bid + "/flag":   {"flag": {"favourite"}, "on": {"1"}},
+		"/bookmarks/bulk":               {"from": {itoa(personal(e.store, a.ID).SpaceID())}, "action": {"favourite"}, "id": {bid}},
 		"/bookmarks/" + bid + "/delete": nil,
 		"/tags/" + tid + "/rename":      {"name": {"pwned"}},
 		"/tags/" + tid + "/delete":      nil,

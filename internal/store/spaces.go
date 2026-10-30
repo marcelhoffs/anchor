@@ -121,8 +121,22 @@ func scanSpace(row interface{ Scan(...any) error }) (Space, error) {
 
 // ListSpaces returns the shared spaces userID belongs to, by name.
 func (s *Store) ListSpaces(ctx context.Context, userID int64) ([]Space, error) {
+	return s.listSpaces(ctx, userID, spaceCols, scanSpace)
+}
+
+// SpaceMenu is ListSpaces with only what the space menu on every page needs:
+// ID, Name, Icon and Role, without the owner and counts that cost a query
+// per space.
+func (s *Store) SpaceMenu(ctx context.Context, userID int64) ([]Space, error) {
+	return s.listSpaces(ctx, userID, "sp.id, sp.name, sp.icon, m.role", func(row interface{ Scan(...any) error }) (Space, error) {
+		var sp Space
+		return sp, row.Scan(&sp.ID, &sp.Name, &sp.Icon, &sp.Role)
+	})
+}
+
+func (s *Store) listSpaces(ctx context.Context, userID int64, cols string, scan func(interface{ Scan(...any) error }) (Space, error)) ([]Space, error) {
 	rows, err := s.r.QueryContext(ctx,
-		"SELECT "+spaceCols+` FROM spaces sp JOIN space_members m ON m.space_id = sp.id AND m.user_id = ?
+		"SELECT "+cols+` FROM spaces sp JOIN space_members m ON m.space_id = sp.id AND m.user_id = ?
 		 WHERE sp.personal_of IS NULL ORDER BY sp.name COLLATE NOCASE, sp.id`, userID)
 	if err != nil {
 		return nil, err
@@ -130,7 +144,7 @@ func (s *Store) ListSpaces(ctx context.Context, userID int64) ([]Space, error) {
 	defer rows.Close()
 	var out []Space
 	for rows.Next() {
-		sp, err := scanSpace(rows)
+		sp, err := scan(rows)
 		if err != nil {
 			return nil, err
 		}

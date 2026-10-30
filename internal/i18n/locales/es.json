@@ -460,7 +460,6 @@
  "Anyone with the link can now see this bookmark's title, link and description.": "Ahora cualquiera con el enlace puede ver el título, el enlace y la descripción de este marcador.",
  "The public link no longer works.": "El enlace público ya no funciona.",
  "Fetching the page again. Empty fields and the icon are filled in when it's done.": "Volviendo a obtener la página. Los campos vacíos y el icono se rellenan cuando termine.",
- "Unknown flag": "Marca desconocida",
  "Choose a bookmark file to import.": "Elige un archivo de marcadores para importar.",
  "Couldn't read that file. Try uploading it again.": "No se pudo leer ese archivo. Vuelve a subirlo.",
  "Couldn't import that file: it's larger than %d MB.": "No se pudo importar ese archivo: ocupa más de %d MB.",

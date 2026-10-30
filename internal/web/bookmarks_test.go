@@ -276,9 +276,12 @@ func TestDragToTag(t *testing.T) {
 		t.Fatalf("unknown tag: %d", code)
 	}
 
-	// What dragtag.js sends on a drop on Favourites, then on Archive.
-	for _, flag := range []string{"favourite", "archived"} {
-		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/bookmarks/1/flag", strings.NewReader("flag="+flag+"&on=1&next=%2F"))
+	// What dragtag.js sends on a drop on Favourites, then on Archive: the
+	// toolbar's form, with the dragged rows' ids.
+	from := itoa(personal(e.store, e.userID("root")).SpaceID())
+	for _, action := range []string{"favourite", "archive"} {
+		req, _ := http.NewRequest(http.MethodPost, e.srv.URL+"/bookmarks/bulk",
+			strings.NewReader("action="+action+"&from="+from+"&id=1&next=%2F"))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("X-CSRF-Token", c.csrf())
 		res, err := c.http.Do(req)

@@ -601,7 +601,7 @@ func (s *Server) listNotice(r *http.Request, sc store.Scope, d data) {
 	if !sc.CanWrite() {
 		return
 	}
-	// Just archived from this page (see bulkBookmarks and flagBookmark):
+	// Just archived from this page (see bulkBookmarks):
 	// offer to undo it, for those still archived.
 	var undo []store.Bookmark
 	for _, v := range strings.Split(q.Get("archived"), ",") {
@@ -682,42 +682,6 @@ func (s *Server) tagBookmark(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, out)
-}
-
-func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
-	id, ok := idParam(r)
-	if !ok {
-		s.notFound(w, r)
-		return
-	}
-	// The list page's buttons put the flag and its value in the URL, so they
-	// can all share one form.
-	flag := store.Flag(r.FormValue("flag"))
-	switch flag {
-	case store.FlagFavourite, store.FlagArchived:
-	default:
-		http.Error(w, langOf(r).T("Unknown flag"), http.StatusBadRequest)
-		return
-	}
-	sc, ok := s.bookmarkScope(w, r, id)
-	if !ok {
-		return
-	}
-	on := r.FormValue("on") == "1"
-	err := s.store.SetFlag(r.Context(), sc, id, flag, on)
-	if !s.storeError(w, r, err) {
-		return
-	}
-	next := safeNext(r.PostFormValue("next"))
-	if flag == store.FlagArchived && on {
-		// The list offers to undo it.
-		u, _ := url.Parse(next) // safeNext parsed it already
-		v := u.Query()
-		v.Set("archived", strconv.FormatInt(id, 10))
-		u.RawQuery = v.Encode()
-		next = u.String()
-	}
-	http.Redirect(w, r, next, http.StatusSeeOther)
 }
 
 func (s *Server) tags(w http.ResponseWriter, r *http.Request) {
