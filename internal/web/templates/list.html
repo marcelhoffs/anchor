@@ -131,7 +131,7 @@
     <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Here}}"><input type="hidden" name="from" value="{{.Space}}">
   </form>
   <div class="bulk-bar" role="toolbar" aria-label="{{t "Selected bookmarks"}}">
-    <input type="checkbox" class="bulk-all" title="{{t "Select all"}}" aria-label="{{t "Select all"}}" data-none="{{t "Select none"}}" hidden>
+    <button type="button" class="icon-btn bulk-all" title="{{t "Select all"}}" aria-label="{{t "Select all"}}" data-none="{{t "Select none"}}" hidden>{{icon "check-check"}}</button>
     <span class="bulk-count" aria-live="polite" data-single="{{tn 1 "%d selected" "%d selected"}}" data-plural="{{tn 2 "%d selected" "%d selected"}}"></span>
     <div class="bulk-actions">
       <button class="icon-btn" form="bulk-form" name="action" value="edit" data-needs="one" title="{{t "Edit"}}" aria-label="{{t "Edit"}}">{{icon "pencil"}}</button>
@@ -166,11 +166,10 @@
         {{else}}
         <button form="bulk-form" name="action" value="archive">{{icon "archive" "sm"}}{{t "Archive"}}</button>
         {{end}}
-        {{with .Targets}}
-        <p class="menu-title menu-sep">{{t "Copy to"}}</p>
-        {{range .}}<button form="bulk-form" name="action" value="copy" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
-        <p class="menu-title menu-sep">{{t "Move to"}}</p>
-        {{range .}}<button form="bulk-form" name="action" value="move" formaction="/bookmarks/bulk?space={{.ID}}">{{template "space-target" .}}</button>{{end}}
+        {{if .Targets}}
+        {{/* They open the toolbar's own space menus, on top of this one. */}}
+        <button type="button" popovertarget="bulk-copy">{{icon "copy" "sm"}}<span class="menu-label">{{t "Copy to a space"}}</span>{{icon "chevron-left" "sm"}}</button>
+        <button type="button" popovertarget="bulk-move">{{icon "move" "sm"}}<span class="menu-label">{{t "Move to a space"}}</span>{{icon "chevron-left" "sm"}}</button>
         {{end}}
       </div>
     </div>

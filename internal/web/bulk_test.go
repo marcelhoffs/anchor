@@ -17,7 +17,7 @@ func TestToolbarTooltips(t *testing.T) {
 	_, body, _ := c.get("/")
 	bar := body[strings.Index(body, `class="bulk-bar"`):]
 	bar = bar[:strings.Index(bar, `<ul class="bookmarks">`)]
-	for _, tip := range []string{"Edit", "Favourites", "Archive", "Delete"} {
+	for _, tip := range []string{"Select all", "Edit", "Favourites", "Archive", "Delete"} {
 		if !strings.Contains(bar, `title="`+tip+`"`) {
 			t.Errorf("no %q tooltip", tip)
 		}
