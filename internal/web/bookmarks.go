@@ -500,7 +500,9 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 		s.notFound(w, r)
 		return
 	}
-	flag := store.Flag(r.PostFormValue("flag"))
+	// The list page's buttons put the flag and its value in the URL, so they
+	// can all share one form.
+	flag := store.Flag(r.FormValue("flag"))
 	switch flag {
 	case store.FlagFavourite, store.FlagArchived:
 	default:
@@ -511,7 +513,7 @@ func (s *Server) flagBookmark(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	on := r.PostFormValue("on") == "1"
+	on := r.FormValue("on") == "1"
 	err := s.store.SetFlag(r.Context(), sc, id, flag, on)
 	if !s.storeError(w, r, err) {
 		return

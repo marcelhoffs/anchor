@@ -254,15 +254,15 @@ form.inline { display: inline; }
   display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;
   border-radius: calc(var(--radius) - 4px); background: var(--soft); color: var(--soft-text); font-size: var(--fs-xs); font-weight: var(--fw-semibold);
 }
-.menu {
+.menu, .bm-actions:popover-open {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; padding: 6px;
   border: 1px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow), 0 12px 32px rgb(0 0 0 / 0.12);
 }
-.menu a, .menu button {
+.menu a, .menu button, .bm-actions:popover-open > * {
   display: flex; align-items: center; gap: 10px; width: 100%; min-height: 38px; padding: 0 10px;
   border: 0; border-radius: 8px; background: none; color: var(--text); font-size: var(--fs-md); text-align: left; text-decoration: none; cursor: pointer;
 }
-.menu a:hover, .menu button:hover { background: var(--raised); color: var(--text); }
+.menu a:hover, .menu button:hover, .bm-actions:popover-open > :hover { background: var(--raised); color: var(--text); }
 /* The space switcher's menu: the spaces, the current one ticked. */
 .space-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .space-menu .menu { min-width: 230px; }
@@ -405,8 +405,21 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .badge { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-medium); }
 a.badge { text-decoration: none; }
 a.badge:hover { border-color: var(--accent); color: var(--text); }
-.bm-actions { flex-shrink: 0; display: flex; align-items: center; gap: 2px; }
+/* The actions are a popover, for the phone menu below, but a toolbar
+   otherwise: undo the browser's popover styles. */
+.bm-actions {
+  flex-shrink: 0; display: flex; align-items: center; gap: 2px;
+  position: static; inset: auto; width: auto; height: auto; margin: 0; padding: 0; border: 0;
+  overflow: visible; background: none; color: inherit;
+}
+.bm-label { display: none; }
 .bm-more { display: none; flex-shrink: 0; }
+/* Opened from ⋯, they are a menu (styled with .menu), labelled, favourite first. */
+.bm-actions:popover-open { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+.bm-actions:popover-open .icon-btn { justify-content: flex-start; opacity: 1; pointer-events: auto; }
+.bm-actions:popover-open .icon { width: 16px; height: 16px; }
+.bm-actions:popover-open .bm-label { display: inline; }
+.bm-actions:popover-open .bm-fav { order: -1; }
 @media (hover: hover) {
   /* On mouse devices, the row actions take no room: they float over the
      right end of the row on hover or keyboard focus. */
@@ -415,7 +428,7 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
   .bm-actions .icon-btn { opacity: 0; pointer-events: none; } /* still reachable by Tab */
   /* Shown, it covers the row's text under it, top to bottom, in the row's
      colour, fading in from the left. */
-  .bookmark:hover .bm-actions, .bookmark:focus-within .bm-actions {
+  .bookmark:hover .bm-actions:not(:popover-open), .bookmark:focus-within .bm-actions:not(:popover-open) {
     padding-left: 32px; background: linear-gradient(to right, transparent, var(--surface) 32px);
   }
   .bookmark:hover .icon-btn, .bookmark:focus-within .icon-btn { opacity: 1; pointer-events: auto; }
@@ -754,12 +767,12 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 /* A table row's action menu is a popover: it sits in the top layer, so the
    table's scroll box can't clip it. It opens under its button where CSS
    anchor positioning is supported, and centred otherwise. */
-.row-menu { position: fixed; inset: auto; margin: 4px 0; position-area: bottom span-left; position-try-fallbacks: flip-block; text-align: left; }
+.row-menu, .bm-actions:popover-open { position: fixed; inset: auto; margin: 4px 0; position-area: bottom span-left; position-try-fallbacks: flip-block; text-align: left; }
 @supports not (position-area: bottom) {
-  .row-menu { inset: 0; height: fit-content; margin: auto; }
+  .row-menu, .bm-actions:popover-open { inset: 0; height: fit-content; margin: auto; }
 }
 .menu-title { padding: 6px 10px 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
-.menu .danger { color: var(--danger); }
+.menu .danger, .bm-actions:popover-open .danger { color: var(--danger); }
 /* The button stays beside the field, even on phones. */
 .new-tag { margin-bottom: 24px; flex-wrap: nowrap; }
 .new-tag input { min-width: 0; }

@@ -524,7 +524,7 @@ func TestRowActionTooltips(t *testing.T) {
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev/"}, "title": {"Go"}})
 	_, body, _ := c.get("/")
 	row := body[strings.Index(body, `class="bm-actions"`):]
-	row = row[:strings.Index(row, `class="icon-btn bm-more"`)]
+	row = row[:strings.Index(row, `</div>`)]
 	for _, tip := range []string{"Archive", "Edit", "Delete", "Add to favourites"} {
 		if !strings.Contains(row, `title="`+tip+`"`) {
 			t.Errorf("no %q tooltip", tip)
@@ -552,20 +552,34 @@ func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 		end := strings.Index(body[start:], "</form>")
 		return end > 0 && strings.Contains(body[start:start+end], `action="`+action+`"`)
 	}
+	// The list shares one delete confirmation between its rows: the row's
+	// button only names the action, which rows.js hands to the dialog's
+	// button, disabled until then.
+	shared := func(body, id, action string) bool {
+		start := strings.Index(body, `id="`+id+`"`)
+		if start < 0 || strings.Count(body, `id="`+id+`"`) != 1 || !strings.Contains(body, `popovertarget="`+id+`" data-action="`+action+`"`) {
+			return false
+		}
+		end := strings.Index(body[start:], "</div>\n  </div>")
+		return end > 0 && strings.Contains(body[start:start+end], `form="row-form" disabled`) &&
+			!strings.Contains(body, `formaction="`+action+`"`)
+	}
 	_, body, _ := c.get("/")
-	if !confirmed(body, "delete-1", "/bookmarks/1/delete") {
+	if !shared(body, "confirm-delete", "/bookmarks/1/delete") {
 		t.Fatal("list: delete is not behind a confirmation")
 	}
-	if n := strings.Count(body, `action="/bookmarks/1/delete"`); n != 1 {
-		t.Fatalf("list has %d delete forms for bookmark 1, want only the confirmed one", n)
+	list := body[strings.Index(body, `<ul class="bookmarks">`):strings.Index(body, `</ul>`)]
+	if strings.Contains(list, "<form") {
+		t.Fatal("list rows have their own forms, want only the shared row form")
 	}
-	if strings.Contains(body, `id="archive-1"`) || !strings.Contains(body, `aria-label="Archive Keep"`) {
+	if !strings.Contains(body, `form="row-form" formaction="/bookmarks/1/flag?flag=archived&on=1"`) || !strings.Contains(body, `aria-label="Archive Keep"`) {
 		t.Fatal("list: archive should be one click")
 	}
 
 	// Archiving comes back to the page with an undo, which isn't carried
-	// into the page's own links.
-	if _, _, loc := c.post("/bookmarks/2/flag", url.Values{"flag": {"archived"}, "on": {"1"}, "next": {"/?q=old"}}); loc != "/?archived=2&q=old" {
+	// into the page's own links. Posted as the list's buttons do: the flag
+	// in the URL.
+	if _, _, loc := c.post("/bookmarks/2/flag?flag=archived&on=1", url.Values{"next": {"/?q=old"}}); loc != "/?archived=2&q=old" {
 		t.Fatalf("archive redirects to %q", loc)
 	}
 	_, body, _ = c.get("/?archived=2&q=old")
@@ -578,10 +592,11 @@ func TestDestructiveActionsNeedConfirmation(t *testing.T) {
 	}
 
 	_, body, _ = c.get("/?q=%21archived")
-	if strings.Contains(body, `id="archive-2"`) || !strings.Contains(body, `aria-label="Unarchive Old"`) {
+	if !strings.Contains(body, `aria-label="Unarchive Old"`) ||
+		!strings.Contains(body, `form="row-form" formaction="/bookmarks/2/flag?flag=archived&on=0"`) {
 		t.Fatal("archive view: unarchive should be one click")
 	}
-	if !confirmed(body, "delete-2", "/bookmarks/2/delete") {
+	if !shared(body, "confirm-delete", "/bookmarks/2/delete") {
 		t.Fatal("archive view: delete is not behind a confirmation")
 	}
 	_, body, _ = c.get("/bookmarks/1/edit")
