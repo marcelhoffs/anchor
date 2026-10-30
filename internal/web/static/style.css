@@ -376,19 +376,40 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .bookmark { display: flex; align-items: flex-start; gap: 14px; padding: 12px 14px; }
 .bookmark + .bookmark { border-top: 1px solid var(--border); }
 .bookmark:has(.bm-check:checked) { background: var(--soft); }
-/* The row's box is as far from the top as from the left and the icon. */
-.bookmark .bm-check { flex-shrink: 0; margin-top: 2px; }
+/* The row's box is hidden; its icon (a label for it) shows the state: a
+   check on hover, and an accent tile with a check when ticked. */
+.bookmark { position: relative; }
+.bookmark .bm-check { position: absolute; opacity: 0; pointer-events: none; }
+label.bm-icon { position: relative; cursor: pointer; border-radius: var(--radius); }
+label.bm-icon::after {
+  content: ""; position: absolute; inset: 0; border-radius: var(--radius);
+  background: var(--on-accent);
+  mask: no-repeat center / 16px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E");
+  opacity: 0; transform: scale(0.6); transition: opacity 120ms, transform 120ms;
+}
+label.bm-icon .avatar { transition: background 120ms, filter 120ms; }
+@media (hover: hover) {
+  label.bm-icon:hover .avatar { filter: brightness(0.5); color: transparent; }
+  label.bm-icon:hover::after { background: #fff; opacity: 0.9; transform: none; }
+}
+.bm-check:checked + label.bm-icon .avatar { background: var(--accent); color: transparent; filter: none; }
+.bm-check:checked + label.bm-icon .avatar.favicon { object-position: -999px; } /* hide the site icon, keep the tile */
+.bm-check:checked + label.bm-icon::after { background: var(--on-accent); opacity: 1; transform: none; }
+.bm-check:focus-visible + label.bm-icon { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { label.bm-icon::after, label.bm-icon .avatar { transition: none; } }
 /* The toolbar for the ticked rows sits on top of the list, as its header. */
 .bulk-bar {
   display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 8px 4px 14px;
   border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--raised);
 }
 .bulk-bar + .bookmarks { margin-top: -14px; border-top-left-radius: 0; border-top-right-radius: 0; } /* no gap under the toolbar */
+.bulk-all:not(:checked):not(:indeterminate) { border-color: var(--muted); background: none; } /* quiet until it does something */
 .bulk-count { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bulk-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .bulk-actions .bulk-more { display: none; } /* a phone's overflow menu */
 .icon-btn:disabled { opacity: 0.4; background: none; color: var(--muted); cursor: default; }
-.bm-icon { flex-shrink: 0; display: flex; text-decoration: none; }
+.bm-icon { flex-shrink: 0; display: flex; margin-top: 2px; text-decoration: none; }
+.bm-icon .avatar { margin-top: 0; }
 .avatar {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-top: 2px;
   border-radius: var(--radius); background: var(--soft); color: var(--soft-text); font-size: var(--fs-md); font-weight: var(--fw-semibold);
@@ -668,7 +689,7 @@ td.actions { text-align: right; white-space: nowrap; }
   .card { padding: 20px; }
   .bookmark { padding: 10px; gap: 10px; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
-  .bookmark .bm-check { margin-top: 0; }
+  .bm-icon { margin-top: 0; }
   .bulk-bar { padding-left: 10px; }
   .bulk-actions .bulk-more { display: inline-flex; }
   .avatar.favicon { padding: 6px; }
