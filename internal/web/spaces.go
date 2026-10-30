@@ -14,6 +14,7 @@ import (
 var spaceNotices = map[string]i18n.Msg{
 	"created":     i18n.M("Space created. Add the people you want to share it with."),
 	"renamed":     i18n.M("Space renamed."),
+	"icon":        i18n.M("Space icon changed."),
 	"added":       i18n.M("Member added."),
 	"updated":     i18n.M("Role changed."),
 	"removed":     i18n.M("Member removed."),
@@ -118,6 +119,7 @@ func (s *Server) renderSpace(w http.ResponseWriter, r *http.Request, sc store.Sc
 	d["Space"] = sp
 	d["Members"] = members
 	d["IsOwner"] = sc.Role() == store.RoleOwner
+	d["Icons"] = choices(langOf(r), append([]string{""}, store.SpaceIcons...), spaceIconLabels)
 	s.render(w, r, status, "space", d)
 }
 
@@ -140,6 +142,32 @@ func (s *Server) renameSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.spaceDone(w, r, sc, s.store.RenameSpace(r.Context(), sc, r.PostFormValue("name")), "renamed")
+}
+
+func (s *Server) setSpaceIcon(w http.ResponseWriter, r *http.Request) {
+	sc, ok := s.sharedScope(w, r)
+	if !ok {
+		return
+	}
+	s.spaceDone(w, r, sc, s.store.SetSpaceIcon(r.Context(), sc, r.PostFormValue("icon")), "icon")
+}
+
+// spaceIconLabels names the default ("") and each store.SpaceIcons value on
+// a space's page.
+var spaceIconLabels = map[string]i18n.Msg{
+	"": i18n.M("Default"), "briefcase": i18n.M("Briefcase"), "house": i18n.M("House"), "users": i18n.M("People"),
+	"folder": i18n.M("Folder"), "book-open": i18n.M("Book"), "graduation-cap": i18n.M("Graduation cap"),
+	"code": i18n.M("Code"), "server": i18n.M("Server"), "cpu": i18n.M("Processor"), "globe": i18n.M("Globe"),
+	"heart": i18n.M("Heart"), "heart-pulse": i18n.M("Heartbeat"), "stethoscope": i18n.M("Stethoscope"),
+	"hospital": i18n.M("Hospital"), "ambulance": i18n.M("Ambulance"), "siren": i18n.M("Police siren"),
+	"rocket": i18n.M("Rocket"), "shopping-cart": i18n.M("Shopping cart"), "music": i18n.M("Music"),
+	"camera": i18n.M("Camera"), "gamepad-2": i18n.M("Game controller"), "wrench": i18n.M("Wrench"),
+	"flask-conical": i18n.M("Flask"), "leaf": i18n.M("Leaf"), "building-2": i18n.M("Office building"),
+	"trophy": i18n.M("Trophy"), "volleyball": i18n.M("Ball"), "sport-shoe": i18n.M("Running shoe"),
+	"dumbbell": i18n.M("Dumbbell"), "bike": i18n.M("Bicycle"), "car": i18n.M("Car"), "bus": i18n.M("Bus"),
+	"truck": i18n.M("Lorry"), "train-front": i18n.M("Train"), "plane": i18n.M("Aeroplane"),
+	"plane-takeoff": i18n.M("Departing aeroplane"), "tower-control": i18n.M("Airport control tower"),
+	"sailboat": i18n.M("Sailing boat"), "ship": i18n.M("Ship"),
 }
 
 func (s *Server) addMember(w http.ResponseWriter, r *http.Request) {

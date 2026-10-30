@@ -15,6 +15,22 @@
       <button class="btn">{{t "Rename"}}</button>
     </form>
   </section>
+
+  <section aria-labelledby="space-icon">
+    <h2 id="space-icon">{{t "Icon"}}</h2>
+    <p class="muted">{{t "Shown next to the space's name, for instance in the space menu at the top."}}</p>
+    {{/* Icon-only radio buttons: each one's name is its aria-label, and its title on hover. */}}
+    <form method="post" action="/spaces/{{.Space.ID}}/icon">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <fieldset>
+        <legend class="visually-hidden">{{t "Icon"}}</legend>
+        <div class="icon-choices">
+          {{range .Icons}}<label class="icon-choice" title="{{.Label}}"><input type="radio" name="icon" value="{{.Value}}" aria-label="{{.Label}}"{{if eq .Value $.Space.Icon}} checked{{end}}>{{icon (spaceIcon .Value)}}</label>{{end}}
+        </div>
+      </fieldset>
+      <button class="btn">{{t "Save icon"}}</button>
+    </form>
+  </section>
   {{end}}
 
   <section aria-labelledby="members">

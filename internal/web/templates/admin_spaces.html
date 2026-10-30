@@ -29,7 +29,7 @@
       <tbody>
       {{range .SpaceList}}
         <tr>
-          <td><strong>{{.Name}}</strong></td>
+          <td class="space-cell"><span>{{icon (spaceIcon .Icon) "sm"}}<strong>{{.Name}}</strong></span></td>
           <td>{{range .Members}}{{if eq .Role "owner"}}{{.Username}}{{end}}{{end}}{{if not .OwnerActive}} <span class="badge danger">{{t "Disabled"}}</span>{{end}}</td>
           <td class="num hide-sm">{{len .Members}}</td>
           <td class="num hide-sm">{{.Bookmarks}}</td>

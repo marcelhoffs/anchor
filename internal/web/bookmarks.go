@@ -561,6 +561,7 @@ var listParams = []string{"archived", "done", "copied", "moved", "skipped", "to"
 type spaceTarget struct {
 	ID   int64
 	Name string // "" for the personal space
+	Icon string
 }
 
 // spaceTargets are the spaces other than sc's that the user can add to:
@@ -576,7 +577,7 @@ func (s *Server) spaceTargets(r *http.Request, sc store.Scope) ([]spaceTarget, e
 	}
 	for _, sp := range currentNav(r).Spaces {
 		if sp.ID != sc.SpaceID() && (sp.Role == store.RoleWrite || sp.Role == store.RoleOwner) {
-			out = append(out, spaceTarget{sp.ID, sp.Name})
+			out = append(out, spaceTarget{sp.ID, sp.Name, sp.Icon})
 		}
 	}
 	return out, nil

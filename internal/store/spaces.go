@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -96,6 +97,7 @@ func (s *Store) BookmarkScope(ctx context.Context, userID, bookmarkID int64) (Sc
 type Space struct {
 	ID        int64
 	Name      string
+	Icon      string // one of SpaceIcons, or "" for the default
 	Role      Role   // the viewing member's
 	Owner     string // the owner's username
 	Members   int
@@ -103,7 +105,7 @@ type Space struct {
 	CreatedAt time.Time
 }
 
-const spaceCols = `sp.id, sp.name, m.role,
+const spaceCols = `sp.id, sp.name, sp.icon, m.role,
 	coalesce((SELECT u.username FROM space_members o JOIN users u ON u.id = o.user_id
 	          WHERE o.space_id = sp.id AND o.role = 'owner'), ''),
 	(SELECT count(*) FROM space_members WHERE space_id = sp.id),
@@ -112,7 +114,7 @@ const spaceCols = `sp.id, sp.name, m.role,
 func scanSpace(row interface{ Scan(...any) error }) (Space, error) {
 	var sp Space
 	var created int64
-	err := row.Scan(&sp.ID, &sp.Name, &sp.Role, &sp.Owner, &sp.Members, &sp.Bookmarks, &created)
+	err := row.Scan(&sp.ID, &sp.Name, &sp.Icon, &sp.Role, &sp.Owner, &sp.Members, &sp.Bookmarks, &created)
 	sp.CreatedAt = fromUnix(created)
 	return sp, notFound(err)
 }
@@ -195,6 +197,28 @@ func (s *Store) RenameSpace(ctx context.Context, sc Scope, name string) error {
 		return err
 	}
 	_, err = s.w.ExecContext(ctx, "UPDATE spaces SET name = ? WHERE id = ?", name, sc.spaceID)
+	return err
+}
+
+// SpaceIcons are the icons a shared space can have, besides the default
+// (symbols of the same name in static/icons.svg).
+var SpaceIcons = []string{
+	"briefcase", "house", "users", "folder", "book-open", "graduation-cap", "code", "server", "cpu", "globe",
+	"heart", "heart-pulse", "stethoscope", "hospital", "ambulance", "siren", "rocket", "shopping-cart", "music",
+	"camera", "gamepad-2", "wrench", "flask-conical", "leaf", "building-2", "trophy", "volleyball", "sport-shoe",
+	"dumbbell", "bike", "car", "bus", "truck", "train-front", "plane", "plane-takeoff", "tower-control", "sailboat", "ship",
+}
+
+// SetSpaceIcon gives a shared space one of SpaceIcons, or the default for
+// ""; owner only.
+func (s *Store) SetSpaceIcon(ctx context.Context, sc Scope, icon string) error {
+	if err := sc.mustOwnShared(); err != nil {
+		return err
+	}
+	if icon != "" && !slices.Contains(SpaceIcons, icon) {
+		return invalid("Pick one of the space icons.")
+	}
+	_, err := s.w.ExecContext(ctx, "UPDATE spaces SET icon = ? WHERE id = ?", icon, sc.spaceID)
 	return err
 }
 
@@ -394,6 +418,7 @@ func (s *Store) transfer(ctx context.Context, spaceID, userID int64) error {
 type AdminSpace struct {
 	ID          int64
 	Name        string
+	Icon        string
 	Bookmarks   int
 	CreatedAt   time.Time
 	Members     []Member // owner first
@@ -403,7 +428,7 @@ type AdminSpace struct {
 // AdminListSpaces returns every shared space with its members, by name.
 func (s *Store) AdminListSpaces(ctx context.Context) ([]AdminSpace, error) {
 	rows, err := s.r.QueryContext(ctx,
-		`SELECT sp.id, sp.name, sp.created_at, (SELECT count(*) FROM bookmarks WHERE space_id = sp.id)
+		`SELECT sp.id, sp.name, sp.icon, sp.created_at, (SELECT count(*) FROM bookmarks WHERE space_id = sp.id)
 		 FROM spaces sp WHERE sp.personal_of IS NULL ORDER BY sp.name COLLATE NOCASE, sp.id`)
 	if err != nil {
 		return nil, err
@@ -412,7 +437,7 @@ func (s *Store) AdminListSpaces(ctx context.Context) ([]AdminSpace, error) {
 	for rows.Next() {
 		var sp AdminSpace
 		var created int64
-		if err := rows.Scan(&sp.ID, &sp.Name, &created, &sp.Bookmarks); err != nil {
+		if err := rows.Scan(&sp.ID, &sp.Name, &sp.Icon, &created, &sp.Bookmarks); err != nil {
 			rows.Close()
 			return nil, err
 		}

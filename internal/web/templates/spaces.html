@@ -18,7 +18,7 @@
     <tbody>
     {{range .Spaces}}
       <tr>
-        <td><a href="/spaces/{{.ID}}"><strong>{{.Name}}</strong></a></td>
+        <td class="space-cell"><a href="/spaces/{{.ID}}">{{icon (spaceIcon .Icon) "sm"}}<strong>{{.Name}}</strong></a></td>
         <td>{{roleLabel .Role}}</td>
         <td class="hide-sm">{{.Owner}}</td>
         <td class="num hide-sm">{{.Members}}</td>

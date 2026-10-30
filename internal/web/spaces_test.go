@@ -27,8 +27,24 @@ func TestSpacePages(t *testing.T) {
 		t.Fatalf("create: %d %q", code, loc)
 	}
 	page := strings.TrimSuffix(loc, "?done=created")
-	if _, body, _ := alice.get(loc); !strings.Contains(body, "<h1>Family</h1>") || !strings.Contains(body, "Add member") {
+	if _, body, _ := alice.get(loc); !strings.Contains(body, "<h1>Family</h1>") || !strings.Contains(body, "Add member") ||
+		!strings.Contains(body, `name="icon" value="" aria-label="Default" checked`) {
 		t.Fatal("owner's space page")
+	}
+
+	// The owner picks the space's icon; it shows in the space menu and the list.
+	if code, _, loc := alice.post(page+"/icon", url.Values{"icon": {"truck"}}); code != http.StatusSeeOther || !strings.HasSuffix(loc, "?done=icon") {
+		t.Fatalf("set icon: %d %q", code, loc)
+	}
+	if _, body, _ := alice.get(page); !strings.Contains(body, `value="truck" aria-label="Lorry" checked`) {
+		t.Fatal("icon not picked on the space page")
+	}
+	if _, body, _ := alice.get("/spaces"); !strings.Contains(body, `<a href="`+page+`"><svg class="icon sm" aria-hidden="true" focusable="false"><use href="#i-truck">`) ||
+		!strings.Contains(body, `<use href="#i-truck"></use></svg><span class="space-option">Family`) {
+		t.Fatal("icon not shown in the spaces list or the space menu")
+	}
+	if code, _, _ := alice.post(page+"/icon", url.Values{"icon": {"pizza"}}); code != http.StatusUnprocessableEntity {
+		t.Fatalf("unknown icon: %d", code)
 	}
 
 	// Outsiders get nothing, not even that the space exists.
@@ -60,6 +76,7 @@ func TestSpacePages(t *testing.T) {
 	aliceID := itoa(e.userID("alice"))
 	for path, form := range map[string]url.Values{
 		page + "/rename":                         {"name": {"Mine"}},
+		page + "/icon":                           {"icon": {"car"}},
 		page + "/members":                        {"username": {"root"}, "role": {"write"}},
 		page + "/members/" + aliceID + "/remove": nil,
 	} {
@@ -244,7 +261,7 @@ func TestAPISpaces(t *testing.T) {
 	if first := list[0].(map[string]any); first["personal"] != true || first["name"] != "Personal" {
 		t.Fatalf("personal space not first: %v", first)
 	}
-	if second := list[1].(map[string]any); second["name"] != "Team" || second["role"] != "read" {
+	if second := list[1].(map[string]any); second["name"] != "Team" || second["role"] != "read" || second["icon"] != "" {
 		t.Fatalf("shared space: %v", second)
 	}
 
@@ -334,5 +351,17 @@ func TestAdminSpaces(t *testing.T) {
 	}
 	if list, _ := e.store.AdminListSpaces(ctx); len(list) != 0 {
 		t.Fatalf("space still there: %+v", list)
+	}
+}
+
+// Every space icon can be drawn and has a name for screen readers.
+func TestSpaceIcons(t *testing.T) {
+	for _, name := range store.SpaceIcons {
+		if _, ok := spaceIconLabels[name]; !ok {
+			t.Errorf("no label for %q", name)
+		}
+		if !strings.Contains(string(iconSprite), `id="i-`+name+`"`) {
+			t.Errorf("no symbol for %q", name)
+		}
 	}
 }

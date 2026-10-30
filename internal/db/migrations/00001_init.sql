@@ -77,6 +77,7 @@ CREATE TABLE spaces (
   id          INTEGER PRIMARY KEY,
   personal_of INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE, -- NULL = a shared space
   name        TEXT NOT NULL DEFAULT '',                              -- shared spaces only
+  icon        TEXT NOT NULL DEFAULT '',                              -- one of store.SpaceIcons; '' = the default
   created_at  INTEGER NOT NULL
 );
 

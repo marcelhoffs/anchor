@@ -220,6 +220,7 @@ func (s *Server) toAPI(b store.Bookmark) apiBookmark {
 type apiSpace struct {
 	ID       int64      `json:"id"`
 	Name     string     `json:"name"`
+	Icon     string     `json:"icon"` // one of store.SpaceIcons; "" for the default
 	Personal bool       `json:"personal"`
 	Role     store.Role `json:"role"`
 }
@@ -238,7 +239,7 @@ func (s *Server) apiListSpaces(w http.ResponseWriter, r *http.Request) {
 	}
 	out := []apiSpace{{ID: own.SpaceID(), Name: "Personal", Personal: true, Role: own.Role()}}
 	for _, sp := range shared {
-		out = append(out, apiSpace{ID: sp.ID, Name: sp.Name, Role: sp.Role})
+		out = append(out, apiSpace{ID: sp.ID, Name: sp.Name, Icon: sp.Icon, Role: sp.Role})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": out})
 }

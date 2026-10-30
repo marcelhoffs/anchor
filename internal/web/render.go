@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"path"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -78,6 +79,7 @@ var funcs = template.FuncMap{
 	"fontFiles":         func(font string) []string { return fontFiles[font] },
 	"iconSprite":        func() template.HTML { return iconSprite },
 	"icon":              icon,
+	"spaceIcon":         spaceIcon,
 	"initial":           initial,
 	"bytes":             humanBytes,
 	"strong":            strong,
@@ -140,6 +142,14 @@ func icon(name string, class ...string) template.HTML {
 	cls := strings.Join(append([]string{"icon"}, class...), " ")
 	return template.HTML(`<svg class="` + cls + `" aria-hidden="true" focusable="false"><use href="#i-` +
 		name + `"></use></svg>`)
+}
+
+// spaceIcon is the icon a shared space shows: its own, or the default.
+func spaceIcon(name string) string {
+	if slices.Contains(store.SpaceIcons, name) {
+		return name
+	}
+	return "space"
 }
 
 // initial is the upper-cased first letter or digit of s, for letter avatars.

@@ -54,7 +54,7 @@ Errors are [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details, w
 | GET | `/api/v1/jobs/{id}` | An import's progress and result |
 | GET | `/api/v1/export?format=html\|json` | Export all bookmarks in the space |
 | GET | `/api/v1/user` | The token's user |
-| GET | `/api/v1/spaces` | Your spaces: the personal one first, then the shared ones, with your `role` in each |
+| GET | `/api/v1/spaces` | Your spaces: the personal one first, then the shared ones, with your `role` in each and the space's `icon` (`""` for the default) |
 
 The `q` parameter takes the same [search syntax](how-it-works.md#search) as the search box. `tag=` (repeatable), `archived=true` and `favourite=true` add the matching conditions to it.
 
