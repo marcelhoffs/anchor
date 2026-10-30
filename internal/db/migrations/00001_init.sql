@@ -167,6 +167,7 @@ CREATE TABLE tags (
   id       INTEGER PRIMARY KEY,
   space_id INTEGER NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
   name     TEXT NOT NULL COLLATE NOCASE,
+  color    TEXT NOT NULL DEFAULT '', -- one of store.TagColors; '' picks one from the name
   UNIQUE (space_id, name)
 );
 
