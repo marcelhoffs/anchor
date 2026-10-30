@@ -566,6 +566,7 @@ textarea { resize: vertical; }
 .tag-input .tag:hover, .suggestions .tag:hover { text-decoration: none; }
 .tag-input input { flex: 1 1 120px; min-width: 120px; margin: 0; padding: 0 2px; border: 0; background: none; box-shadow: none; line-height: 28px; }
 .tag-input input:focus { box-shadow: none; }
+.tag-input input::-webkit-search-cancel-button { display: none; }
 .tag-remove {
   display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 1px; padding: 0;
   border: 0; border-radius: 999px; background: none; color: inherit; font-size: 14px; line-height: 1; cursor: pointer; opacity: 0.7;
