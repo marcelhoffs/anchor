@@ -1,5 +1,5 @@
 // The list's toolbar acts on the ticked rows. This adds the select all/none
-// box and the count, turns off the buttons that don't apply (all of them
+// button and the count, turns off the buttons that don't apply (all of them
 // with nothing ticked, Edit unless exactly one is), puts the number in the
 // delete confirmation, and lets Shift-click tick a range. Loaded on the list
 // page only when the space can be edited. Without it, every button posts
@@ -26,10 +26,10 @@
   function update() {
     var list = boxes();
     var n = list.filter(function (b) { return b.checked; }).length;
-    all.checked = n > 0 && n === list.length;
-    all.indeterminate = n > 0 && n < list.length;
-    // Ticked, the box selects none.
-    all.title = all.getAttribute(all.checked ? "data-none" : "data-all");
+    // With everything ticked, the button lights up and selects none.
+    var every = n > 0 && n === list.length;
+    all.classList.toggle("on", every);
+    all.title = all.getAttribute(every ? "data-none" : "data-all");
     all.setAttribute("aria-label", all.title);
     count.textContent = n ? plural(count, n) : "";
     bar.classList.toggle("has-selection", n > 0);
@@ -42,8 +42,8 @@
   all.setAttribute("data-all", all.title);
   all.hidden = false;
 
-  all.addEventListener("change", function () {
-    var on = all.checked; // a click on a partly ticked box ticks them all
+  all.addEventListener("click", function () {
+    var on = !all.classList.contains("on"); // with some ticked, it ticks them all
     boxes().forEach(function (b) { b.checked = on; });
     last = null;
     update();

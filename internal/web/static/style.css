@@ -399,16 +399,16 @@ label.bm-icon .avatar { transition: background 120ms, filter 120ms; }
 @media (prefers-reduced-motion: reduce) { label.bm-icon::after, label.bm-icon .avatar { transition: none; } }
 /* The toolbar for the ticked rows sits on top of the list, as its header. */
 .bulk-bar {
-  display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 4px 8px 4px 14px;
+  display: flex; align-items: center; gap: 4px; min-height: 52px; padding: 4px 8px 4px 11px;
   border: 1px solid var(--border); border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; background: var(--raised);
 }
 .bulk-bar + .bookmarks { margin-top: -14px; border-top-left-radius: 0; border-top-right-radius: 0; } /* no gap under the toolbar */
-.bulk-all:not(:checked):not(:indeterminate) { border-color: var(--muted); background: none; } /* quiet until it does something */
+.bulk-all.on:hover { color: var(--accent-text); } /* all selected: it selects none */
 .bulk-count { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bulk-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
 .bulk-actions .bulk-more { display: none; } /* a phone's overflow menu */
 .icon-btn:disabled { opacity: 0.4; background: none; color: var(--muted); cursor: default; }
-.bm-icon { flex-shrink: 0; display: flex; margin-top: 2px; text-decoration: none; }
+.bm-icon { flex-shrink: 0; display: flex; margin: 2px 0 0; text-decoration: none; } /* a label, without a form label's margin */
 .bm-icon .avatar { margin-top: 0; }
 .avatar {
   flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; margin-top: 2px;
@@ -690,7 +690,7 @@ td.actions { text-align: right; white-space: nowrap; }
   .bookmark { padding: 10px; gap: 10px; }
   .avatar { width: 32px; height: 32px; margin-top: 0; }
   .bm-icon { margin-top: 0; }
-  .bulk-bar { padding-left: 10px; }
+  .bulk-bar { padding-left: 6px; }
   .bulk-actions .bulk-more { display: inline-flex; }
   .avatar.favicon { padding: 6px; }
   .bm-body { gap: 2px; }
@@ -812,6 +812,9 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 @supports not (position-area: bottom) {
   .row-menu { inset: 0; height: fit-content; margin: auto; }
 }
+/* Opened from the More menu, the space menus open beside it, level with
+   their item, or under it when there's no room on either side. */
+.bulk-actions:has(#bulk-more:popover-open) .row-menu:not(#bulk-more) { margin: 0 4px; position-area: left span-bottom; position-try-fallbacks: flip-inline, bottom span-left; }
 .menu-title { padding: 6px 10px 4px; color: var(--muted); font-size: var(--fs-xs); font-weight: var(--fw-semibold); overflow-wrap: anywhere; }
 .menu .danger { color: var(--danger); }
 /* The button stays beside the field, even on phones. */
