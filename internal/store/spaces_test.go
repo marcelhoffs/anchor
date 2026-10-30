@@ -197,6 +197,7 @@ func TestSharedSpaces(t *testing.T) {
 			"role":     s.SetRole(ctx, sc, other, RoleWrite),
 			"remove":   s.RemoveMember(ctx, sc, other),
 			"rename":   s.RenameSpace(ctx, sc, "Mine"),
+			"icon":     s.SetSpaceIcon(ctx, sc, "car"),
 			"transfer": s.TransferSpace(ctx, sc, id),
 			"delete":   s.DeleteSpace(ctx, sc),
 		} {
@@ -281,6 +282,21 @@ func TestSharedSpaces(t *testing.T) {
 	s.CreateSavedSearch(ctx, bobScope, "Fam", "#family")
 	if err := s.RenameSpace(ctx, bobScope, "Gone soon"); err != nil {
 		t.Fatal(err)
+	}
+	// The owner picks an icon from the list, or the default again.
+	for _, icon := range []string{"truck", ""} {
+		if err := s.SetSpaceIcon(ctx, bobScope, icon); err != nil {
+			t.Fatal(err)
+		}
+		if sp, _ := s.GetSpace(ctx, bobScope); sp.Icon != icon {
+			t.Fatalf("icon %q, want %q", sp.Icon, icon)
+		}
+	}
+	if err := s.SetSpaceIcon(ctx, bobScope, "../x"); !isValidationErr(err) {
+		t.Fatalf("unknown icon: %v", err)
+	}
+	if err := s.SetSpaceIcon(ctx, personal(s, bob.ID), "car"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("icon on a personal space: %v", err)
 	}
 	if err := s.DeleteSpace(ctx, bobScope); err != nil {
 		t.Fatal(err)

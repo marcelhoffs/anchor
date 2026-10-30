@@ -251,7 +251,7 @@
 </nav>
 {{end}}
 
-{{define "space-target"}}{{if .Name}}{{icon "space" "sm"}}<span class="menu-label">{{.Name}}</span>{{else}}{{icon "user" "sm"}}<span class="menu-label">{{t "Personal"}}</span>{{end}}{{end}}
+{{define "space-target"}}{{if .Name}}{{icon (spaceIcon .Icon) "sm"}}<span class="menu-label">{{.Name}}</span>{{else}}{{icon "user" "sm"}}<span class="menu-label">{{t "Personal"}}</span>{{end}}{{end}}
 
 {{define "bm-avatar"}}{{if .FaviconID}}<img class="avatar favicon" src="/favicons/{{.FaviconID}}" alt="" width="40" height="40" loading="lazy">{{else}}<span class="avatar">{{initial .Domain}}</span>{{end}}{{end}}
 

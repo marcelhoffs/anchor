@@ -617,6 +617,19 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
   border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); font-weight: var(--fw-medium); cursor: pointer;
 }
 .choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* A space's icon: a grid of icon-only choices. */
+.icon-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 8px; }
+.icon-choice {
+  position: relative; display: flex; align-items: center; justify-content: center; height: 44px; margin: 0;
+  border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--muted); cursor: pointer;
+}
+.icon-choice:hover { color: var(--text); }
+.icon-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.icon-choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); color: var(--accent-text); }
+.icon-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A space's name in a table, after its icon. */
+.space-cell > * { display: inline-flex; align-items: center; gap: 8px; }
+.space-cell .icon { flex-shrink: 0; color: var(--muted); }
 .swatch { width: 20px; height: 20px; border-radius: 999px; }
 /* Each font option is shown in its own font. */
 .font-sample.inter { font-family: var(--font-inter); }

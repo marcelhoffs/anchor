@@ -45,6 +45,7 @@ func currentSession(r *http.Request) *store.Session {
 type spaceNav struct {
 	Scope  store.Scope
 	Name   string // the shared space's name; "" for the personal space
+	Icon   string // the shared space's icon
 	Spaces []store.Space
 }
 
@@ -87,7 +88,7 @@ func (s *Server) loadScope(next http.Handler) http.Handler {
 			if sc, err := s.store.Access(ctx, u.ID, id); err == nil {
 				for _, sp := range spaces {
 					if sp.ID == id {
-						nav.Scope, nav.Name = sc, sp.Name
+						nav.Scope, nav.Name, nav.Icon = sc, sp.Name, sp.Icon
 					}
 				}
 			}

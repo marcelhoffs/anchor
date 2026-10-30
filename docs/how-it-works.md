@@ -31,7 +31,7 @@ Each member of a shared space has a role:
 
 | Role | Can |
 | --- | --- |
-| Owner | Everything an editor can, plus rename the space, add and remove members, change roles, make someone else the owner, and delete the space |
+| Owner | Everything an editor can, plus rename the space or give it an icon, add and remove members, change roles, make someone else the owner, and delete the space |
 | Can edit | Add, change, archive, share and delete bookmarks; create, rename and delete tags; import |
 | Read only | See the bookmarks and tags, search them and export them |
 
