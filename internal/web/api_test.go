@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/marcelhoffs/anchor/internal/ratelimit"
+	"github.com/marcelhoffs/anchor/internal/store"
 )
 
 // apiToken creates a token through the web UI and returns it.
@@ -177,6 +178,32 @@ func TestAPITagWithSpace(t *testing.T) {
 	res, _ := out["results"].([]any)
 	if code != 200 || len(res) != 1 || res[0].(map[string]any)["title"] != "A" {
 		t.Fatalf("tag with a space: %d %v", code, out)
+	}
+}
+
+// Tags carry their colour, which PATCH can set, alone or with a new name.
+func TestAPITagColor(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	alice := apiClient{t, e.srv.URL, apiToken(t, e.login("alice"), "write")}
+	code, tag := alice.do("POST", "/tags", map[string]any{"name": "go"})
+	if code != 201 || tag["color"] != store.TagColor("go", "") {
+		t.Fatalf("create: %d %v", code, tag)
+	}
+	path := fmt.Sprintf("/tags/%v", tag["id"])
+	if code, _ := alice.do("PATCH", path, map[string]any{"color": "slate"}); code != 204 {
+		t.Fatalf("colour alone: %d", code)
+	}
+	if code, _ := alice.do("PATCH", path, map[string]any{"name": "golang", "color": "chartreuse"}); code != 422 {
+		t.Fatalf("unknown colour: %d", code)
+	}
+	if code, _ := alice.do("PATCH", path, map[string]any{"name": "golang", "color": "teal"}); code != 204 {
+		t.Fatalf("name and colour: %d", code)
+	}
+	_, out := alice.do("GET", "/tags", nil)
+	res, _ := out["results"].([]any)
+	if len(res) != 1 || res[0].(map[string]any)["name"] != "golang" || res[0].(map[string]any)["color"] != "teal" {
+		t.Fatalf("after PATCH: %v", out)
 	}
 }
 

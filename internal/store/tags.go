@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"database/sql"
+	"hash/fnv"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -10,10 +12,25 @@ import (
 type Tag struct {
 	ID    int64
 	Name  string
+	Color string // one of TagColors
 	Count int
 }
 
 const maxTagLen = 64
+
+// TagColors are the colours a tag can have (see [data-color] in style.css).
+var TagColors = []string{"blue", "teal", "green", "amber", "orange", "rose", "purple", "slate"}
+
+// TagColor is a tag's colour: the one chosen for it, or else one picked
+// from its name, so every tag has one without anyone choosing.
+func TagColor(name, chosen string) string {
+	if slices.Contains(TagColors, chosen) {
+		return chosen
+	}
+	h := fnv.New32a()
+	h.Write([]byte(strings.ToLower(name)))
+	return TagColors[h.Sum32()%uint32(len(TagColors))]
+}
 
 // CleanTagName tidies one tag name: it trims it, drops a leading '#' and
 // collapses runs of whitespace to one space. Names may contain spaces but
@@ -144,7 +161,7 @@ func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, erro
 	if err != nil {
 		return Tag{}, err
 	}
-	t := Tag{Name: name}
+	t := Tag{Name: name, Color: TagColor(name, "")}
 	err = s.w.QueryRowContext(ctx, "INSERT INTO tags (space_id, name) VALUES (?, ?) RETURNING id", sc.spaceID, name).Scan(&t.ID)
 	if isUniqueViolation(err) {
 		return Tag{}, invalid("There's already a tag called %q.", name)
@@ -155,7 +172,7 @@ func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, erro
 // ListTags returns the space's tags with bookmark counts, by name.
 func (s *Store) ListTags(ctx context.Context, sc Scope) ([]Tag, error) {
 	rows, err := s.r.QueryContext(ctx,
-		`SELECT t.id, t.name, count(bt.bookmark_id) FROM tags t
+		`SELECT t.id, t.name, t.color, count(bt.bookmark_id) FROM tags t
 		 LEFT JOIN bookmark_tags bt ON bt.tag_id = t.id
 		 WHERE t.space_id = ? GROUP BY t.id ORDER BY t.name`, sc.spaceID)
 	if err != nil {
@@ -165,12 +182,24 @@ func (s *Store) ListTags(ctx context.Context, sc Scope) ([]Tag, error) {
 	var out []Tag
 	for rows.Next() {
 		var t Tag
-		if err := rows.Scan(&t.ID, &t.Name, &t.Count); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.Color, &t.Count); err != nil {
 			return nil, err
 		}
+		t.Color = TagColor(t.Name, t.Color)
 		out = append(out, t)
 	}
 	return out, rows.Err()
+}
+
+// SetTagColor gives a tag one of TagColors.
+func (s *Store) SetTagColor(ctx context.Context, sc Scope, id int64, color string) error {
+	if err := sc.mustWrite(); err != nil {
+		return err
+	}
+	if !slices.Contains(TagColors, color) {
+		return invalid("Pick one of the tag colours.")
+	}
+	return affected(s.w.ExecContext(ctx, "UPDATE tags SET color = ? WHERE space_id = ? AND id = ?", color, sc.spaceID, id))
 }
 
 // RenameTag renames a tag. If the space already has a tag with the new name,

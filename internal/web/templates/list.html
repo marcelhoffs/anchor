@@ -124,7 +124,7 @@
       <div class="bm-body">
         <div class="bm-head">
           <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
-          {{if .Tags}}<span class="bm-tags">{{range .Tags}}<a class="tag" href="{{tagURL .}}">{{.}}</a>{{end}}</span>{{end}}
+          {{if .Tags}}<span class="bm-tags">{{range .Tags}}<a class="tag" href="{{tagURL .}}" data-color="{{index $.TagColors .}}">{{.}}</a>{{end}}</span>{{end}}
         </div>
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
         <div class="bm-meta">
@@ -200,7 +200,7 @@
 {{define "tag-links"}}
 <nav aria-label="{{t "Tags"}}">
   {{range .Tags}}
-  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}{{if $.CanWrite}} data-tag-drop="{{.ID}}"{{end}}>{{icon "tag"}}<span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
+  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}{{if $.CanWrite}} data-tag-drop="{{.ID}}"{{end}}><span class="tag-dot" data-color="{{.Color}}" aria-hidden="true"></span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
   {{else}}
   <p class="side-empty">{{t "No tags yet"}}</p>
   {{end}}

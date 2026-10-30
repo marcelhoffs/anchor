@@ -73,7 +73,7 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 	here.RawQuery = query.Encode()
 	d := data{
 		"Query": q, "Bookmarks": list, "Tags": tags, "Counts": counts, "SavedSearches": searches, "Here": here.RequestURI(),
-		"View": view, "Heading": heading, "WebSearch": web,
+		"View": view, "Heading": heading, "WebSearch": web, "TagColors": tagColors(tags),
 	}
 	// Just archived from this page (see flagBookmark): offer to undo it.
 	if id, err := strconv.ParseInt(r.URL.Query().Get("archived"), 10, 64); err == nil && sc.CanWrite() {
@@ -85,6 +85,15 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		d["Pager"] = newPager(page, pages, total, pageURL)
 	}
 	s.render(w, r, http.StatusOK, "list", d)
+}
+
+// tagColors maps each tag's name to its colour, for the tags on the rows.
+func tagColors(tags []store.Tag) map[string]string {
+	out := make(map[string]string, len(tags))
+	for _, t := range tags {
+		out[t.Name] = t.Color
+	}
+	return out
 }
 
 // webSearch is the search box's web option.
@@ -185,11 +194,12 @@ func (s *Server) renderEdit(w http.ResponseWriter, r *http.Request, sc store.Sco
 		return
 	}
 	slices.SortStableFunc(tags, func(a, b store.Tag) int { return b.Count - a.Count })
-	names := make([]string, len(tags))
+	names, colors := make([]string, len(tags)), make([]string, len(tags))
 	for i, t := range tags {
-		names[i] = t.Name
+		names[i], colors[i] = t.Name, t.Color
 	}
 	d["TagNames"] = strings.Join(names, ",") // tag names never contain commas
+	d["TagColors"] = strings.Join(colors, ",")
 	s.render(w, r, status, "edit", d)
 }
 
@@ -476,15 +486,17 @@ func (s *Server) tagBookmark(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type tagLink struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
+		Name  string `json:"name"`
+		URL   string `json:"url"`
+		Color string `json:"color"`
 	}
 	out := struct {
 		Tags  []tagLink `json:"tags"`
 		Count int       `json:"count"`
 	}{Tags: []tagLink{}}
+	colors := tagColors(tags)
 	for _, name := range b.Tags {
-		out.Tags = append(out.Tags, tagLink{name, tagURL(name)})
+		out.Tags = append(out.Tags, tagLink{name, tagURL(name), colors[name]})
 	}
 	for _, t := range tags {
 		if t.ID == tagID {
@@ -540,7 +552,30 @@ func (s *Server) renderTags(w http.ResponseWriter, r *http.Request, status int, 
 		s.serverError(w, r, err)
 		return
 	}
-	s.render(w, r, status, "tags", data{"Tags": tags, "Error": problem})
+	s.render(w, r, status, "tags", data{"Tags": tags, "Error": problem, "Colors": choices(langOf(r), store.TagColors, tagColorLabels)})
+}
+
+// tagColorLabels names each store.TagColors value on the Tags page.
+var tagColorLabels = map[string]i18n.Msg{
+	"blue": i18n.M("Blue"), "teal": i18n.M("Teal"), "green": i18n.M("Green"), "amber": i18n.M("Amber"),
+	"orange": i18n.M("Orange"), "rose": i18n.M("Rose"), "purple": i18n.M("Purple"), "slate": i18n.M("Slate"),
+}
+
+func (s *Server) colorTag(w http.ResponseWriter, r *http.Request) {
+	id, ok := idParam(r)
+	if !ok {
+		s.notFound(w, r)
+		return
+	}
+	err := s.store.SetTagColor(r.Context(), currentScope(r), id, r.PostFormValue("color"))
+	if isValidation(err) {
+		s.renderTags(w, r, http.StatusUnprocessableEntity, errMsg(err))
+		return
+	}
+	if !s.storeError(w, r, err) {
+		return
+	}
+	http.Redirect(w, r, "/tags", http.StatusSeeOther)
 }
 
 func (s *Server) createTag(w http.ResponseWriter, r *http.Request) {

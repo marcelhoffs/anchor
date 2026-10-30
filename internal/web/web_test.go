@@ -899,6 +899,10 @@ func TestTagTypeAhead(t *testing.T) {
 		if !strings.Contains(body, `data-tags="home lab,go"`) || !strings.Contains(body, `role="combobox"`) {
 			t.Errorf("%s: no tag suggestions", path)
 		}
+		// Their colours, in the same order, for the chips.
+		if colors := `data-colors="` + store.TagColor("home lab", "") + "," + store.TagColor("go", "") + `"`; !strings.Contains(body, colors) {
+			t.Errorf("%s: no %s", path, colors)
+		}
 		if !strings.Contains(body, `<script src="/static/tags.js?v=`) {
 			t.Errorf("%s: tags.js not loaded", path)
 		}
@@ -922,6 +926,34 @@ func TestAdminUserMenuIsAPopover(t *testing.T) {
 	}
 	if strings.Contains(body, `<details class="row-menu"`) {
 		t.Fatal("old details menu still there")
+	}
+}
+
+// A tag's colour is picked on the Tags page and shows wherever the tag does:
+// on the rows and in the sidebar (and after a drop: TestDragToTag).
+func TestTagColorsOnPages(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	e.tags("alice", "go")
+	c := e.login("alice")
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}, "tags": {"go"}})
+	tags, _ := e.store.ListTags(context.Background(), personal(e.store, e.userID("alice")))
+	id := itoa(tags[0].ID)
+
+	_, body, _ := c.get("/tags")
+	if !strings.Contains(body, `action="/tags/`+id+`/color"`) || strings.Count(body, `name="color"`) != len(store.TagColors) ||
+		!strings.Contains(body, `value="`+tags[0].Color+`" aria-current="true"`) {
+		t.Fatal("tags page: no colour menu, or the current colour isn't marked")
+	}
+	if code, _, loc := c.post("/tags/"+id+"/color", url.Values{"color": {"rose"}}); code != http.StatusSeeOther || loc != "/tags" {
+		t.Fatalf("pick a colour: %d %q", code, loc)
+	}
+	if code, body, _ := c.post("/tags/"+id+"/color", url.Values{"color": {"chartreuse"}}); code != http.StatusUnprocessableEntity || !strings.Contains(body, "Pick one of the tag colours.") {
+		t.Fatalf("unknown colour: %d", code)
+	}
+	_, body, _ = c.get("/")
+	if !strings.Contains(body, `class="tag" href="/?q=%23go" data-color="rose"`) || !strings.Contains(body, `<span class="tag-dot" data-color="rose"`) {
+		t.Fatal("list: the tag's colour isn't on its chip or in the sidebar")
 	}
 }
 

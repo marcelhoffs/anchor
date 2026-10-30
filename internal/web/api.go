@@ -525,7 +525,7 @@ func (s *Server) apiCreateTag(w http.ResponseWriter, r *http.Request) {
 	if !s.apiStoreError(w, err) {
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{"id": t.ID, "name": t.Name, "count": 0})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": t.ID, "name": t.Name, "color": t.Color, "count": 0})
 }
 
 func (s *Server) apiListTags(w http.ResponseWriter, r *http.Request) {
@@ -535,13 +535,13 @@ func (s *Server) apiListTags(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]map[string]any, len(tags))
 	for i, t := range tags {
-		out[i] = map[string]any{"id": t.ID, "name": t.Name, "count": t.Count}
+		out[i] = map[string]any{"id": t.ID, "name": t.Name, "color": t.Color, "count": t.Count}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": out})
 }
 
 // apiUpdateTag renames a tag ({"name": ...}) or merges it into another
-// ({"merge_into": <tag id>}).
+// ({"merge_into": <tag id>}), and/or sets its colour ({"color": ...}).
 func (s *Server) apiUpdateTag(w http.ResponseWriter, r *http.Request) {
 	id, ok := apiID(w, r)
 	if !ok {
@@ -550,16 +550,18 @@ func (s *Server) apiUpdateTag(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Name      *string `json:"name"`
 		MergeInto *int64  `json:"merge_into"`
+		Color     *string `json:"color"`
 	}
 	if !decodeJSON(w, r, &body) {
 		return
 	}
 	sc := apiCaller(r).scope
+	rename := body.Name != nil || body.MergeInto != nil
 	var newName string
 	switch {
 	case body.Name != nil && body.MergeInto == nil:
 		newName = *body.Name
-	case body.MergeInto != nil && body.Name == nil:
+	case body.MergeInto != nil && body.Name == nil && body.Color == nil:
 		tags, err := s.store.ListTags(r.Context(), sc)
 		if !s.apiStoreError(w, err) {
 			return
@@ -573,11 +575,20 @@ func (s *Server) apiUpdateTag(w http.ResponseWriter, r *http.Request) {
 			problem(w, http.StatusUnprocessableEntity, "merge_into must be the id of another of your tags.")
 			return
 		}
+	case !rename && body.Color != nil:
 	default:
-		problem(w, http.StatusBadRequest, "Send either name or merge_into.")
+		problem(w, http.StatusBadRequest, "Send name, color or both, or merge_into alone.")
 		return
 	}
-	if !s.apiStoreError(w, s.store.RenameTag(r.Context(), sc, id, newName)) {
+	// Both checked first, so one doesn't happen without the other. The
+	// colour goes first: a rename can merge this tag into another.
+	if _, err := store.CleanTagName(newName); rename && !s.apiStoreError(w, err) {
+		return
+	}
+	if body.Color != nil && !s.apiStoreError(w, s.store.SetTagColor(r.Context(), sc, id, *body.Color)) {
+		return
+	}
+	if rename && !s.apiStoreError(w, s.store.RenameTag(r.Context(), sc, id, newName)) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

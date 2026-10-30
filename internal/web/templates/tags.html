@@ -18,12 +18,20 @@
   <table>
     <thead><tr><th scope="col">{{t "Tag"}}</th><th scope="col" class="hide-sm">{{t "Bookmarks"}}</th>{{if .CanWrite}}<th scope="col"><span class="visually-hidden">{{t "Actions"}}</span></th>{{end}}</tr></thead>
     <tbody>
-    {{range .Tags}}
+    {{range .Tags}}{{$tag := .}}
       <tr>
-        <td><a class="tag" href="{{tagURL .Name}}">{{.Name}}</a></td>
+        <td><a class="tag" href="{{tagURL .Name}}" data-color="{{.Color}}">{{.Name}}</a></td>
         <td class="num hide-sm">{{.Count}}</td>
         {{if $.CanWrite}}
         <td class="actions">
+          {{/* Each colour is a button of its own: one click picks it. */}}
+          <button type="button" class="icon-btn" popovertarget="color-tag-{{.ID}}" title="{{t "Colour"}}" aria-label="{{t "Colour of tag %s" .Name}}"><span class="tag-dot" data-color="{{.Color}}"></span></button>
+          <form id="color-tag-{{.ID}}" class="menu row-menu" popover method="post" action="/tags/{{.ID}}/color">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            {{range $.Colors}}
+            <button name="color" value="{{.Value}}"{{if eq .Value $tag.Color}} aria-current="true"{{end}}><span class="tag-dot" data-color="{{.Value}}" aria-hidden="true"></span><span class="menu-label">{{.Label}}</span>{{if eq .Value $tag.Color}}{{icon "check" "sm"}}{{end}}</button>
+            {{end}}
+          </form>
           <button type="button" class="icon-btn" popovertarget="rename-tag-{{.ID}}" title="{{t "Rename"}}" aria-label="{{t "Rename tag %s" .Name}}">{{icon "pencil"}}</button>
           <div id="rename-tag-{{.ID}}" class="confirm" popover role="dialog" aria-labelledby="rename-tag-{{.ID}}-title">
             <p class="confirm-title" id="rename-tag-{{.ID}}-title">{{t "Rename tag"}}</p>

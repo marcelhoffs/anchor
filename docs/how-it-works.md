@@ -63,6 +63,8 @@ Each space has its own tags. They are created on the Tags page before bookmarks 
 
 To tag a bookmark from the list, drag its icon onto a tag in the sidebar. With `!untagged` in the search box you find the bookmarks that still need one.
 
+Every tag has a colour, shown as a dot in the sidebar and on its chips. A new tag gets one picked from its name; choose another on the Tags page. There are eight: blue, teal, green, amber, orange, rose, purple and slate.
+
 Renaming a tag to a name you already have merges the two: every bookmark gets the surviving tag. Deleting a tag removes it from its bookmarks and leaves the bookmarks themselves alone.
 
 Imports are the exception to "create first": an import creates the tags it brings with it.
