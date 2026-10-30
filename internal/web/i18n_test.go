@@ -174,7 +174,7 @@ func TestEveryPageInEveryLanguage(t *testing.T) {
 	c.post("/tags", url.Values{"name": {"go"}})
 	c.post("/bookmarks", url.Values{"url": {"https://go.dev/"}, "title": {"Go & friends"}, "tags": {"go"}})
 	c.post("/bookmarks/1/share", url.Values{"on": {"1"}})
-	c.post("/bookmarks/1/flag", url.Values{"flag": {"favourite"}, "on": {"1"}})
+	c.post("/bookmarks/bulk", url.Values{"from": {itoa(personal(e.store, e.userID("root")).SpaceID())}, "action": {"favourite"}, "id": {"1"}})
 	c.post("/saved-searches", url.Values{"name": {"Go"}, "query": {"#go"}})
 	c.post("/spaces", url.Values{"name": {"Team"}})
 	c.post("/admin/settings", url.Values{"signup": {"invite"}})

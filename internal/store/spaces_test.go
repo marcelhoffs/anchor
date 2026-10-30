@@ -163,6 +163,13 @@ func TestSharedSpaces(t *testing.T) {
 	if list, _ := s.ListSpaces(ctx, bob.ID); len(list) != 0 {
 		t.Fatalf("bob sees spaces he isn't in: %+v", list)
 	}
+	// The space menu has the same spaces, with what it shows.
+	if menu, _ := s.SpaceMenu(ctx, alice.ID); len(menu) != 1 || menu[0].ID != owner.SpaceID() || menu[0].Name != "Family home" || menu[0].Role != RoleOwner {
+		t.Fatalf("menu: %+v", menu)
+	}
+	if menu, _ := s.SpaceMenu(ctx, bob.ID); len(menu) != 0 {
+		t.Fatalf("bob's menu has spaces he isn't in: %+v", menu)
+	}
 
 	// Adding members: existing users only, once, as editor or reader.
 	for name, err := range map[string]error{

@@ -41,7 +41,8 @@ func currentSession(r *http.Request) *store.Session {
 }
 
 // spaceNav is the space the user is looking at, and the shared spaces the
-// top bar's switcher offers (it shows only when there are any).
+// top bar's switcher offers (it shows only when there are any), from
+// SpaceMenu: without owners or counts.
 type spaceNav struct {
 	Scope  store.Scope
 	Name   string // the shared space's name; "" for the personal space
@@ -78,7 +79,7 @@ func currentScope(r *http.Request) store.Scope {
 func (s *Server) loadScope(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx, u := r.Context(), currentUser(r)
-		spaces, err := s.store.ListSpaces(ctx, u.ID)
+		spaces, err := s.store.SpaceMenu(ctx, u.ID)
 		if err != nil {
 			s.serverError(w, r, err)
 			return
@@ -326,6 +327,17 @@ func (s *Server) clientIP(r *http.Request) string {
 		}
 	}
 	return ip.String()
+}
+
+// limitKey is the client's address for rate limits. An IPv6 address counts
+// as its /64, the block one connection gets: otherwise a client could take a
+// new address within it for every few attempts and never reach a limit.
+func (s *Server) limitKey(r *http.Request) string {
+	ip := s.clientIP(r)
+	if a, err := netip.ParseAddr(ip); err == nil && a.Is6() {
+		return netip.PrefixFrom(a, 64).Masked().String()
+	}
+	return ip
 }
 
 func (s *Server) trusted(ip netip.Addr) bool {

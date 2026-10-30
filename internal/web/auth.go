@@ -101,7 +101,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.PostFormValue("username"))
 	password := r.PostFormValue("password")
 	next := r.PostFormValue("next")
-	ip := s.clientIP(r)
+	ip := s.limitKey(r)
 	userKey := ip + "|" + strings.ToLower(username)
 	fail := func(status int, msg i18n.Msg) {
 		s.renderLogin(w, r, status, data{"Error": msg, "Username": username, "Next": next})
@@ -264,7 +264,7 @@ func (s *Server) signup(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, http.StatusNotFound, "signup_closed", data{"HadInvite": token != ""})
 		return
 	}
-	if allowed, retry := s.signupIP.Allow(s.clientIP(r)); !allowed {
+	if allowed, retry := s.signupIP.Allow(s.limitKey(r)); !allowed {
 		w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 		s.render(w, r, http.StatusTooManyRequests, "signup", data{"Invite": token,
 			"Error": i18n.M("Too many sign-ups from your network. Try again in %s.", retryText(langOf(r), retry))})

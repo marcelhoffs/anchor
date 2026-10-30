@@ -176,9 +176,6 @@ func TestSpaceSwitcher(t *testing.T) {
 	if code, _, _ := bob.post("/bookmarks/bulk", url.Values{"from": {teamID}, "action": {"favourite"}, "id": {bid}}); code != http.StatusForbidden {
 		t.Fatalf("reader starred a bookmark from the toolbar: %d", code)
 	}
-	if code, _, _ := bob.post("/bookmarks/"+bid+"/flag", url.Values{"flag": {"favourite"}, "on": {"1"}}); code != http.StatusForbidden {
-		t.Fatalf("reader starred a bookmark: %d", code)
-	}
 	if code, _, _ := bob.get("/bookmarks/" + bid + "/edit"); code != http.StatusForbidden {
 		t.Fatalf("reader opened the edit form: %d", code)
 	}

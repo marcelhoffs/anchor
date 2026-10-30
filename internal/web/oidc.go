@@ -196,7 +196,7 @@ func (s *Server) oidcRedirect(w http.ResponseWriter, r *http.Request, f oidcFlow
 // Anyone can, so it's limited per IP, and what it keeps of the request is
 // cut to size.
 func (s *Server) oidcLogin(w http.ResponseWriter, r *http.Request) {
-	if ok, retry := s.ssoIP.Allow(s.clientIP(r)); !ok {
+	if ok, retry := s.ssoIP.Allow(s.limitKey(r)); !ok {
 		w.Header().Set("Retry-After", fmt.Sprint(int(retry.Seconds())+1))
 		s.renderLogin(w, r, http.StatusTooManyRequests, data{
 			"Error": i18n.M("Too many sign-ins from your network. Try again in %s.", retryText(langOf(r), retry))})

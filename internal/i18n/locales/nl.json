@@ -460,7 +460,6 @@
  "Anyone with the link can now see this bookmark's title, link and description.": "Iedereen met de link ziet nu de titel, link en beschrijving van deze bladwijzer.",
  "The public link no longer works.": "De openbare link werkt niet meer.",
  "Fetching the page again. Empty fields and the icon are filled in when it's done.": "De pagina wordt opnieuw opgehaald. Lege velden en het icoon worden ingevuld zodra dat klaar is.",
- "Unknown flag": "Onbekende markering",
  "Choose a bookmark file to import.": "Kies een bladwijzerbestand om te importeren.",
  "Couldn't read that file. Try uploading it again.": "Dat bestand kon niet worden gelezen. Probeer het opnieuw te uploaden.",
  "Couldn't import that file: it's larger than %d MB.": "Dat bestand kon niet worden geïmporteerd: het is groter dan %d MB.",
