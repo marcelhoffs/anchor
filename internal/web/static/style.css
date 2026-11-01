@@ -843,9 +843,10 @@ progress { width: 100%; height: 8px; margin: 6px 0; accent-color: var(--accent);
 .tag-menu .tag[aria-pressed="true"] { border-color: var(--tag-dot, var(--soft-text)); font-weight: var(--fw-semibold); }
 /* On only some of the selection: dashed. */
 .tag-menu .tag[aria-pressed="mixed"] { border-color: var(--tag-dot, var(--soft-text)); border-style: dashed; }
-/* With some on the selection, the rest fade back so those stand out. */
-.tag-pills:has([aria-pressed="true"], [aria-pressed="mixed"]) .tag[aria-pressed="false"] { opacity: .45; }
-.tag-pills:has([aria-pressed="true"], [aria-pressed="mixed"]) .tag[aria-pressed="false"]:is(:hover, :focus-visible) { opacity: 1; }
+/* Tags not on any selected bookmark fade back, so those that are stand out
+   (and a selection with no tags shows them all faded). */
+.tag-menu .tag[aria-pressed="false"] { opacity: .45; }
+.tag-menu .tag[aria-pressed="false"]:is(:hover, :focus-visible) { opacity: 1; }
 /* The button stays beside the field, even on phones. */
 .new-tag { margin-bottom: 24px; flex-wrap: nowrap; }
 .new-tag input { min-width: 0; }
