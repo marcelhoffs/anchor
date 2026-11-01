@@ -481,7 +481,7 @@ var listNotices = map[string]i18n.Msg{
 // bulkBookmarks does one of the list toolbar's actions to the selected
 // bookmarks (the "id" fields), in the space the list showed ("from"), and
 // goes back to the list. The action is in "action"; copy and move name
-// their target in "space".
+// their target in "space", and tag (which toggles it) its id in "tag".
 func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 	ctx, uid := r.Context(), currentUser(r).ID
 	fromID, _ := strconv.ParseInt(r.PostFormValue("from"), 10, 64)
@@ -548,6 +548,12 @@ func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		back(url.Values{map[string]string{"copy": "copied", "move": "moved"}[action]: {strconv.Itoa(done)}, "skipped": {strconv.Itoa(skipped)}, "to": {strconv.FormatInt(toID, 10)}})
+	case "tag":
+		tagID, _ := strconv.ParseInt(r.FormValue("tag"), 10, 64)
+		if _, _, err := s.store.ToggleTags(ctx, sc, ids, tagID); !s.storeError(w, r, err) {
+			return
+		}
+		back(nil)
 	default:
 		http.Error(w, langOf(r).T("Unknown action"), http.StatusBadRequest)
 	}

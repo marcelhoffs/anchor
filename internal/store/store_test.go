@@ -457,6 +457,45 @@ func TestAddTag(t *testing.T) {
 	}
 }
 
+// ToggleTags adds a tag to the bookmarks without it, and takes it off only
+// when they all have it.
+func TestToggleTags(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	u := newUser(t, s, "alice")
+	sc := personal(s, u.ID)
+	mustTags(t, s, u.ID, "go")
+	tags, _ := s.ListTags(ctx, sc)
+	a, _, _ := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://go.dev", Title: "Go", Tags: []string{"go"}})
+	b, _, _ := s.CreateBookmark(ctx, sc, BookmarkInput{URL: "https://pkg.go.dev", Title: "Pkg"})
+	ids := []int64{a.ID, b.ID}
+	if added, n, err := s.ToggleTags(ctx, sc, ids, tags[0].ID); err != nil || !added || n != 1 {
+		t.Fatalf("mixed: %v %d %v", added, n, err)
+	}
+	if got := titles(t, s, u.ID, "#go"); !slices.Equal(got, []string{"Go", "Pkg"}) {
+		t.Fatalf("#go after adding: %v", got)
+	}
+	if added, n, err := s.ToggleTags(ctx, sc, ids, tags[0].ID); err != nil || added || n != 2 {
+		t.Fatalf("all tagged: %v %d %v", added, n, err)
+	}
+	if got := titles(t, s, u.ID, "go"); !slices.Equal(got, []string{"Go", "Pkg"}) {
+		t.Fatalf("full text after removing: %v", got) // still matches by URL and title
+	}
+	if got := titles(t, s, u.ID, "#go"); len(got) != 0 {
+		t.Fatalf("#go after removing: %v", got)
+	}
+	// Another space's tag or bookmarks are out of reach.
+	bob := newUser(t, s, "bob")
+	mustTags(t, s, bob.ID, "go")
+	bobTags, _ := s.ListTags(ctx, personal(s, bob.ID))
+	if _, _, err := s.ToggleTags(ctx, sc, ids, bobTags[0].ID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("other space's tag: %v", err)
+	}
+	if _, n, err := s.ToggleTags(ctx, personal(s, bob.ID), ids, bobTags[0].ID); err != nil || n != 0 {
+		t.Fatalf("other space's bookmarks: %d %v", n, err)
+	}
+}
+
 // Every tag has a colour: one picked from its name until one is chosen.
 func TestTagColors(t *testing.T) {
 	ctx := context.Background()

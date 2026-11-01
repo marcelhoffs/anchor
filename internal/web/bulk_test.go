@@ -37,6 +37,49 @@ func TestToolbarTooltips(t *testing.T) {
 	}
 }
 
+// The toolbar's Tag menu lists the space's tags as pills, stays on phones,
+// and toggles the picked tag on the selection, without JavaScript.
+func TestBulkTag(t *testing.T) {
+	e := newEnv(t)
+	c := e.admin()
+	c.post("/bookmarks", url.Values{"url": {"https://go.dev"}, "title": {"Go"}})
+	if _, body, _ := c.get("/"); strings.Contains(body, `popovertarget="bulk-tag"`) {
+		t.Fatal("Tag menu offered without tags")
+	}
+	e.tags("root", "go")
+	c.post("/bookmarks", url.Values{"url": {"https://pkg.go.dev"}, "title": {"Pkg"}, "tags": {"go"}})
+	_, body, _ := c.get("/")
+	if !strings.Contains(body, `<button type="button" class="icon-btn" popovertarget="bulk-tag"`) {
+		t.Fatal("no Tag button, or it's hidden on phones")
+	}
+	color := store.TagColor("go", "")
+	if !strings.Contains(body, `<button class="tag" data-color="`+color+`" data-tag-name="go" aria-pressed="false" form="bulk-form" name="action" value="tag" formaction="/bookmarks/bulk?tag=1">go</button>`) {
+		t.Fatal("no pill for the tag")
+	}
+
+	sc := personal(e.store, e.userID("root"))
+	from := itoa(sc.SpaceID())
+	toggle := func() {
+		t.Helper()
+		v := url.Values{"from": {from}, "action": {"tag"}, "id": {"1", "2"}, "next": {"/"}}
+		if code, _, loc := c.post("/bookmarks/bulk?tag=1", v); code != http.StatusSeeOther || loc != "/" {
+			t.Fatalf("tag: %d %q", code, loc)
+		}
+	}
+	tagged := func(id int64) bool {
+		b, _ := e.store.GetBookmark(context.Background(), sc, id)
+		return len(b.Tags) == 1
+	}
+	toggle() // one had it: both get it
+	if !tagged(1) || !tagged(2) {
+		t.Fatal("tag not added to all")
+	}
+	toggle() // both have it: off both
+	if tagged(1) || tagged(2) {
+		t.Fatal("tag not removed from all")
+	}
+}
+
 // Delete submits only from inside a confirmation popover; archive and
 // unarchive are one click, and archiving offers an undo.
 func TestDestructiveActionsNeedConfirmation(t *testing.T) {
