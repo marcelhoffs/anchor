@@ -663,6 +663,9 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 /* Messages */
 .notice, .error { max-width: 1200px; margin: 0 auto 20px; padding: 12px 16px; border-radius: var(--radius); font-size: var(--fs-md); }
 .notice { background: var(--notice-bg); color: var(--notice-text); }
+/* menus.js fades a notice out after a few seconds. */
+.notice.fading { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) { .notice { transition: opacity .4s ease; } }
 .error { background: var(--error-bg); color: var(--error-text); }
 .notice.undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; }
 .card .notice, .card .error { margin: 0 0 20px; }
