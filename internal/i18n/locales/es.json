@@ -645,6 +645,14 @@
   "%d omitido: ese espacio ya lo tiene.",
   "%d omitidos: ese espacio ya los tiene."
  ],
+ "%s added to %d bookmark.|%s added to %d bookmarks.": [
+  "Etiqueta %s añadida a %d marcador.",
+  "Etiqueta %s añadida a %d marcadores."
+ ],
+ "%s removed from %d bookmark.|%s removed from %d bookmarks.": [
+  "Etiqueta %s quitada de %d marcador.",
+  "Etiqueta %s quitada de %d marcadores."
+ ],
  "Select one or more bookmarks first.": "Selecciona primero uno o más marcadores.",
  "Select one bookmark to edit.": "Selecciona un solo marcador para editarlo.",
  "Unknown action": "Acción desconocida",

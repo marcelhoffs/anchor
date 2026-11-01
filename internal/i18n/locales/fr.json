@@ -645,6 +645,14 @@
   "%d ignoré : cet espace l'a déjà.",
   "%d ignorés : cet espace les a déjà."
  ],
+ "%s added to %d bookmark.|%s added to %d bookmarks.": [
+  "Étiquette %s ajoutée à %d signet.",
+  "Étiquette %s ajoutée à %d signets."
+ ],
+ "%s removed from %d bookmark.|%s removed from %d bookmarks.": [
+  "Étiquette %s retirée de %d signet.",
+  "Étiquette %s retirée de %d signets."
+ ],
  "Select one or more bookmarks first.": "Sélectionnez d'abord un ou plusieurs signets.",
  "Select one bookmark to edit.": "Sélectionnez un seul signet à modifier.",
  "Unknown action": "Action inconnue",

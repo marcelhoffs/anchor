@@ -19,7 +19,7 @@ You need Docker with the Compose plugin. Every release publishes a ready-made im
 
 ### With the ready-made image
 
-The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.5.6`), its minor series (`0.5`, which follows that series' fixes) and `latest`.
+The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.6.0`), its minor series (`0.6`, which follows that series' fixes) and `latest`.
 
 ```sh
 mkdir anchor && cd anchor
@@ -35,7 +35,7 @@ docker compose up -d
 `docker-compose.yml` uses the `latest` tag. To stay on one release series and upgrade only when you choose, pin it:
 
 ```sh
-sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.5|' docker-compose.yml
+sed -i 's|ghcr.io/marcelhoffs/anchor:latest|ghcr.io/marcelhoffs/anchor:0.6|' docker-compose.yml
 ```
 
 While the repository is private, so are its files and image. Then sign in to the registry first with `docker login ghcr.io`, using your GitHub username and a personal access token with the `read:packages` scope, and get the two files with `gh release download v0.6.0 --pattern '*linux_amd64.tar.gz'` (both are in the archive) or from a clone.
@@ -211,7 +211,7 @@ docker compose pull
 docker compose up -d
 ```
 
-On a pinned series (`:0.5`) this brings that series' fixes; for a new series, change the tag in `docker-compose.yml` first. Old images stay on disk until `docker image prune` removes them.
+On a pinned series (`:0.6`) this brings that series' fixes; for a new series, change the tag in `docker-compose.yml` first. Old images stay on disk until `docker image prune` removes them.
 
 Building the image yourself:
 

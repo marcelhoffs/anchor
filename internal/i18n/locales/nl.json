@@ -645,6 +645,14 @@
   "%d overgeslagen: die ruimte heeft hem al.",
   "%d overgeslagen: die ruimte heeft ze al."
  ],
+ "%s added to %d bookmark.|%s added to %d bookmarks.": [
+  "Tag %s toegevoegd aan %d bladwijzer.",
+  "Tag %s toegevoegd aan %d bladwijzers."
+ ],
+ "%s removed from %d bookmark.|%s removed from %d bookmarks.": [
+  "Tag %s verwijderd van %d bladwijzer.",
+  "Tag %s verwijderd van %d bladwijzers."
+ ],
  "Select one or more bookmarks first.": "Selecteer eerst een of meer bladwijzers.",
  "Select one bookmark to edit.": "Selecteer één bladwijzer om te bewerken.",
  "Unknown action": "Onbekende actie",

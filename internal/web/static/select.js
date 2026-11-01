@@ -48,7 +48,7 @@
     if (e.newState !== "open") return;
     var common = null, any = [];
     boxes().filter(function (b) { return b.checked; }).forEach(function (box) {
-      var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags .tag"), function (a) { return a.textContent; });
+      var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags [data-tag-name]"), function (a) { return a.getAttribute("data-tag-name"); });
       common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
       any = any.concat(names);
     });

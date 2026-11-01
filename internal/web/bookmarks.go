@@ -550,10 +550,11 @@ func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 		back(url.Values{map[string]string{"copy": "copied", "move": "moved"}[action]: {strconv.Itoa(done)}, "skipped": {strconv.Itoa(skipped)}, "to": {strconv.FormatInt(toID, 10)}})
 	case "tag":
 		tagID, _ := strconv.ParseInt(r.FormValue("tag"), 10, 64)
-		if _, _, err := s.store.ToggleTags(ctx, sc, ids, tagID); !s.storeError(w, r, err) {
+		added, n, err := s.store.ToggleTags(ctx, sc, ids, tagID)
+		if !s.storeError(w, r, err) {
 			return
 		}
-		back(nil)
+		back(url.Values{map[bool]string{true: "tagged", false: "untagged"}[added]: {strconv.Itoa(n)}, "tag": {strconv.FormatInt(tagID, 10)}})
 	default:
 		http.Error(w, langOf(r).T("Unknown action"), http.StatusBadRequest)
 	}
@@ -561,7 +562,7 @@ func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 
 // listParams are the query parameters that carry a notice to the list; its
 // own links leave them out.
-var listParams = []string{"archived", "done", "copied", "moved", "skipped", "to"}
+var listParams = []string{"archived", "done", "copied", "moved", "skipped", "to", "tagged", "untagged", "tag"}
 
 // spaceTarget is a space the list's bookmarks can be copied or moved to.
 type spaceTarget struct {
@@ -596,9 +597,17 @@ type copyNotice struct {
 	Space         spaceTarget
 }
 
+// tagNotice is the list's notice after the toolbar's tag menu: N
+// bookmarks got the tag Name, or lost it.
+type tagNotice struct {
+	Added bool
+	N     int
+	Name  string
+}
+
 // listNotice fills in the list's notice after a toolbar action, from the
-// page's query: an undo after archiving, the outcome of a copy or move, or
-// a hint about the selection.
+// page's query: an undo after archiving, the outcome of a copy, move or
+// tag, or a hint about the selection.
 func (s *Server) listNotice(r *http.Request, sc store.Scope, d data) {
 	q := r.URL.Query()
 	if n, ok := listNotices[q.Get("done")]; ok {
@@ -636,6 +645,19 @@ func (s *Server) listNotice(r *http.Request, sc store.Scope, d data) {
 			}
 		}
 		d["Copied"] = n
+	}
+	for _, action := range []string{"tagged", "untagged"} {
+		n, err := strconv.Atoi(q.Get(action))
+		if err != nil {
+			continue
+		}
+		id, _ := strconv.ParseInt(q.Get("tag"), 10, 64)
+		tags, _ := d["Tags"].([]store.Tag)
+		for _, t := range tags {
+			if t.ID == id {
+				d["Tagged"] = tagNotice{Added: action == "tagged", N: n, Name: t.Name}
+			}
+		}
 	}
 }
 

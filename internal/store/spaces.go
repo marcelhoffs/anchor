@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -121,20 +120,27 @@ func scanSpace(row interface{ Scan(...any) error }) (Space, error) {
 
 // ListSpaces returns the shared spaces userID belongs to, by name.
 func (s *Store) ListSpaces(ctx context.Context, userID int64) ([]Space, error) {
-	return s.listSpaces(ctx, userID, spaceCols, scanSpace)
+	return listSpaces(ctx, s, userID, spaceCols, scanSpace)
 }
 
-// SpaceMenu is ListSpaces with only what the space menu on every page needs:
-// ID, Name, Icon and Role, without the owner and counts that cost a query
-// per space.
-func (s *Store) SpaceMenu(ctx context.Context, userID int64) ([]Space, error) {
-	return s.listSpaces(ctx, userID, "sp.id, sp.name, sp.icon, m.role", func(row interface{ Scan(...any) error }) (Space, error) {
-		var sp Space
+// SpaceMenuItem is a shared space in the space menu on every page: without
+// the owner and counts, which cost a query per space.
+type SpaceMenuItem struct {
+	ID   int64
+	Name string
+	Icon string
+	Role Role
+}
+
+// SpaceMenu is ListSpaces with only what the space menu needs.
+func (s *Store) SpaceMenu(ctx context.Context, userID int64) ([]SpaceMenuItem, error) {
+	return listSpaces(ctx, s, userID, "sp.id, sp.name, sp.icon, m.role", func(row interface{ Scan(...any) error }) (SpaceMenuItem, error) {
+		var sp SpaceMenuItem
 		return sp, row.Scan(&sp.ID, &sp.Name, &sp.Icon, &sp.Role)
 	})
 }
 
-func (s *Store) listSpaces(ctx context.Context, userID int64, cols string, scan func(interface{ Scan(...any) error }) (Space, error)) ([]Space, error) {
+func listSpaces[T any](ctx context.Context, s *Store, userID int64, cols string, scan func(interface{ Scan(...any) error }) (T, error)) ([]T, error) {
 	rows, err := s.r.QueryContext(ctx,
 		"SELECT "+cols+` FROM spaces sp JOIN space_members m ON m.space_id = sp.id AND m.user_id = ?
 		 WHERE sp.personal_of IS NULL ORDER BY sp.name COLLATE NOCASE, sp.id`, userID)
@@ -142,7 +148,7 @@ func (s *Store) listSpaces(ctx context.Context, userID int64, cols string, scan 
 		return nil, err
 	}
 	defer rows.Close()
-	var out []Space
+	var out []T
 	for rows.Next() {
 		sp, err := scan(rows)
 		if err != nil {
@@ -223,13 +229,24 @@ var SpaceIcons = []string{
 	"dumbbell", "bike", "car", "bus", "truck", "train-front", "plane", "plane-takeoff", "tower-control", "sailboat", "ship",
 }
 
+// IsSpaceIcon says whether name is one of SpaceIcons.
+func IsSpaceIcon(name string) bool { _, ok := spaceIconSet[name]; return ok }
+
+var spaceIconSet = func() map[string]struct{} {
+	m := make(map[string]struct{}, len(SpaceIcons))
+	for _, n := range SpaceIcons {
+		m[n] = struct{}{}
+	}
+	return m
+}()
+
 // SetSpaceIcon gives a shared space one of SpaceIcons, or the default for
 // ""; owner only.
 func (s *Store) SetSpaceIcon(ctx context.Context, sc Scope, icon string) error {
 	if err := sc.mustOwnShared(); err != nil {
 		return err
 	}
-	if icon != "" && !slices.Contains(SpaceIcons, icon) {
+	if icon != "" && !IsSpaceIcon(icon) {
 		return invalid("Pick one of the space icons.")
 	}
 	_, err := s.w.ExecContext(ctx, "UPDATE spaces SET icon = ? WHERE id = ?", icon, sc.spaceID)
