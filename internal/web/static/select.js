@@ -41,17 +41,20 @@
   }
 
   // Opening the tag menu presses the tags that every ticked row has, as
-  // picking one of those takes it off them.
+  // picking one of those takes it off them, and half-presses ("mixed") the
+  // ones only some have.
   var tagMenu = document.getElementById("bulk-tag");
   if (tagMenu) tagMenu.addEventListener("beforetoggle", function (e) {
     if (e.newState !== "open") return;
-    var common = null;
+    var common = null, any = [];
     boxes().filter(function (b) { return b.checked; }).forEach(function (box) {
       var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags .tag"), function (a) { return a.textContent; });
       common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
+      any = any.concat(names);
     });
     tagMenu.querySelectorAll("[data-tag-name]").forEach(function (b) {
-      b.setAttribute("aria-pressed", String(!!common && common.indexOf(b.getAttribute("data-tag-name")) >= 0));
+      var name = b.getAttribute("data-tag-name");
+      b.setAttribute("aria-pressed", common && common.indexOf(name) >= 0 ? "true" : any.indexOf(name) >= 0 ? "mixed" : "false");
     });
   });
 
