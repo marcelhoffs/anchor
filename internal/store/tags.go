@@ -152,6 +152,75 @@ func (s *Store) AddTag(ctx context.Context, sc Scope, bookmarkID, tagID int64) (
 	return added, err
 }
 
+// ToggleTags puts a tag on several bookmarks, or takes it off them when
+// they all have it already: a mixed selection gets the tag everywhere, and
+// toggling again takes it off. Ids that aren't in sc's space are skipped;
+// added says which way it went, n how many bookmarks changed.
+func (s *Store) ToggleTags(ctx context.Context, sc Scope, ids []int64, tagID int64) (added bool, n int, err error) {
+	if err := sc.mustWrite(); err != nil {
+		return false, 0, err
+	}
+	if len(ids) == 0 {
+		return false, 0, nil
+	}
+	in, args, err := inIDs(ids, sc.spaceID)
+	if err != nil {
+		return false, 0, err
+	}
+	err = s.tx(ctx, func(tx *sql.Tx) error {
+		var ok bool
+		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, tagID).Scan(&ok); err != nil {
+			return notFound(err)
+		}
+		// The selected bookmarks that have the tag (has) or not.
+		with := func(has bool) ([]int64, error) {
+			rows, err := tx.QueryContext(ctx,
+				`SELECT b.id FROM bookmarks b WHERE b.space_id = ? AND b.id IN `+in+`
+				 AND EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id AND bt.tag_id = ?) = ?`,
+				append(args, tagID, has)...)
+			if err != nil {
+				return nil, err
+			}
+			defer rows.Close()
+			var out []int64
+			for rows.Next() {
+				var id int64
+				if err := rows.Scan(&id); err != nil {
+					return nil, err
+				}
+				out = append(out, id)
+			}
+			return out, rows.Err()
+		}
+		changed, err := with(false)
+		if err != nil {
+			return err
+		}
+		added = len(changed) > 0
+		if !added {
+			if changed, err = with(true); err != nil {
+				return err
+			}
+		}
+		change := "DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?"
+		if added {
+			change = "INSERT INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)"
+		}
+		now := unix(s.now())
+		for _, id := range changed {
+			if _, err := tx.ExecContext(ctx, change, id, tagID); err != nil {
+				return err
+			}
+			if _, err := tx.ExecContext(ctx, "UPDATE bookmarks SET updated_at = ? WHERE id = ?", now, id); err != nil {
+				return err
+			}
+		}
+		n = len(changed)
+		return nil
+	})
+	return added, n, err
+}
+
 // CreateTag adds a tag, ready to be put on bookmarks.
 func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, error) {
 	if err := sc.mustWrite(); err != nil {

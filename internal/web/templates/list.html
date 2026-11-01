@@ -142,6 +142,17 @@
         <button form="bulk-form" name="action" value="favourite">{{icon "star" "sm filled"}}{{t "Add to favourites"}}</button>
         <button form="bulk-form" name="action" value="unfavourite">{{icon "star" "sm"}}{{t "Remove from favourites"}}</button>
       </div>
+      {{with .Tags}}
+      {{/* A tag toggles: off when every selected bookmark has it (select.js
+         presses those), on for the ones without it otherwise. */}}
+      <button type="button" class="icon-btn" popovertarget="bulk-tag" title="{{t "Tag"}}" aria-label="{{t "Tag"}}">{{icon "tag"}}</button>
+      <div id="bulk-tag" class="menu row-menu tag-menu" popover>
+        <p class="menu-title">{{t "Add or remove a tag"}}</p>
+        <div class="tag-pills">
+        {{range .}}<button class="tag" data-color="{{.Color}}" data-tag-name="{{.Name}}" aria-pressed="false" form="bulk-form" name="action" value="tag" formaction="/bookmarks/bulk?tag={{.ID}}">{{.Name}}</button>{{end}}
+        </div>
+      </div>
+      {{end}}
       {{/* On a phone, the buttons marked hide-sm move into the More menu at the end. */}}
       {{if .InArchive}}
       <button class="icon-btn hide-sm" form="bulk-form" name="action" value="unarchive" title="{{t "Unarchive"}}" aria-label="{{t "Unarchive"}}">{{icon "archive"}}</button>

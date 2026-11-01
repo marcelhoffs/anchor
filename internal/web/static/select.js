@@ -1,7 +1,8 @@
 // The list's toolbar acts on the ticked rows. This adds the select all/none
 // button and the count, turns off the buttons that don't apply (all of them
 // with nothing ticked, Edit unless exactly one is), puts the number in the
-// delete confirmation, and lets Shift-click tick a range. Loaded on the list
+// delete confirmation, presses the tags the ticked rows all have in the tag
+// menu, and lets Shift-click tick a range. Loaded on the list
 // page only when the space can be edited. Without it, every button posts
 // whatever is ticked and the server says when that won't do.
 (function () {
@@ -38,6 +39,21 @@
     });
     if (title) title.textContent = plural(title, n);
   }
+
+  // Opening the tag menu presses the tags that every ticked row has, as
+  // picking one of those takes it off them.
+  var tagMenu = document.getElementById("bulk-tag");
+  if (tagMenu) tagMenu.addEventListener("beforetoggle", function (e) {
+    if (e.newState !== "open") return;
+    var common = null;
+    boxes().filter(function (b) { return b.checked; }).forEach(function (box) {
+      var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags .tag"), function (a) { return a.textContent; });
+      common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
+    });
+    tagMenu.querySelectorAll("[data-tag-name]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(!!common && common.indexOf(b.getAttribute("data-tag-name")) >= 0));
+    });
+  });
 
   all.setAttribute("data-all", all.title);
   all.hidden = false;
