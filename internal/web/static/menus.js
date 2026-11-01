@@ -2,12 +2,33 @@
 // and a click outside or Escape closes them. Without this script each menu
 // still opens and closes from its own button.
 //
-// Also: registers the service worker; and iOS shows :active (the pressed look, see style.css) on touch only
+// Also: fades out notices (.notice[role=status]) after 5 seconds, waiting
+// while the pointer or focus is on one, as the archive notice has an Undo;
+// registers the service worker; and iOS shows :active (the pressed look, see style.css) on touch only
 // when something listens for touchstart.
 (function () {
   "use strict";
 
   document.addEventListener("touchstart", function () {}, { passive: true });
+
+  document.querySelectorAll(".notice[role=status]").forEach(function (n) {
+    var timer;
+    function start() {
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        n.classList.add("fading");
+        // Without a transition (reduced motion) there's no transitionend.
+        var gone = parseFloat(getComputedStyle(n).transitionDuration) || 0;
+        timer = setTimeout(function () { n.remove(); }, gone * 1000);
+      }, 5000);
+    }
+    function hold() { clearTimeout(timer); n.classList.remove("fading"); }
+    n.addEventListener("mouseenter", hold);
+    n.addEventListener("focusin", hold);
+    n.addEventListener("mouseleave", function () { if (!n.contains(document.activeElement)) start(); });
+    n.addEventListener("focusout", function (e) { if (!n.contains(e.relatedTarget) && !n.matches(":hover")) start(); });
+    start();
+  });
 
   // Installed as an app, the service worker (sw.js) shows an offline page
   // instead of the browser's error.
