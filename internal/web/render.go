@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"path"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -146,7 +145,7 @@ func icon(name string, class ...string) template.HTML {
 
 // spaceIcon is the icon a shared space shows: its own, or the default.
 func spaceIcon(name string) string {
-	if slices.Contains(store.SpaceIcons, name) {
+	if store.IsSpaceIcon(name) {
 		return name
 	}
 	return "space"

@@ -47,7 +47,7 @@ type spaceNav struct {
 	Scope  store.Scope
 	Name   string // the shared space's name; "" for the personal space
 	Icon   string // the shared space's icon
-	Spaces []store.Space
+	Spaces []store.SpaceMenuItem
 }
 
 // label is the space's name for a page: Personal is translated.
@@ -307,13 +307,21 @@ func (s *Server) requireUser(next http.Handler) http.Handler {
 // clientIP returns the peer address, or the right-most untrusted address in
 // X-Forwarded-For when the peer is a trusted proxy.
 func (s *Server) clientIP(r *http.Request) string {
+	if ip, ok := s.clientAddr(r); ok {
+		return ip.String()
+	}
+	return r.RemoteAddr
+}
+
+// clientAddr is clientIP parsed; false when the peer address isn't one.
+func (s *Server) clientAddr(r *http.Request) (netip.Addr, bool) {
 	peer, err := netip.ParseAddrPort(r.RemoteAddr)
 	if err != nil {
-		return r.RemoteAddr
+		return netip.Addr{}, false
 	}
 	ip := peer.Addr().Unmap()
 	if !s.trusted(ip) {
-		return ip.String()
+		return ip, true
 	}
 	hops := strings.Split(strings.Join(r.Header.Values("X-Forwarded-For"), ","), ",")
 	for i := len(hops) - 1; i >= 0; i-- {
@@ -326,18 +334,21 @@ func (s *Server) clientIP(r *http.Request) string {
 			break
 		}
 	}
-	return ip.String()
+	return ip, true
 }
 
 // limitKey is the client's address for rate limits. An IPv6 address counts
 // as its /64, the block one connection gets: otherwise a client could take a
 // new address within it for every few attempts and never reach a limit.
 func (s *Server) limitKey(r *http.Request) string {
-	ip := s.clientIP(r)
-	if a, err := netip.ParseAddr(ip); err == nil && a.Is6() {
-		return netip.PrefixFrom(a, 64).Masked().String()
+	ip, ok := s.clientAddr(r)
+	if !ok {
+		return r.RemoteAddr
 	}
-	return ip
+	if ip.Is6() {
+		return netip.PrefixFrom(ip, 64).Masked().String()
+	}
+	return ip.String()
 }
 
 func (s *Server) trusted(ip netip.Addr) bool {

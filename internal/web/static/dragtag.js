@@ -141,6 +141,7 @@
       a.className = "tag";
       a.href = t.url;
       a.dataset.color = t.color;
+      a.dataset.tagName = t.name;
       a.textContent = t.name;
       box.appendChild(a);
     });

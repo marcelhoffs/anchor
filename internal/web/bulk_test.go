@@ -59,22 +59,26 @@ func TestBulkTag(t *testing.T) {
 
 	sc := personal(e.store, e.userID("root"))
 	from := itoa(sc.SpaceID())
-	toggle := func() {
+	toggle := func(notice string) {
 		t.Helper()
 		v := url.Values{"from": {from}, "action": {"tag"}, "id": {"1", "2"}, "next": {"/"}}
-		if code, _, loc := c.post("/bookmarks/bulk?tag=1", v); code != http.StatusSeeOther || loc != "/" {
+		code, _, loc := c.post("/bookmarks/bulk?tag=1", v)
+		if code != http.StatusSeeOther || !strings.HasPrefix(loc, "/?") {
 			t.Fatalf("tag: %d %q", code, loc)
+		}
+		if _, body, _ := c.get(loc); !strings.Contains(body, notice) {
+			t.Fatalf("no notice %q at %s", notice, loc)
 		}
 	}
 	tagged := func(id int64) bool {
 		b, _ := e.store.GetBookmark(context.Background(), sc, id)
 		return len(b.Tags) == 1
 	}
-	toggle() // one had it: both get it
+	toggle("<strong>go</strong> added to 1 bookmark.") // one had it: both get it
 	if !tagged(1) || !tagged(2) {
 		t.Fatal("tag not added to all")
 	}
-	toggle() // both have it: off both
+	toggle("<strong>go</strong> removed from 2 bookmarks.") // both have it: off both
 	if tagged(1) || tagged(2) {
 		t.Fatal("tag not removed from all")
 	}

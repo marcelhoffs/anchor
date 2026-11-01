@@ -167,56 +167,43 @@ func (s *Store) ToggleTags(ctx context.Context, sc Scope, ids []int64, tagID int
 	if err != nil {
 		return false, 0, err
 	}
+	// The selected bookmarks in the space, and those of them with the tag.
+	sel := "SELECT b.id FROM bookmarks b WHERE b.space_id = ? AND b.id IN " + in
+	has := "EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id AND bt.tag_id = ?)"
+	// with is the statement's args: before, the selection's, then after.
+	with := func(before []any, after ...any) []any {
+		return append(append(before, args...), after...)
+	}
 	err = s.tx(ctx, func(tx *sql.Tx) error {
 		var ok bool
 		if err := tx.QueryRowContext(ctx, "SELECT 1 FROM tags WHERE space_id = ? AND id = ?", sc.spaceID, tagID).Scan(&ok); err != nil {
 			return notFound(err)
 		}
-		// The selected bookmarks that have the tag (has) or not.
-		with := func(has bool) ([]int64, error) {
-			rows, err := tx.QueryContext(ctx,
-				`SELECT b.id FROM bookmarks b WHERE b.space_id = ? AND b.id IN `+in+`
-				 AND EXISTS (SELECT 1 FROM bookmark_tags bt WHERE bt.bookmark_id = b.id AND bt.tag_id = ?) = ?`,
-				append(args, tagID, has)...)
-			if err != nil {
-				return nil, err
-			}
-			defer rows.Close()
-			var out []int64
-			for rows.Next() {
-				var id int64
-				if err := rows.Scan(&id); err != nil {
-					return nil, err
-				}
-				out = append(out, id)
-			}
-			return out, rows.Err()
+		var without int
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM ("+sel+" AND NOT "+has+")", with(nil, tagID)...).Scan(&without); err != nil {
+			return err
 		}
-		changed, err := with(false)
+		added = without > 0
+		// Those that change: without the tag when adding, with it when removing.
+		changing := sel + " AND " + has
+		if added {
+			changing = sel + " AND NOT " + has
+		}
+		if _, err := tx.ExecContext(ctx, "UPDATE bookmarks SET updated_at = ? WHERE id IN ("+changing+")", with([]any{unix(s.now())}, tagID)...); err != nil {
+			return err
+		}
+		var res sql.Result
+		if added {
+			res, err = tx.ExecContext(ctx, "INSERT OR IGNORE INTO bookmark_tags (bookmark_id, tag_id) SELECT b.id, ? FROM bookmarks b WHERE b.space_id = ? AND b.id IN "+in, with([]any{tagID})...)
+		} else {
+			res, err = tx.ExecContext(ctx, "DELETE FROM bookmark_tags WHERE tag_id = ? AND bookmark_id IN ("+sel+")", with([]any{tagID})...)
+		}
 		if err != nil {
 			return err
 		}
-		added = len(changed) > 0
-		if !added {
-			if changed, err = with(true); err != nil {
-				return err
-			}
-		}
-		change := "DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?"
-		if added {
-			change = "INSERT INTO bookmark_tags (bookmark_id, tag_id) VALUES (?, ?)"
-		}
-		now := unix(s.now())
-		for _, id := range changed {
-			if _, err := tx.ExecContext(ctx, change, id, tagID); err != nil {
-				return err
-			}
-			if _, err := tx.ExecContext(ctx, "UPDATE bookmarks SET updated_at = ? WHERE id = ?", now, id); err != nil {
-				return err
-			}
-		}
-		n = len(changed)
-		return nil
+		changed, err := res.RowsAffected()
+		n = int(changed)
+		return err
 	})
 	return added, n, err
 }
