@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in Anchor doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: input
+    id: version
+    attributes:
+      label: Anchor version
+      description: Shown in the footer, or by `anchor version`.
+      placeholder: v0.6.2
+    validations:
+      required: true
+  - type: dropdown
+    id: deploy
+    attributes:
+      label: How do you run Anchor?
+      options:
+        - Docker image
+        - Release binary
+        - Built from source
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      placeholder: Firefox 140 on Windows, Safari on iPhone…
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Anchor's log around the time it happened (`docker compose logs anchor`). Remove anything private first.
+      render: text
