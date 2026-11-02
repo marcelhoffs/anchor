@@ -374,11 +374,12 @@ func TestAppearancePreference(t *testing.T) {
 	e := newEnv(t)
 	e.user("alice")
 	anon := e.client()
-	if _, body, _ := anon.get("/login"); !strings.Contains(body, `data-accent="ocean" data-theme="system"`) {
-		t.Fatal("logged-out pages should use ocean and the other defaults")
+	if _, body, _ := anon.get("/login"); !strings.Contains(body, `data-accent="sapphire" data-theme="system" data-style="wave"`) ||
+		!strings.Contains(body, `<link rel="icon" href="/icon/sapphire.svg?v=`) {
+		t.Fatal("logged-out pages should use wave sapphire")
 	}
 	c := e.login("alice")
-	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="ocean" data-theme="system"`) {
+	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="ocean" data-theme="system" data-style="classic"`) {
 		t.Fatal("new users should get the defaults")
 	}
 	if code, _, loc := c.post("/settings/appearance", url.Values{"accent": {"terracotta"}, "theme": {"dark"}}); code != http.StatusSeeOther || loc != "/settings?done=appearance" {

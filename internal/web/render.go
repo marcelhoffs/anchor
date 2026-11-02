@@ -105,6 +105,11 @@ func humanBytes(n int64) string {
 	return strconv.FormatFloat(float64(n)/float64(div), 'f', 1, 64) + " " + string("KMGTPE"[exp]) + "B"
 }
 
+// signedOutPrefs are the look of pages for no one signed in, such as the
+// login screen: the wave style in sapphire. New accounts still start from
+// the store's defaults.
+var signedOutPrefs = store.Settings{Accent: "sapphire", Style: "wave"}.Normalized()
+
 // assetVersion changes whenever any embedded static file does, so asset URLs
 // can be cached forever and still update on deploy.
 var assetVersion = func() string {
@@ -227,7 +232,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
 	d["Bare"] = u == nil && authPages[page]
-	prefs := store.Settings{}.Normalized() // signed-out pages, such as the login screen
+	prefs := signedOutPrefs // signed-out pages, such as the login screen
 	if u != nil {
 		prefs = u.Settings
 	}
