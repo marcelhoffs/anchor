@@ -147,10 +147,11 @@ func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 }
 
 // precache is what the service worker stores on install: the versioned CSS
-// and scripts, the fonts (style.css asks for them unversioned), the
-// signed-out favicon and the offline page.
+// and scripts, the fonts and the wave style's halftone (style.css asks for
+// them unversioned), the signed-out favicon and the offline page. The cache
+// is renamed on every deploy, so they're fetched again then.
 var precache = func() []string {
-	list := []string{"/offline", appIconURL("ocean")}
+	list := []string{"/offline", appIconURL(signedOutPrefs.Accent)}
 	fs.WalkDir(assets, "static", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
@@ -163,6 +164,10 @@ var precache = func() []string {
 			}
 		case ".woff2":
 			list = append(list, "/static/"+name)
+		case ".svg":
+			if name == "halftone.svg" {
+				list = append(list, "/static/"+name)
+			}
 		}
 		return nil
 	})

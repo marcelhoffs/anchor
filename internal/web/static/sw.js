@@ -13,7 +13,10 @@ var OFFLINE = "/offline";
 self.addEventListener("install", function (e) {
   e.waitUntil(
     caches.open(CACHE)
-      .then(function (c) { return c.addAll(PRECACHE); })
+      // Past the HTTP cache: the unversioned files may be cached for a day.
+      .then(function (c) {
+        return c.addAll(PRECACHE.map(function (u) { return new Request(u, { cache: "reload" }); }));
+      })
       .then(function () { return self.skipWaiting(); })
   );
 });

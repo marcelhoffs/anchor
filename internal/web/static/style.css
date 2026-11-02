@@ -149,6 +149,11 @@
   --text: light-dark(color-mix(in srgb, var(--tint-light) 20%, #020202), color-mix(in srgb, var(--tint-dark) 8%, #f2f1f5));
   --muted: light-dark(color-mix(in srgb, var(--tint-light) 25%, #646462), color-mix(in srgb, var(--tint-dark) 30%, #8f8e91));
   --border: light-dark(color-mix(in srgb, var(--tint-light) 10%, transparent), color-mix(in srgb, var(--tint-dark) 9%, transparent));
+  /* The page's panels let the wave show through, as Home Assistant's cards do. */
+  --panel: color-mix(in srgb, var(--surface) 85%, transparent);
+  /* Highlights (the current view, a ticked row) from the tint too. */
+  --soft: light-dark(color-mix(in srgb, var(--tint-light) 10%, #ffffff), color-mix(in srgb, var(--tint-dark) 18%, #08070c));
+  --soft-text: light-dark(color-mix(in srgb, var(--tint-light) 75%, #000000), color-mix(in srgb, var(--tint-dark) 55%, #ffffff));
   --shadow-1: light-dark(color-mix(in srgb, var(--tint-light) 5%, transparent), color-mix(in srgb, var(--tint-dark) 5%, transparent));
   --shadow-2: light-dark(color-mix(in srgb, var(--tint-light) 8%, transparent), rgb(0 0 0 / 0.4));
   --shadow: 0 1px 2px var(--shadow-1), 0 8px 24px var(--shadow-2);
@@ -169,7 +174,12 @@
 :root[data-style="wave"] body {
   background: radial-gradient(1200px 420px at 50% -120px, var(--glow), transparent) fixed, var(--bg);
 }
-/* The halftone wave: halftone.svg's dots as a mask over the accent. */
+/* No backdrop blur: it would make each panel a stacking context, and the
+   search box's tooltip would slip under the list. Menus and dialogs stay
+   opaque. */
+:root[data-style="wave"] :is(.bm-card, .search, .card, .empty-state) { background: var(--panel); }
+/* The halftone wave: halftone.svg's dots as a mask over the accent. The
+   service worker precaches it, like the fonts (see precache in pwa.go). */
 :root[data-style="wave"] body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--wave);

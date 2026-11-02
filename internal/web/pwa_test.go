@@ -106,8 +106,8 @@ func TestServiceWorker(t *testing.T) {
 	if !strings.Contains(body, `"`+assetVersion+`"`) || strings.Contains(body, "__") {
 		t.Fatalf("sw.js not filled in:\n%s", body)
 	}
-	if !strings.Contains(body, `"/offline"`) || !strings.Contains(body, assetURL("style.css")) {
-		t.Fatal("sw.js doesn't cache the offline page and the stylesheet")
+	if !strings.Contains(body, `"/offline"`) || !strings.Contains(body, assetURL("style.css")) || !strings.Contains(body, `"/static/halftone.svg"`) {
+		t.Fatal("sw.js doesn't cache the offline page, the stylesheet and the halftone")
 	}
 	// Every file it caches exists, or installing the worker fails.
 	c := e.client()
