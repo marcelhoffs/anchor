@@ -135,7 +135,7 @@ func TestHeadTags(t *testing.T) {
 	c := e.admin()
 	_, body, _ := c.get("/")
 	for _, want := range []string{
-		`<link rel="manifest" href="/app.webmanifest?accent=ocean&amp;lang=en&amp;theme=system">`,
+		`<link rel="manifest" href="/app.webmanifest?accent=ocean&amp;lang=en&amp;style=classic&amp;theme=system">`,
 		`<link rel="apple-touch-icon" href="/static/icons/apple-touch-ocean.png?v=`,
 		`<meta name="theme-color" content="#f3fbff" media="(prefers-color-scheme: light)">`,
 		`<meta name="theme-color" content="#010f1a" media="(prefers-color-scheme: dark)">`,
@@ -148,6 +148,11 @@ func TestHeadTags(t *testing.T) {
 	c.post("/settings/appearance", url.Values{"accent": {"rose"}, "theme": {"dark"}})
 	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="#19070c">`) {
 		t.Error("dark theme should have one dark theme colour")
+	}
+	c.post("/settings/appearance", url.Values{"style": {"wave"}})
+	if _, body, _ := c.get("/"); !strings.Contains(body, `<meta name="theme-color" content="`+waveBackgrounds["rose"][1]+`">`) ||
+		!strings.Contains(body, `data-style="wave"`) {
+		t.Error("wave style should use its own dark theme colour")
 	}
 }
 

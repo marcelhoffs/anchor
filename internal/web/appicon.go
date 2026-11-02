@@ -16,14 +16,15 @@ const glyph = `<g fill="none" stroke="currentColor" stroke-width="9" stroke-line
 // iconColours are each accent's light-mode --accent and --on-accent (see
 // style.css): the favicon's background and glyph.
 var iconColours = map[string][2]string{
-	"indigo":     {"#4f46e5", "#ffffff"},
 	"terracotta": {"#c2410c", "#ffffff"},
-	"yellow":     {"#eab308", "#1c1917"},
+	"violet":     {"#7c5cf6", "#ffffff"},
 	"emerald":    {"#047857", "#ffffff"},
 	"forest":     {"#2d6a4f", "#ffffff"},
 	"ocean":      {"#0369a1", "#ffffff"},
 	"rose":       {"#be123c", "#ffffff"},
 	"graphite":   {"#1e293b", "#ffffff"},
+	"sapphire":   {"#1d4ed8", "#ffffff"},
+	"bordeaux":   {"#7f1d3f", "#ffffff"},
 }
 
 // brandMark is the header logo; CSS colours it with the current accent.

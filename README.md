@@ -57,7 +57,7 @@
 - For admins: user management, invite links, open/invite/closed signup and a policy that requires 2FA.
 
 **Look and feel**
-- Light and dark themes, a choice of accent colours and fonts, the sidebar on either side, and a compact list without descriptions.
+- Light and dark themes, a classic or wave style, a choice of accent colours and fonts, the sidebar on either side, and a compact list without descriptions.
 - In English, Dutch, Spanish and French: Anchor follows your browser's language, or the one you pick.
 - Works on phones as well as desktops. Install it as an app on your phone or desktop, and share links to it.
 

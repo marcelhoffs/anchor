@@ -21,14 +21,37 @@ import (
 // style.css), which Android's status and navigation bars take on so they
 // blend with the page.
 var pageBackgrounds = map[string][2]string{
-	"indigo":     {"#f5f9ff", "#0a0b1d"},
 	"terracotta": {"#fff7f2", "#1b0a03"},
-	"yellow":     {"#fcfaf2", "#120d02"},
+	"violet":     {"#f8f6ff", "#0e0b16"},
 	"emerald":    {"#f3fcfb", "#00110d"},
 	"ocean":      {"#f3fbff", "#010f1a"},
 	"forest":     {"#f5fbfb", "#070f0e"},
 	"rose":       {"#fff6f8", "#19070c"},
 	"graphite":   {"#f7fafe", "#0c0d11"},
+	"sapphire":   {"#f4f7ff", "#060b1c"},
+	"bordeaux":   {"#fdf6f8", "#160709"},
+}
+
+// waveBackgrounds are each accent's --bg in light and dark mode in the wave
+// style (see style.css).
+var waveBackgrounds = map[string][2]string{
+	"violet":     {"#f6f4fc", "#0d0b16"},
+	"terracotta": {"#f9f3f0", "#140b08"},
+	"emerald":    {"#f0f5f4", "#04110e"},
+	"ocean":      {"#f0f5f7", "#040f16"},
+	"forest":     {"#f2f5f3", "#0c100f"},
+	"rose":       {"#f9f0f2", "#14090c"},
+	"graphite":   {"#f1f1f2", "#121315"},
+	"sapphire":   {"#f1f3fa", "#080d16"},
+	"bordeaux":   {"#f6f1f3", "#120c10"},
+}
+
+// backgrounds are the accent's page backgrounds, light and dark, in a style.
+func backgrounds(accent, style string) [2]string {
+	if style == "wave" {
+		return waveBackgrounds[accent]
+	}
+	return pageBackgrounds[accent]
 }
 
 // themeColor is one <meta name="theme-color">; Media is empty when it
@@ -37,8 +60,8 @@ type themeColor struct{ Color, Media string }
 
 // themeColors follows the theme setting: one colour for light or dark, both
 // with a media query for system.
-func themeColors(accent, theme string) []themeColor {
-	c := pageBackgrounds[accent]
+func themeColors(accent, theme, style string) []themeColor {
+	c := backgrounds(accent, style)
 	switch theme {
 	case "light":
 		return []themeColor{{Color: c[0]}}
@@ -53,8 +76,8 @@ func themeColors(accent, theme string) []themeColor {
 
 // manifestURL has no asset version: the manifest is built in Go, so it can
 // change without any static file changing. It's revalidated instead.
-func manifestURL(accent, lang, theme string) string {
-	return "/app.webmanifest?" + url.Values{"accent": {accent}, "lang": {lang}, "theme": {theme}}.Encode()
+func manifestURL(accent, lang, theme, style string) string {
+	return "/app.webmanifest?" + url.Values{"accent": {accent}, "lang": {lang}, "theme": {theme}, "style": {style}}.Encode()
 }
 
 func appleTouchIconURL(accent string) string {
@@ -68,7 +91,7 @@ type manifestIcon struct {
 	Purpose string `json:"purpose,omitempty"`
 }
 
-// manifest serves /app.webmanifest?accent=…&lang=…&theme=…, public like the
+// manifest serves /app.webmanifest?accent=…&lang=…&theme=…&style=…, public like the
 // favicon. Chrome on Android colours an installed app's navigation bar with
 // theme_color, fixed at install, so it can't follow the phone's dark mode.
 // The light theme gets the light background; dark and system get the dark
@@ -112,9 +135,10 @@ func (s *Server) manifest(w http.ResponseWriter, r *http.Request) {
 			"params": map[string]string{"url": "url", "title": "title", "text": "text"},
 		},
 	}
-	bg := pageBackgrounds[accent][1]
+	bgs := backgrounds(accent, q.Get("style"))
+	bg := bgs[1]
 	if q.Get("theme") == "light" {
-		bg = pageBackgrounds[accent][0]
+		bg = bgs[0]
 	}
 	m["theme_color"], m["background_color"] = bg, bg
 	w.Header().Set("Content-Type", "application/manifest+json")
