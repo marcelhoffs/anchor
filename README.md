@@ -71,6 +71,12 @@
 - [How Anchor works](docs/how-it-works.md): bookmarks, search, page details, import and export, and security.
 - [REST API](docs/api.md): endpoints and authentication.
 
+Anchor is still 0.x: a new minor release (0.7, 0.8…) can change how things work, so read its release notes before you upgrade. Database migrations only go forward, so take a backup first.
+
+## Contributing
+
+Bug reports and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Please report security problems privately, as described in [SECURITY.md](SECURITY.md).
+
 ## License
 
 Anchor is free software under the [GNU Affero General Public License v3.0](LICENSE). You may use, change and share it; if you run a changed version as a network service, you must offer its users the source of your version.
