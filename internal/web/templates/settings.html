@@ -22,6 +22,14 @@
         <span class="hint">{{t "Automatic follows your browser's language."}}</span>
       </fieldset>
       <fieldset>
+        <legend>{{t "Style"}}</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="style" value="classic"{{if eq .Prefs.Style "classic"}} checked{{end}}>{{t "Classic"}}</label>
+          <label class="choice"><input type="radio" name="style" value="wave"{{if eq .Prefs.Style "wave"}} checked{{end}}>{{t "Wave"}}</label>
+        </div>
+        <span class="hint">{{t "Wave tints the page with your accent colour and adds a halftone wave behind it."}}</span>
+      </fieldset>
+      <fieldset>
         <legend>{{t "Accent colour"}}</legend>
         {{/* A dropdown of radios, so each option can show its swatch.
            picker.js shows the new choice on the button. */}}

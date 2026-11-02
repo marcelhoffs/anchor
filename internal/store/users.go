@@ -36,7 +36,9 @@ func (u User) HasPassword() bool { return u.PasswordHash != "" }
 type Settings struct {
 	Accent string `json:"accent,omitempty"` // one of Accents; "" = the first
 	Theme  string `json:"theme,omitempty"`  // one of Themes; "" = the first
-	Font   string `json:"font,omitempty"`   // one of Fonts; "" = the first
+	// Style is the look: classic, or wave (tinted, with a halftone wave).
+	Style string `json:"style,omitempty"` // one of Styles; "" = the first
+	Font  string `json:"font,omitempty"`  // one of Fonts; "" = the first
 	// Language is the interface language; "auto" follows the browser.
 	Language string `json:"language,omitempty"` // one of Languages; "" = the first
 	// Sidebar is where the views and tags sit next to the bookmark list.
@@ -55,12 +57,13 @@ type Settings struct {
 	SearchLocale string `json:"search_locale,omitempty"` // one of SearchLocales; "" = the first
 }
 
-// Accents, Themes, Fonts, Languages, Sidebars, Sorts, DescriptionModes,
+// Accents, Themes, Styles, Fonts, Languages, Sidebars, Sorts, DescriptionModes,
 // Toggles, Engines, SafeSearchModes and SearchLocales list the allowed
 // values, the default first.
 var (
-	Accents          = []string{"ocean", "indigo", "terracotta", "yellow", "emerald", "forest", "rose", "graphite"}
+	Accents          = []string{"ocean", "sapphire", "violet", "terracotta", "emerald", "forest", "rose", "bordeaux", "graphite"}
 	Themes           = []string{"system", "light", "dark"}
+	Styles           = []string{"classic", "wave"}
 	Fonts            = []string{"inter", "system", "roboto", "open-sans"}
 	Languages        = languages()
 	Sidebars         = []string{"left", "right"}
@@ -110,7 +113,7 @@ func (st Settings) Normalized() Settings {
 		return allowed[0]
 	}
 	return Settings{
-		Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Font: pick(st.Font, Fonts),
+		Accent: pick(st.Accent, Accents), Theme: pick(st.Theme, Themes), Style: pick(st.Style, Styles), Font: pick(st.Font, Fonts),
 		Language: pick(st.Language, Languages),
 		Sidebar:  pick(st.Sidebar, Sidebars), Sort: pick(st.Sort, Sorts), Descriptions: pick(st.Descriptions, DescriptionModes),
 		WebSearch: pick(st.WebSearch, Toggles), Engine: pick(st.Engine, Engines),

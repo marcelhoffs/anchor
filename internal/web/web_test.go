@@ -542,6 +542,10 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		if c, ok := pageBackgrounds[a]; !ok || !strings.Contains(string(css), "--bg: light-dark("+c[0]+", "+c[1]+")") {
 			t.Errorf("accent %q has no page background matching its CSS", a)
 		}
+		if c, ok := waveBackgrounds[a]; !ok || (a != store.Accents[0] && !strings.Contains(string(css), `:root[data-style="wave"][data-accent="`+a+`"]`)) ||
+			!strings.Contains(string(css), "--bg: light-dark("+c[0]+", "+c[1]+")") {
+			t.Errorf("accent %q has no wave background matching its CSS", a)
+		}
 	}
 	e := newEnv(t)
 	e.user("alice")
@@ -566,13 +570,13 @@ func TestEveryAccentIsStyled(t *testing.T) {
 	if !strings.Contains(string(svg), `fill="#2d6a4f"`) || strings.Contains(string(svg), `class="eye"`) {
 		t.Fatalf("favicon = %s", svg)
 	}
-	for _, bad := range []string{"/icon/violet.svg", "/icon/forest", "/icon/..%2fstyle.css"} {
+	for _, bad := range []string{"/icon/yellow.svg", "/icon/forest", "/icon/..%2fstyle.css"} {
 		if code, _, _ := e.client().get(bad); code != http.StatusNotFound {
 			t.Errorf("%s: %d", bad, code)
 		}
 	}
 	// A saved accent that no longer exists falls back to the default.
-	e.db.W.Exec(`UPDATE users SET settings = '{"accent":"violet"}' WHERE username = 'alice'`)
+	e.db.W.Exec(`UPDATE users SET settings = '{"accent":"yellow"}' WHERE username = 'alice'`)
 	if _, body, _ := c.get("/"); !strings.Contains(body, `data-accent="ocean"`) {
 		t.Fatal("removed accent didn't fall back to ocean")
 	}
@@ -600,7 +604,7 @@ func TestSidebarPreference(t *testing.T) {
 		t.Fatal("settings page doesn't show the saved sidebar")
 	}
 	// A form that omits a field keeps it.
-	c.post("/settings/appearance", url.Values{"accent": {"indigo"}})
+	c.post("/settings/appearance", url.Values{"accent": {"violet"}})
 	if u, _ := e.store.UserByUsername(context.Background(), "alice"); u.Settings.Sidebar != "right" || u.Settings.Theme != "dark" {
 		t.Fatalf("partial save changed other fields: %+v", u.Settings)
 	}

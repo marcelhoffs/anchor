@@ -307,9 +307,9 @@ var settingsNotices = map[string]i18n.Msg{
 
 // accentLabels names each store.Accents value in the appearance picker.
 var accentLabels = map[string]i18n.Msg{
-	"indigo": i18n.M("Indigo"), "terracotta": i18n.M("Terracotta"), "yellow": i18n.M("Yellow"),
+	"sapphire": i18n.M("Sapphire"), "violet": i18n.M("Violet"), "terracotta": i18n.M("Terracotta"),
 	"emerald": i18n.M("Emerald"), "forest": i18n.M("Forest"), "ocean": i18n.M("Ocean"),
-	"rose": i18n.M("Rose"), "graphite": i18n.M("Graphite"),
+	"rose": i18n.M("Rose"), "bordeaux": i18n.M("Bordeaux"), "graphite": i18n.M("Graphite"),
 }
 
 // fontLabels names each store.Fonts value in the appearance picker; only
@@ -401,6 +401,7 @@ func (s *Server) saveAppearance(w http.ResponseWriter, r *http.Request) {
 	st := u.Settings
 	st.Accent = keep("accent", st.Accent)
 	st.Theme = keep("theme", st.Theme)
+	st.Style = keep("style", st.Style)
 	st.Font = keep("font", st.Font)
 	st.Language = keep("language", st.Language)
 	st.Sidebar = keep("sidebar", st.Sidebar)
