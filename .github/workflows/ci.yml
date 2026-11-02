@@ -21,3 +21,24 @@ jobs:
           go-version-file: go.mod
       - run: go vet ./...
       - run: go test ./...
+
+  # Merges Dependabot's patch and minor updates of Go modules and actions once
+  # the tests pass. Major updates wait for a person, and so do Docker base
+  # images: nothing here builds the image. Only for a PR Dependabot opened and
+  # a run Dependabot started, so a push by anyone else to its branch doesn't
+  # merge.
+  dependabot:
+    needs: test
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+      - if: steps.meta.outputs.update-type != 'version-update:semver-major' && contains(fromJSON('["go_modules", "github_actions"]'), steps.meta.outputs.package-ecosystem)
+        run: gh pr merge "$PR" --merge --delete-branch
+        env:
+          PR: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

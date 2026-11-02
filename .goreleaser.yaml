@@ -35,6 +35,17 @@ changelog:
   filters:
     exclude:
       - "^Merge "
+      # The docs bump that every release starts with.
+      - "^Release "
+  # Dependabot's updates apart from the real changes. Groups match in this
+  # order and the last, without a regexp, takes the rest; order sets where
+  # each is shown.
+  groups:
+    - title: Dependencies
+      regexp: "^Bump "
+      order: 1
+    - title: Changes
+      order: 0
 
 release:
   # v1.2.0-rc.1 and the like are marked as pre-releases.
