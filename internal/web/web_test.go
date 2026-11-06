@@ -1068,11 +1068,11 @@ func TestSettingsFormsSaveInPlace(t *testing.T) {
 	if code != http.StatusSeeOther || !strings.Contains(loc, "done=") {
 		t.Fatalf("save: %d %q", code, loc)
 	}
-	if _, body, _ := c.get(loc); !strings.Contains(body, `<p class="notice" role="status">`) {
+	if _, body, _ := c.get(loc); !strings.Contains(body, `<p class="notice" role="status" data-toast>`) {
 		t.Fatal("no notice after saving")
 	}
 	code, body, _ := c.post("/settings/appearance", url.Values{"accent": {"chartreuse"}})
-	if code != http.StatusUnprocessableEntity || !strings.Contains(body, `<p class="error" role="alert">`) {
+	if code != http.StatusUnprocessableEntity || !strings.Contains(body, `<p class="error" role="alert" data-toast>`) {
 		t.Fatalf("refused save: %d", code)
 	}
 }

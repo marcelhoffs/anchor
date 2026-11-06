@@ -70,6 +70,8 @@
 </header>
 {{end}}
 <main>{{template "main" .}}</main>
+{{/* menus.js shows what's marked data-toast here. Without it they stay in the page. */}}
+<div class="toasts" popover="manual" aria-live="polite"></div>
 <footer class="foot">
   {{t "Anchor %s is free software under the %s" (versionLink) (licenseLink)}} · <a href="{{sourceURL}}" target="_blank" rel="noopener">{{t "Source code"}}</a>
 </footer>
@@ -80,8 +82,8 @@
 {{end}}
 
 {{define "main"}}
-{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
-{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+{{with .Notice}}<p class="notice" role="status" data-toast>{{.}}</p>{{end}}
+{{with .Error}}<p class="error" role="alert" data-toast>{{.}}</p>{{end}}
 {{template "content" .}}
 {{end}}
 

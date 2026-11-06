@@ -737,16 +737,23 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 /* Messages */
 .notice, .error { max-width: 1200px; margin: 0 auto 20px; padding: 12px 16px; border-radius: var(--radius); font-size: var(--fs-md); }
 .notice { background: var(--notice-bg); color: var(--notice-text); }
-/* menus.js fades a notice out after a few seconds. */
-.notice.fading { opacity: 0; }
-@media (prefers-reduced-motion: no-preference) { .notice { transition: opacity .4s ease; } }
+/* menus.js shows them here, in the top layer, under the top bar, then fades
+   them out after a few seconds. */
+.toasts {
+  position: fixed; inset: calc(env(safe-area-inset-top, 0px) + 68px) 0 auto; width: min(480px, calc(100% - 32px));
+  margin: 0 auto; padding: 0; border: 0; background: none; overflow: visible; pointer-events: none;
+}
+.bare .toasts { inset-block-start: calc(env(safe-area-inset-top, 0px) + 12px); } /* no top bar */
+.toasts:popover-open { display: flex; flex-direction: column; gap: 8px; }
+.toasts > * { margin: 0; box-shadow: var(--shadow); pointer-events: auto; }
+.toasts > .fading { opacity: 0; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } }
+@media (prefers-reduced-motion: no-preference) {
+  .toasts > * { transition: opacity .4s ease; animation: toast-in .2s ease; }
+}
 .error { background: var(--error-bg); color: var(--error-text); }
 .notice.undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; }
 .card .notice, .card .error { margin: 0 0 20px; }
-/* settings.js: beside the Save button, so nothing moves when it fades. */
-.save-status { display: inline-block; vertical-align: top; max-width: 100%; margin-left: 12px; }
-.form-actions .save-status { margin-left: 0; } /* the row has its own gap */
-.card .save-status .notice, .card .save-status .error { display: flex; align-items: center; min-height: 40px; margin: 0; padding-block: 0; }
 
 /* Tables */
 .table-wrap { overflow-x: auto; }

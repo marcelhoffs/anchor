@@ -1,6 +1,6 @@
 // The settings forms marked data-save. Appearance choices show at once, as
 // a preview until they're saved. Saving keeps your place on the page: the
-// server's answer, a notice or an error, appears beside the Save button.
+// server's answer, a notice or an error, shows as a toast (menus.js).
 // Changing the language reloads the page, as all of its text changes.
 // Without this script the form posts and the page reloads with the notice
 // on top, and so it does if saving this way fails.
@@ -25,11 +25,6 @@
   });
 
   document.querySelectorAll("form[data-save]").forEach(function (form) {
-    var status = document.createElement("div");
-    status.className = "save-status";
-    status.setAttribute("aria-live", "polite"); // there before its message, or it isn't read out
-    (form.querySelector(".form-actions") || form).append(status); // beside the button
-
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       fetch(form.getAttribute("action"), { method: "POST", body: new URLSearchParams(new FormData(form)) }).then(function (res) {
@@ -37,14 +32,14 @@
         if (res.status !== 422 && !/[?&]done=/.test(res.url)) throw new Error(res.status);
         return res.text();
       }).then(function (html) {
-        var message = new DOMParser().parseFromString(html, "text/html").querySelector("main .notice, main .error");
+        var message = new DOMParser().parseFromString(html, "text/html").querySelector("main [data-toast]");
         if (!message) throw new Error("no message");
         if (message.matches(".notice") && language() !== savedLanguage) {
           location.reload();
           return;
         }
-        status.replaceChildren(message);
-        document.dispatchEvent(new CustomEvent("anchor:content-swapped")); // menus.js fades it
+        document.querySelector("main").append(message);
+        document.dispatchEvent(new CustomEvent("anchor:content-swapped")); // menus.js shows it
       }).catch(function () {
         form.submit(); // saving twice does no harm
       });

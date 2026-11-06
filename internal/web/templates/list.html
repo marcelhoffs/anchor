@@ -4,7 +4,7 @@
 {{define "content"}}
 {{/* Archiving takes one click; this undoes it. */}}
 {{with .Undo}}
-<form class="notice undo" role="status" method="post" action="/bookmarks/bulk" data-swap>
+<form class="notice undo" role="status" method="post" action="/bookmarks/bulk" data-swap data-toast>
   <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
   <input type="hidden" name="from" value="{{$.Space}}"><input type="hidden" name="action" value="unarchive">
   {{range .}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
@@ -13,7 +13,7 @@
 </form>
 {{end}}
 {{with .Copied}}
-<p class="notice" role="status">
+<p class="notice" role="status" data-toast>
   {{- $to := or .Space.Name (t "Personal")}}
   {{- if .Moved}}{{tn .Done "%d bookmark moved to %s." "%d bookmarks moved to %s." .Done (strong $to)}}
   {{- else}}{{tn .Done "%d bookmark copied to %s." "%d bookmarks copied to %s." .Done (strong $to)}}{{end}}
@@ -21,7 +21,7 @@
 </p>
 {{end}}
 {{with .Tagged}}
-<p class="notice" role="status">
+<p class="notice" role="status" data-toast>
   {{- if .Added}}{{tn .N "%s added to %d bookmark." "%s added to %d bookmarks." (strong .Name) .N}}
   {{- else}}{{tn .N "%s removed from %d bookmark." "%s removed from %d bookmarks." (strong .Name) .N}}{{end -}}
 </p>
