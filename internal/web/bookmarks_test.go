@@ -312,3 +312,55 @@ func TestDragToTag(t *testing.T) {
 		t.Fatalf("reader tagged: %d", code)
 	}
 }
+
+// listnav.js asks for the page's content alone, and everyone else still gets
+// the whole page.
+func TestListSwapRendersContentOnly(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+
+	_, full, _ := c.get("/")
+	if !strings.Contains(full, "<!doctype html>") || !strings.Contains(full, "listnav.js") {
+		t.Fatalf("plain request lost the layout:\n%s", full)
+	}
+
+	req, _ := http.NewRequest("GET", e.srv.URL+"/?q=ca%C3%A9", nil)
+	req.Header.Set("X-Anchor-Nav", "1")
+	res, err := c.http.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	body := string(b)
+	if res.StatusCode != http.StatusOK || res.Header.Get("Cache-Control") != "no-store" {
+		t.Fatalf("swap: %d, Cache-Control %q", res.StatusCode, res.Header.Get("Cache-Control"))
+	}
+	if strings.Contains(body, "<html") || strings.Contains(body, "<script") {
+		t.Fatalf("swap has the layout:\n%s", body)
+	}
+	if !strings.Contains(body, `class="search-row"`) || !strings.Contains(body, `class="list-head"`) || !strings.Contains(body, `value="caé"`) {
+		t.Fatalf("swap is missing what listnav.js reads:\n%s", body)
+	}
+}
+
+// A toolbar action redirects to the list, and a swapped list has to show the
+// notices the layout normally holds.
+func TestListSwapKeepsNotice(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.login("alice")
+
+	req, _ := http.NewRequest("GET", e.srv.URL+"/?done=none", nil)
+	req.Header.Set("X-Anchor-Nav", "1")
+	res, err := c.http.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(b), `class="notice"`) || !strings.Contains(string(b), "Select one or more bookmarks first.") {
+		t.Fatalf("no notice in the swap:\n%s", b)
+	}
+}

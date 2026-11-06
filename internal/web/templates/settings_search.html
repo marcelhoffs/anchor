@@ -7,7 +7,7 @@
   <section aria-labelledby="web-search">
     <h2 id="web-search">{{t "Web search"}}</h2>
     <p class="muted">{{t "Search the web from the search box, as well as your bookmarks."}}</p>
-    <form method="post" action="/settings/search">
+    <form method="post" action="/settings/search" data-save>
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
         <label class="check"><input type="checkbox" name="web_search" value="1"{{if eq .Prefs.WebSearch "on"}} checked{{end}}>{{t "Search the web from the search box"}}</label>
@@ -42,4 +42,4 @@
 </div>
 {{end}}
 
-{{define "scripts"}}<script src="{{asset "picker.js"}}"></script>{{end}}
+{{define "scripts"}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "settings.js"}}"></script>{{end}}

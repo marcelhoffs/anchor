@@ -243,8 +243,13 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	nav := currentNav(r)
 	d["Nav"] = nav
 	d["CanWrite"] = nav == nil || nav.Scope.CanWrite()
+	// listnav.js swaps what's in <main> in, without the layout around it.
+	name := "layout"
+	if r.Header.Get("X-Anchor-Nav") == "1" {
+		name = "main"
+	}
 	var buf bytes.Buffer
-	if err := t.ExecuteTemplate(&buf, "layout", d); err != nil {
+	if err := t.ExecuteTemplate(&buf, name, d); err != nil {
 		s.serverError(w, r, err)
 		return
 	}

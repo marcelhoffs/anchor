@@ -6,9 +6,9 @@
 //   <a data-flag-drop="favourite|archived">          a view in the sidebar
 // POST /bookmarks/<id>/tags answers {tags: [{name, url}], count}; the row's
 // tags and the tag's count are redrawn from it. A flag changes the row's
-// star, the counts and whether it's listed at all, so the page
-// reloads. Dragging a ticked row (select.js) does this to every ticked row:
-// a tag request per row, and the flag through the toolbar's form. Without
+// star, the counts and whether it's listed at all, so it goes through the
+// toolbar's form. Dragging a ticked row (select.js) does this to every
+// ticked row, with a tag request per row. Without
 // this script the icons just don't drag; the edit form and the list's
 // toolbar still do the same.
 (function () {
@@ -86,6 +86,7 @@
       document.querySelectorAll('[data-tag-drop="' + tagID + '"] .count').forEach(function (c) {
         c.textContent = count;
       });
+      document.dispatchEvent(new CustomEvent("anchor:list-changed")); // listnav.js
     }).catch(function () {
       window.location.reload(); // show what the server has
     });
@@ -106,23 +107,10 @@
     });
   }
 
-  // setFlag turns a flag on, through the toolbar's form. The redirect the
-  // server answers with isn't followed: the reload shows the result, or
-  // what the server has.
+  // setFlag turns a flag on through the toolbar (select.js). In the archive
+  // there's no Archive button, and nothing to do.
   function setFlag(rows, flag) {
-    var form = document.getElementById("bulk-form");
-    var body = new URLSearchParams({ action: flag === "archived" ? "archive" : flag });
-    form.querySelectorAll("input[type=hidden]").forEach(function (input) { body.set(input.name, input.value); });
-    rows.forEach(function (row) { body.append("id", bookmarkID(row)); });
-    fetch(form.action, {
-      method: "POST",
-      credentials: "same-origin",
-      redirect: "manual",
-      headers: { "X-CSRF-Token": csrf },
-      body: body
-    }).finally(function () {
-      window.location.reload();
-    });
+    document.dispatchEvent(new CustomEvent("anchor:toolbar", { detail: { action: flag === "archived" ? "archive" : flag, rows: rows } }));
   }
 
   // redrawTags replaces a row's tag links, beside its title.
@@ -140,6 +128,7 @@
       var a = document.createElement("a");
       a.className = "tag";
       a.href = t.url;
+      a.setAttribute("data-swap", "");
       a.dataset.color = t.color;
       a.dataset.tagName = t.name;
       a.textContent = t.name;

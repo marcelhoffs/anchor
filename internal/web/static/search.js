@@ -39,9 +39,12 @@
       option.disabled = true; // keeps "in=" out of the bookmark search's URL
     }
   });
-  // Back on the page from the browser's history, the option counts again.
-  addEventListener("pageshow", function () {
+  // Back on the page from the browser's history, or with the results swapped
+  // in by listnav.js, the option counts again.
+  function restore() {
     var option = chosen();
     if (option) option.disabled = false;
-  });
+  }
+  addEventListener("pageshow", restore);
+  document.addEventListener("anchor:content-swapped", restore);
 })();

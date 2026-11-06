@@ -8,11 +8,7 @@
 (function () {
   "use strict";
 
-  var bar = document.querySelector(".bulk-bar");
-  if (!bar) return;
-  var all = bar.querySelector(".bulk-all");
-  var count = bar.querySelector(".bulk-count");
-  var title = document.getElementById("confirm-delete-title");
+  var bar, all, count, title;
   var last = null; // the box last clicked, for Shift-click
 
   function boxes() {
@@ -25,6 +21,7 @@
   }
 
   function update() {
+    if (!bar) return;
     var list = boxes();
     var n = list.filter(function (b) { return b.checked; }).length;
     // With everything ticked, the button lights up and selects none.
@@ -40,33 +37,45 @@
     if (title) title.textContent = plural(title, n);
   }
 
-  // Opening the tag menu presses the tags that every ticked row has, as
-  // picking one of those takes it off them, and half-presses ("mixed") the
-  // ones only some have.
-  var tagMenu = document.getElementById("bulk-tag");
-  if (tagMenu) tagMenu.addEventListener("beforetoggle", function (e) {
-    if (e.newState !== "open") return;
-    var common = null, any = [];
-    boxes().filter(function (b) { return b.checked; }).forEach(function (box) {
-      var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags [data-tag-name]"), function (a) { return a.getAttribute("data-tag-name"); });
-      common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
-      any = any.concat(names);
-    });
-    tagMenu.querySelectorAll("[data-tag-name]").forEach(function (b) {
-      var name = b.getAttribute("data-tag-name");
-      b.setAttribute("aria-pressed", common && common.indexOf(name) >= 0 ? "true" : any.indexOf(name) >= 0 ? "mixed" : "false");
-    });
-  });
-
-  all.setAttribute("data-all", all.title);
-  all.hidden = false;
-
-  all.addEventListener("click", function () {
-    var on = !all.classList.contains("on"); // with some ticked, it ticks them all
-    boxes().forEach(function (b) { b.checked = on; });
+  // setup binds to the toolbar, which listnav.js replaces with the results.
+  function setup() {
     last = null;
+    bar = document.querySelector(".bulk-bar");
+    if (!bar) return;
+    all = bar.querySelector(".bulk-all");
+    count = bar.querySelector(".bulk-count");
+    title = document.getElementById("confirm-delete-title");
+
+    // Opening the tag menu presses the tags that every ticked row has, as
+    // picking one of those takes it off them, and half-presses ("mixed") the
+    // ones only some have.
+    var tagMenu = document.getElementById("bulk-tag");
+    if (tagMenu) tagMenu.addEventListener("beforetoggle", function (e) {
+      if (e.newState !== "open") return;
+      var common = null, any = [];
+      boxes().filter(function (b) { return b.checked; }).forEach(function (box) {
+        var names = Array.prototype.map.call(box.closest("li.bookmark").querySelectorAll(".bm-tags [data-tag-name]"), function (a) { return a.getAttribute("data-tag-name"); });
+        common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
+        any = any.concat(names);
+      });
+      tagMenu.querySelectorAll("[data-tag-name]").forEach(function (b) {
+        var name = b.getAttribute("data-tag-name");
+        b.setAttribute("aria-pressed", common && common.indexOf(name) >= 0 ? "true" : any.indexOf(name) >= 0 ? "mixed" : "false");
+      });
+    });
+
+    all.setAttribute("data-all", all.title);
+    all.hidden = false;
+
+    all.addEventListener("click", function () {
+      var on = !all.classList.contains("on"); // with some ticked, it ticks them all
+      boxes().forEach(function (b) { b.checked = on; });
+      last = null;
+      update();
+    });
+
     update();
-  });
+  }
 
   document.addEventListener("click", function (e) {
     var box = e.target.closest && e.target.closest("li.bookmark .bm-check");
@@ -84,7 +93,18 @@
     if (e.target.classList && e.target.classList.contains("bm-check")) update();
   });
 
+  // keys.js and dragtag.js press a toolbar button for the rows they name.
+  document.addEventListener("anchor:toolbar", function (e) {
+    var button = document.querySelector('button[form="bulk-form"][value="' + e.detail.action + '"]');
+    if (!button) return;
+    boxes().forEach(function (box) { box.checked = e.detail.rows.indexOf(box.closest("li.bookmark")) >= 0; });
+    update();
+    button.disabled = false; // Edit asks for one row, and this may be one
+    button.form.requestSubmit(button);
+  });
+
   // A box ticked before this ran, or kept by the browser on back.
   window.addEventListener("pageshow", update);
-  update();
+  document.addEventListener("anchor:content-swapped", setup);
+  setup();
 })();

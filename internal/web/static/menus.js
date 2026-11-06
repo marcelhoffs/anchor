@@ -2,16 +2,20 @@
 // and a click outside or Escape closes them. Without this script each menu
 // still opens and closes from its own button.
 //
-// Also: fades out notices (.notice[role=status]) after 5 seconds, waiting
-// while the pointer or focus is on one, as the archive notice has an Undo;
-// registers the service worker; and iOS shows :active (the pressed look, see style.css) on touch only
+// Also: shows notices and errors (data-toast) as toasts on top of the page,
+// and fades them out after 5 seconds, waiting while the pointer or focus is
+// on one, as the archive notice has an Undo. Each page or swap replaces the
+// last ones. Without this script they stay where the page has them.
+// Registers the service worker; and iOS shows :active (the pressed look, see style.css) on touch only
 // when something listens for touchstart.
 (function () {
   "use strict";
 
   document.addEventListener("touchstart", function () {}, { passive: true });
 
-  document.querySelectorAll(".notice[role=status]").forEach(function (n) {
+  var toasts = document.querySelector(".toasts");
+
+  function fade(n) {
     var timer;
     function start() {
       clearTimeout(timer);
@@ -19,7 +23,10 @@
         n.classList.add("fading");
         // Without a transition (reduced motion) there's no transitionend.
         var gone = parseFloat(getComputedStyle(n).transitionDuration) || 0;
-        timer = setTimeout(function () { n.remove(); }, gone * 1000);
+        timer = setTimeout(function () {
+          n.remove();
+          if (!toasts.children.length && toasts.matches(":popover-open")) toasts.hidePopover();
+        }, gone * 1000);
       }, 5000);
     }
     function hold() { clearTimeout(timer); n.classList.remove("fading"); }
@@ -28,7 +35,18 @@
     n.addEventListener("mouseleave", function () { if (!n.contains(document.activeElement)) start(); });
     n.addEventListener("focusout", function (e) { if (!n.contains(e.relatedTarget) && !n.matches(":hover")) start(); });
     start();
-  });
+  }
+
+  function showToasts() {
+    if (!toasts.showPopover) return; // older browsers leave them in the page
+    var fresh = document.querySelectorAll("main [data-toast]");
+    toasts.replaceChildren.apply(toasts, fresh);
+    fresh.forEach(fade);
+    // Shown again, so they're on top of a menu opened since.
+    if (toasts.matches(":popover-open")) toasts.hidePopover();
+    if (fresh.length) toasts.showPopover();
+  }
+  document.addEventListener("anchor:content-swapped", showToasts); // listnav.js, settings.js
 
   // Installed as an app, the service worker (sw.js) shows an offline page
   // instead of the browser's error.
@@ -61,4 +79,6 @@
     open.open = false;
     open.querySelector("summary").focus();
   });
+
+  showToasts();
 })();

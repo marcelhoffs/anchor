@@ -532,8 +532,9 @@ func TestEveryAccentIsStyled(t *testing.T) {
 		if a != store.Accents[0] && !strings.Contains(string(css), `:root[data-accent="`+a+`"]`) {
 			t.Errorf("accent %q has no colour tokens", a)
 		}
-		if !strings.Contains(string(css), ".swatch."+a+" ") {
-			t.Errorf("accent %q has no swatch", a)
+		// The first accent's tile takes the defaults.
+		if a != store.Accents[0] && (!strings.Contains(string(css), ".accent-preview."+a+" {") || !strings.Contains(string(css), `[data-style="wave"] .accent-preview.`+a+" {")) {
+			t.Errorf("accent %q has no preview tile", a)
 		}
 		// The favicon uses the accent's light-mode colour.
 		if c, ok := iconColours[a]; !ok || !strings.Contains(string(css), "--accent: light-dark("+c[0]+",") {
@@ -1004,7 +1005,7 @@ func TestViewBarAboveSearch(t *testing.T) {
 	if bar < strings.Index(body, `class="columns"`) || bar > strings.Index(body, `role="search"`) {
 		t.Fatal("no view bar above the search box")
 	}
-	if !strings.Contains(body[bar:], `<a href="/?q=%21fav" aria-current="page">`) {
+	if !strings.Contains(body[bar:], `<a href="/?q=%21fav" aria-current="page" data-swap>`) {
 		t.Fatal("view bar doesn't mark Favourites")
 	}
 }
@@ -1051,4 +1052,27 @@ func (e *env) admin() *client {
 		e.t.Fatal(err)
 	}
 	return e.login("root")
+}
+
+// settings.js saves these in place, and reads the server's notice from the
+// page the save redirects to.
+func TestSettingsFormsSaveInPlace(t *testing.T) {
+	c := newEnv(t).admin()
+	for _, path := range []string{"/settings", "/settings/search", "/admin/", "/admin/spaces"} {
+		_, body, _ := c.get(path)
+		if !strings.Contains(body, "data-save") || !strings.Contains(body, "settings.js") {
+			t.Fatalf("%s: forms aren't wired up to settings.js", path)
+		}
+	}
+	code, _, loc := c.post("/settings/appearance", url.Values{"accent": {"rose"}})
+	if code != http.StatusSeeOther || !strings.Contains(loc, "done=") {
+		t.Fatalf("save: %d %q", code, loc)
+	}
+	if _, body, _ := c.get(loc); !strings.Contains(body, `<p class="notice" role="status" data-toast>`) {
+		t.Fatal("no notice after saving")
+	}
+	code, body, _ := c.post("/settings/appearance", url.Values{"accent": {"chartreuse"}})
+	if code != http.StatusUnprocessableEntity || !strings.Contains(body, `<p class="error" role="alert" data-toast>`) {
+		t.Fatalf("refused save: %d", code)
+	}
 }

@@ -6,7 +6,7 @@
 
   <section aria-labelledby="space-creation">
     <h2 id="space-creation">{{t "Who can create shared spaces"}}</h2>
-    <form method="post" action="/admin/spaces">
+    <form method="post" action="/admin/spaces" data-save>
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
         <legend class="visually-hidden">{{t "Who can create shared spaces"}}</legend>
@@ -70,3 +70,5 @@
   </section>
 </div>
 {{end}}
+
+{{define "scripts"}}<script src="{{asset "settings.js"}}"></script>{{end}}
