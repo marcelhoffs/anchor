@@ -5,7 +5,7 @@
   {{template "settings-nav" .}}
 
   <section aria-label="{{t "Appearance"}}">
-    <form method="post" action="/settings/appearance">
+    <form method="post" action="/settings/appearance" data-save>
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
         <legend>{{t "Language"}}</legend>
@@ -31,15 +31,10 @@
       </fieldset>
       <fieldset>
         <legend>{{t "Accent colour"}}</legend>
-        {{/* A dropdown of radios, so each option can show its swatch.
-           picker.js shows the new choice on the button. */}}
-        <button type="button" class="btn picker" popovertarget="accent-menu">
-          {{range .Accents}}{{if eq $.Prefs.Accent .Value}}<span class="picker-current"><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</span>{{end}}{{end}}
-          {{icon "chevron-down" "sm"}}
-        </button>
-        <div id="accent-menu" class="menu row-menu picker-menu" popover>
+        {{/* The empty spans are the tile's tiny page, drawn by style.css. */}}
+        <div class="accent-choices">
           {{range .Accents}}
-          <label class="picker-option"><input type="radio" name="accent" value="{{.Value}}"{{if eq $.Prefs.Accent .Value}} checked{{end}}><span class="swatch {{.Value}}" aria-hidden="true"></span>{{.Label}}</label>
+          <label class="accent-choice"><input type="radio" name="accent" value="{{.Value}}"{{if eq $.Prefs.Accent .Value}} checked{{end}}><span class="accent-preview {{.Value}}" aria-hidden="true"><span></span><span></span><span></span></span>{{.Label}}</label>
           {{end}}
         </div>
       </fieldset>
@@ -81,7 +76,7 @@
   <section aria-labelledby="list-settings">
     <h2 id="list-settings">{{t "Bookmark list"}}</h2>
     <p class="muted">{{t "How your bookmarks are listed."}}</p>
-    <form method="post" action="/settings/appearance">
+    <form method="post" action="/settings/appearance" data-save>
       <input type="hidden" name="csrf" value="{{.CSRF}}">
       <fieldset>
         <legend>{{t "Sort by"}}</legend>
@@ -111,4 +106,4 @@
 </div>
 {{end}}
 
-{{define "scripts"}}<script src="{{asset "picker.js"}}"></script>{{end}}
+{{define "scripts"}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "settings.js"}}"></script>{{end}}

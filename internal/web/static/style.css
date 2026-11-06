@@ -37,7 +37,10 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-:root {
+/* .accent-preview: the tiles of the accent grid in Settings take these same
+   values, each for its own accent, so they show that accent as it really is
+   in the current theme and style. */
+:root, .accent-preview {
   /* Slate neutrals */
   /* The page background: the neutral with a hint of the accent. */
   --bg: light-dark(#f3fbff, #010f1a);
@@ -65,7 +68,7 @@
   --accent-text: var(--accent);
   --accent-text-hover: var(--accent-hover);
 }
-:root[data-accent="terracotta"] {
+:root[data-accent="terracotta"], .accent-preview.terracotta {
   /* Stone neutrals */
   --bg: light-dark(#fff7f2, #1b0a03);
   --surface: light-dark(#ffffff, #1a1816);
@@ -82,14 +85,14 @@
   --soft: light-dark(#fff1e6, #3a2418);
   --soft-text: light-dark(#9a3412, #ffc9a8);
 }
-:root[data-accent="sapphire"] {
+:root[data-accent="sapphire"], .accent-preview.sapphire {
   --bg: light-dark(#f4f7ff, #060b1c);
   --accent: light-dark(#1d4ed8, #60a5fa);
   --accent-hover: light-dark(#1e40af, #93c5fd);
   --soft: light-dark(#eff6ff, #13244a);
   --soft-text: light-dark(#1e40af, #bfdbfe);
 }
-:root[data-accent="violet"] {
+:root[data-accent="violet"], .accent-preview.violet {
   --bg: light-dark(#f8f6ff, #0e0b16);
   --accent: light-dark(#7c5cf6, #a78bfa);
   --accent-hover: light-dark(#7053dd, #c4b5fd);
@@ -99,35 +102,35 @@
   --soft: light-dark(#f3f0ff, #241c3d);
   --soft-text: light-dark(#5b3fc4, #ddd6fe);
 }
-:root[data-accent="emerald"] {
+:root[data-accent="emerald"], .accent-preview.emerald {
   --bg: light-dark(#f3fcfb, #00110d);
   --accent: light-dark(#047857, #34d399);
   --accent-hover: light-dark(#065f46, #6ee7b7);
   --soft: light-dark(#ecfdf5, #0f2e25);
   --soft-text: light-dark(#065f46, #a7f3d0);
 }
-:root[data-accent="forest"] {
+:root[data-accent="forest"], .accent-preview.forest {
   --bg: light-dark(#f5fbfb, #070f0e);
   --accent: light-dark(#2d6a4f, #95c9a8);
   --accent-hover: light-dark(#1b4332, #b7dcc5);
   --soft: light-dark(#edf5f0, #16271e);
   --soft-text: light-dark(#1b4332, #c4e3d0);
 }
-:root[data-accent="rose"] {
+:root[data-accent="rose"], .accent-preview.rose {
   --bg: light-dark(#fff6f8, #19070c);
   --accent: light-dark(#be123c, #fb7185);
   --accent-hover: light-dark(#9f1239, #fda4af);
   --soft: light-dark(#fff1f2, #3a1520);
   --soft-text: light-dark(#9f1239, #fecdd3);
 }
-:root[data-accent="bordeaux"] {
+:root[data-accent="bordeaux"], .accent-preview.bordeaux {
   --bg: light-dark(#fdf6f8, #160709);
   --accent: light-dark(#7f1d3f, #e092ac);
   --accent-hover: light-dark(#66162f, #ecb3c6);
   --soft: light-dark(#fcf0f4, #3a1622);
   --soft-text: light-dark(#6b1834, #f5cdd9);
 }
-:root[data-accent="graphite"] {
+:root[data-accent="graphite"], .accent-preview.graphite {
   --bg: light-dark(#f7fafe, #0c0d11);
   --accent: light-dark(#1e293b, #e2e8f0);
   --accent-hover: light-dark(#0f172a, #f8fafc);
@@ -139,7 +142,7 @@
    tinted by the accent, rounder corners, a soft accent glow at the top and a
    halftone wave behind the page. --tint-light and --tint-dark are the
    accent's two values; --bg matches waveBackgrounds in pwa.go. */
-:root[data-style="wave"] {
+:root[data-style="wave"], [data-style="wave"] .accent-preview {
   --tint-light: #0369a1;
   --tint-dark: #38bdf8;
   --bg: light-dark(#f0f5f7, #040f16);
@@ -163,14 +166,14 @@
   --wave: light-dark(color-mix(in srgb, var(--tint-light) 7%, transparent), color-mix(in srgb, var(--tint-dark) 14%, transparent));
   --glow: light-dark(color-mix(in srgb, var(--tint-light) 8%, transparent), color-mix(in srgb, var(--tint-dark) 14%, transparent));
 }
-:root[data-style="wave"][data-accent="sapphire"] { --tint-light: #1d4ed8; --tint-dark: #60a5fa; --bg: light-dark(#f1f3fa, #080d16); }
-:root[data-style="wave"][data-accent="violet"] { --tint-light: #7c5cf6; --tint-dark: #a78bfa; --bg: light-dark(#f6f4fc, #0d0b16); }
-:root[data-style="wave"][data-accent="terracotta"] { --tint-light: #c2410c; --tint-dark: #fb8b4f; --bg: light-dark(#f9f3f0, #140b08); }
-:root[data-style="wave"][data-accent="emerald"] { --tint-light: #047857; --tint-dark: #34d399; --bg: light-dark(#f0f5f4, #04110e); }
-:root[data-style="wave"][data-accent="forest"] { --tint-light: #2d6a4f; --tint-dark: #95c9a8; --bg: light-dark(#f2f5f3, #0c100f); }
-:root[data-style="wave"][data-accent="rose"] { --tint-light: #be123c; --tint-dark: #fb7185; --bg: light-dark(#f9f0f2, #14090c); }
-:root[data-style="wave"][data-accent="bordeaux"] { --tint-light: #7f1d3f; --tint-dark: #e092ac; --bg: light-dark(#f6f1f3, #120c10); }
-:root[data-style="wave"][data-accent="graphite"] { --tint-light: #1e293b; --tint-dark: #e2e8f0; --bg: light-dark(#f1f1f2, #121315); }
+:root[data-style="wave"][data-accent="sapphire"], [data-style="wave"] .accent-preview.sapphire { --tint-light: #1d4ed8; --tint-dark: #60a5fa; --bg: light-dark(#f1f3fa, #080d16); }
+:root[data-style="wave"][data-accent="violet"], [data-style="wave"] .accent-preview.violet { --tint-light: #7c5cf6; --tint-dark: #a78bfa; --bg: light-dark(#f6f4fc, #0d0b16); }
+:root[data-style="wave"][data-accent="terracotta"], [data-style="wave"] .accent-preview.terracotta { --tint-light: #c2410c; --tint-dark: #fb8b4f; --bg: light-dark(#f9f3f0, #140b08); }
+:root[data-style="wave"][data-accent="emerald"], [data-style="wave"] .accent-preview.emerald { --tint-light: #047857; --tint-dark: #34d399; --bg: light-dark(#f0f5f4, #04110e); }
+:root[data-style="wave"][data-accent="forest"], [data-style="wave"] .accent-preview.forest { --tint-light: #2d6a4f; --tint-dark: #95c9a8; --bg: light-dark(#f2f5f3, #0c100f); }
+:root[data-style="wave"][data-accent="rose"], [data-style="wave"] .accent-preview.rose { --tint-light: #be123c; --tint-dark: #fb7185; --bg: light-dark(#f9f0f2, #14090c); }
+:root[data-style="wave"][data-accent="bordeaux"], [data-style="wave"] .accent-preview.bordeaux { --tint-light: #7f1d3f; --tint-dark: #e092ac; --bg: light-dark(#f6f1f3, #120c10); }
+:root[data-style="wave"][data-accent="graphite"], [data-style="wave"] .accent-preview.graphite { --tint-light: #1e293b; --tint-dark: #e2e8f0; --bg: light-dark(#f1f1f2, #121315); }
 :root[data-style="wave"] body {
   background: radial-gradient(1200px 420px at 50% -120px, var(--glow), transparent) fixed, var(--bg);
 }
@@ -419,13 +422,18 @@ main { max-width: 1200px; margin: 0 auto; padding: 28px var(--gutter-right) 56px
 .search .btn { min-height: 36px; }
 .search-btn .icon { display: none; } /* phones show it instead of the label */
 .list-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
-.list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; margin-top: 6px; }
+.list-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; margin-top: 6px; } /* as tall as the pager, so the list stays put without one */
 /* A long title stays on the row and fades out where the actions start. */
 .list-head h1 {
   flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap;
   mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
+.list-head h1:focus { outline: none; } /* listnav.js moves focus here; nothing to do on it */
 .list-head .list-actions { flex-shrink: 0; }
+
+/* listnav.js: the list while its next page is on the way. */
+main[aria-busy="true"] .content { opacity: 0.55; }
+@media (prefers-reduced-motion: no-preference) { main .content { transition: opacity 120ms; } }
 
 /* Bookmark list */
 .bm-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
@@ -686,7 +694,26 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 /* A space's name in a table, after its icon. */
 .space-cell > * { display: inline-flex; align-items: center; gap: 8px; }
 .space-cell .icon { flex-shrink: 0; color: var(--muted); }
-.swatch { width: 20px; height: 20px; border-radius: 999px; }
+/* The accents: each tile a tiny page in its own colours (see :root). */
+.accent-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+.accent-choice {
+  position: relative; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 6px 6px 8px;
+  border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--fs-sm); font-weight: var(--fw-medium); text-align: center; cursor: pointer;
+}
+.accent-choice:hover { border-color: var(--muted); }
+.accent-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.accent-choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.accent-choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.accent-preview { display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 6px; background: var(--bg); }
+.accent-preview > span { display: flex; align-items: center; justify-content: space-between; height: 14px; padding: 0 5px; border-radius: 3px; }
+.accent-preview > span::before { content: ""; width: 60%; height: 4px; border-radius: 2px; }
+.accent-preview > :nth-child(1) { padding: 0; }
+.accent-preview > :nth-child(1)::before { width: 40%; background: var(--text); }
+.accent-preview > :nth-child(1)::after { content: ""; width: 28%; height: 12px; border-radius: 3px; background: var(--accent); }
+.accent-preview > :nth-child(2) { background: var(--soft); }
+.accent-preview > :nth-child(2)::before { background: var(--soft-text); }
+.accent-preview > :nth-child(3) { background: var(--surface); }
+.accent-preview > :nth-child(3)::before { background: var(--muted); }
 /* Each font option is shown in its own font. */
 .font-sample.inter { font-family: var(--font-inter); }
 .font-sample.system { font-family: var(--font-system); }
@@ -706,16 +733,6 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 .layout-icon::after { content: ""; position: absolute; top: 2px; bottom: 2px; width: 6px; border-radius: 1px; background: var(--accent); }
 .layout-icon.left::after { left: 2px; }
 .layout-icon.right::after { right: 2px; }
-/* Each swatch shows the accent's light and dark shade. */
-.swatch.terracotta { background: linear-gradient(135deg, #c2410c 50%, #fb8b4f 50%); }
-.swatch.sapphire { background: linear-gradient(135deg, #1d4ed8 50%, #60a5fa 50%); }
-.swatch.violet { background: linear-gradient(135deg, #7c5cf6 50%, #a78bfa 50%); }
-.swatch.emerald { background: linear-gradient(135deg, #047857 50%, #34d399 50%); }
-.swatch.ocean { background: linear-gradient(135deg, #0369a1 50%, #38bdf8 50%); }
-.swatch.forest { background: linear-gradient(135deg, #2d6a4f 50%, #95c9a8 50%); }
-.swatch.rose { background: linear-gradient(135deg, #be123c 50%, #fb7185 50%); }
-.swatch.bordeaux { background: linear-gradient(135deg, #7f1d3f 50%, #e092ac 50%); }
-.swatch.graphite { background: linear-gradient(135deg, #1e293b 50%, #e2e8f0 50%); box-shadow: inset 0 0 0 1px var(--border); }
 
 /* Messages */
 .notice, .error { max-width: 1200px; margin: 0 auto 20px; padding: 12px 16px; border-radius: var(--radius); font-size: var(--fs-md); }
@@ -726,6 +743,10 @@ legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: v
 .error { background: var(--error-bg); color: var(--error-text); }
 .notice.undo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px; }
 .card .notice, .card .error { margin: 0 0 20px; }
+/* settings.js: beside the Save button, so nothing moves when it fades. */
+.save-status { display: inline-block; vertical-align: top; max-width: 100%; margin-left: 12px; }
+.form-actions .save-status { margin-left: 0; } /* the row has its own gap */
+.card .save-status .notice, .card .save-status .error { display: flex; align-items: center; min-height: 40px; margin: 0; padding-block: 0; }
 
 /* Tables */
 .table-wrap { overflow-x: auto; }

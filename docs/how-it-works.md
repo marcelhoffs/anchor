@@ -17,7 +17,7 @@ This page explains what Anchor does behind its pages: how it stores bookmarks, s
 
 ## Overview
 
-Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys, pickers, dragging tags, keyboard shortcuts, the list's toolbar and web search), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
+Anchor is a single Go program. It serves HTML pages rendered on the server (with a little JavaScript for passkeys, pickers, dragging tags, keyboard shortcuts, the list's toolbar, swapping the list without a reload, and web search), a JSON API under `/api/v1`, and runs two background workers: one for imports and one for fetching page details.
 
 Everything is stored in one SQLite database, `anchor.db`, in write-ahead-log mode. All writes go through one connection, so they never conflict; reads use a separate pool and don't wait for writes. Background work keeps its queue in the database too, so a restart picks up where it left off.
 

@@ -69,11 +69,7 @@
   {{end}}
 </header>
 {{end}}
-<main>
-{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
-{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
-{{template "content" .}}
-</main>
+<main>{{template "main" .}}</main>
 <footer class="foot">
   {{t "Anchor %s is free software under the %s" (versionLink) (licenseLink)}} · <a href="{{sourceURL}}" target="_blank" rel="noopener">{{t "Source code"}}</a>
 </footer>
@@ -81,6 +77,12 @@
 {{block "scripts" .}}{{end}}
 </body>
 </html>
+{{end}}
+
+{{define "main"}}
+{{with .Notice}}<p class="notice" role="status">{{.}}</p>{{end}}
+{{with .Error}}<p class="error" role="alert">{{.}}</p>{{end}}
+{{template "content" .}}
 {{end}}
 
 {{define "settings-nav"}}

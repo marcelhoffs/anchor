@@ -11,7 +11,7 @@
 
   document.addEventListener("touchstart", function () {}, { passive: true });
 
-  document.querySelectorAll(".notice[role=status]").forEach(function (n) {
+  function fade(n) {
     var timer;
     function start() {
       clearTimeout(timer);
@@ -28,7 +28,10 @@
     n.addEventListener("mouseleave", function () { if (!n.contains(document.activeElement)) start(); });
     n.addEventListener("focusout", function (e) { if (!n.contains(e.relatedTarget) && !n.matches(":hover")) start(); });
     start();
-  });
+  }
+  function fadeNotices() { document.querySelectorAll(".notice[role=status]").forEach(fade); }
+  fadeNotices();
+  document.addEventListener("anchor:content-swapped", fadeNotices); // listnav.js
 
   // Installed as an app, the service worker (sw.js) shows an offline page
   // instead of the browser's error.

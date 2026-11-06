@@ -4,7 +4,7 @@
   <h1>{{t "Admin"}}</h1>
   {{template "admin-nav" .}}
 
-  <form method="post" action="/admin/settings">
+  <form method="post" action="/admin/settings" data-save>
     <input type="hidden" name="csrf" value="{{.CSRF}}">
     <section aria-labelledby="signup">
       <h2 id="signup">{{t "Sign-up"}}</h2>
@@ -33,3 +33,5 @@
   </form>
 </div>
 {{end}}
+
+{{define "scripts"}}<script src="{{asset "settings.js"}}"></script>{{end}}

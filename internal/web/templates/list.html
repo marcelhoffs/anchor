@@ -4,7 +4,7 @@
 {{define "content"}}
 {{/* Archiving takes one click; this undoes it. */}}
 {{with .Undo}}
-<form class="notice undo" role="status" method="post" action="/bookmarks/bulk">
+<form class="notice undo" role="status" method="post" action="/bookmarks/bulk" data-swap>
   <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="{{$.Here}}">
   <input type="hidden" name="from" value="{{$.Space}}"><input type="hidden" name="action" value="unarchive">
   {{range .}}<input type="hidden" name="id" value="{{.ID}}">{{end}}
@@ -30,12 +30,12 @@
   {{/* The search box spans the sidebar and the list. Without room for the
      sidebar, the views sit above it. */}}
   <nav class="view-bar" aria-label="{{t "Views"}}">
-    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list" "sm"}}{{t "All bookmarks"}}</a>
-    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}>{{icon "star" "sm"}}{{t "Favourites"}}</a>
-    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}>{{icon "archive" "sm"}}{{t "Archive"}}</a>
+    <a href="/"{{if eq .View "all"}} aria-current="page"{{end}} data-swap>{{icon "list" "sm"}}{{t "All bookmarks"}}</a>
+    <a href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}} data-swap>{{icon "star" "sm"}}{{t "Favourites"}}</a>
+    <a href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}} data-swap>{{icon "archive" "sm"}}{{t "Archive"}}</a>
   </nav>
   <div class="search-row">
-    <form class="search" method="get" action="/" role="search">
+    <form class="search" method="get" action="/" role="search" data-swap>
       {{with .WebSearch}}
       {{/* What to search: the bookmarks or the web. search.js swaps the
          placeholder and goes to the engine; the help is for bookmarks only. */}}
@@ -75,16 +75,16 @@
   </div>
 <aside class="sidebar">
   <nav class="side-views" aria-label="{{t "Views"}}">
-    <a class="side-link" href="/"{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
-    <a class="side-link" href="/?q=%21fav"{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
-    <a class="side-link" href="/?q=%21archived"{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
+    <a class="side-link" href="/" data-swap{{if eq .View "all"}} aria-current="page"{{end}}>{{icon "list"}}<span class="label">{{t "All bookmarks"}}</span><span class="count">{{.Counts.All}}</span></a>
+    <a class="side-link" href="/?q=%21fav" data-swap{{if eq .View "fav"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="favourite"{{end}}>{{icon "star"}}<span class="label">{{t "Favourites"}}</span><span class="count">{{.Counts.Favourites}}</span></a>
+    <a class="side-link" href="/?q=%21archived" data-swap{{if eq .View "archive"}} aria-current="page"{{end}}{{if .CanWrite}} data-flag-drop="archived"{{end}}>{{icon "archive"}}<span class="label">{{t "Archive"}}</span><span class="count">{{.Counts.Archived}}</span></a>
   </nav>
   {{if .SavedSearches}}
   <div class="side-searches">
   <h2 class="side-heading side-heading-row">{{t "Saved searches"}}<a href="/saved-searches" class="side-manage" title="{{t "Manage saved searches"}}" aria-label="{{t "Manage saved searches"}}">{{icon "pencil" "sm"}}</a></h2>
   <nav aria-label="{{t "Saved searches"}}">
     {{range .SavedSearches}}
-    <a class="side-link" href="{{savedSearchURL .}}"{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
+    <a class="side-link" href="{{savedSearchURL .}}" data-swap{{if eq $.View (print "search:" .ID)}} aria-current="page"{{end}}>{{icon "layers"}}<span class="label">{{.Name}}</span></a>
     {{end}}
   </nav>
   </div>
@@ -135,7 +135,7 @@
      the toolbar's buttons all belong to bulk-form, so it works without
      JavaScript too. select.js adds select all/none, the count, and turns
      off what doesn't apply. */}}
-  <form id="bulk-form" method="post" action="/bookmarks/bulk" hidden>
+  <form id="bulk-form" method="post" action="/bookmarks/bulk" data-swap hidden>
     <input type="hidden" name="csrf" value="{{.CSRF}}"><input type="hidden" name="next" value="{{.Here}}"><input type="hidden" name="from" value="{{.Space}}">
   </form>
   <div class="bulk-bar" role="toolbar" aria-label="{{t "Selected bookmarks"}}">
@@ -209,7 +209,7 @@
       <div class="bm-body">
         <div class="bm-head">
           <a class="bm-title" href="{{.URL}}" rel="noopener noreferrer" target="_blank">{{display .}}</a>
-          {{if .Tags}}<span class="bm-tags">{{range .Tags}}<a class="tag" href="{{tagURL .}}" data-color="{{index $.TagColors .}}" data-tag-name="{{.}}">{{.}}</a>{{end}}</span>{{end}}
+          {{if .Tags}}<span class="bm-tags">{{range .Tags}}<a class="tag" href="{{tagURL .}}" data-color="{{index $.TagColors .}}" data-tag-name="{{.}}" data-swap>{{.}}</a>{{end}}</span>{{end}}
         </div>
         {{if ne $.Prefs.Descriptions "hide"}}<p class="bm-desc">{{.Description}}</p>{{end}}
         <div class="bm-meta">
@@ -238,7 +238,7 @@
     <span class="badge-icon">{{icon "search"}}</span>
     <p class="title">{{t "Nothing matches"}}</p>
     <p>{{t "No bookmarks match %s. Try another search, or clear the filters to see everything." (strong .Query)}}</p>
-    <a class="btn btn-primary" href="/">{{t "Clear filters"}}</a>
+    <a class="btn btn-primary" href="/" data-swap>{{t "Clear filters"}}</a>
   </div>
   {{else}}
   <div class="empty-state">
@@ -261,7 +261,7 @@
 {{define "tag-links"}}
 <nav aria-label="{{t "Tags"}}">
   {{range .Tags}}
-  <a class="side-link" href="{{tagURL .Name}}"{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}{{if $.CanWrite}} data-tag-drop="{{.ID}}"{{end}}><span class="tag-dot" data-color="{{.Color}}" aria-hidden="true"></span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
+  <a class="side-link" href="{{tagURL .Name}}" data-swap{{if eq $.View (print "#" .Name)}} aria-current="page"{{end}}{{if $.CanWrite}} data-tag-drop="{{.ID}}"{{end}}><span class="tag-dot" data-color="{{.Color}}" aria-hidden="true"></span><span class="label">{{.Name}}</span><span class="count">{{.Count}}</span></a>
   {{else}}
   <p class="side-empty">{{t "No tags yet"}}</p>
   {{end}}
@@ -274,15 +274,15 @@
 
 {{define "drag-attrs"}}{{if .On}} draggable="true" data-drag-bookmark="{{.ID}}" title="{{t "Drag onto a tag to add it"}}"{{end}}{{end}}
 
-{{define "scripts"}}<script src="{{asset "keys.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "select.js"}}"></script><script src="{{asset "dragtag.js"}}"></script>{{end}}{{end}}
+{{define "scripts"}}<script src="{{asset "keys.js"}}"></script><script src="{{asset "listnav.js"}}"></script>{{if .WebSearch}}<script src="{{asset "picker.js"}}"></script><script src="{{asset "search.js"}}"></script>{{end}}{{if .CanWrite}}<script src="{{asset "select.js"}}"></script><script src="{{asset "dragtag.js"}}"></script>{{end}}{{end}}
 
 {{define "pager"}}
 {{with .Pager}}
 <nav class="pager" aria-label="{{t "Pages"}}">
   <span class="pager-range">{{t "%d–%d of %d" .From .To .Total}}</span>
   <div class="pager-links">
-    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="{{t "Previous page"}}">{{icon "chevron-left"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-left"}}</span>{{end}}
-    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="{{t "Next page"}}">{{icon "chevron-right"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-right"}}</span>{{end}}
+    {{with .PrevURL}}<a class="btn" href="{{.}}" rel="prev" aria-label="{{t "Previous page"}}" data-swap>{{icon "chevron-left"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-left"}}</span>{{end}}
+    {{with .NextURL}}<a class="btn" href="{{.}}" rel="next" aria-label="{{t "Next page"}}" data-swap>{{icon "chevron-right"}}</a>{{else}}<span class="btn" aria-disabled="true">{{icon "chevron-right"}}</span>{{end}}
   </div>
 </nav>
 {{end}}
