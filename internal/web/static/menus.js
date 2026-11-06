@@ -38,6 +38,7 @@
   }
 
   function showToasts() {
+    if (!toasts.showPopover) return; // older browsers leave them in the page
     var fresh = document.querySelectorAll("main [data-toast]");
     toasts.replaceChildren.apply(toasts, fresh);
     fresh.forEach(fade);

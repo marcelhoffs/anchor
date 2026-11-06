@@ -8,8 +8,16 @@
 (function () {
   "use strict";
 
+  // It closes popovers, and an older browser can't even ask about them:
+  // there, the links and forms just load the page.
+  if (!HTMLElement.prototype.showPopover) return;
+
   var main = document.querySelector("main");
-  var pending = null; // the request under way: a newer one cancels it
+  var input = document.getElementById("q"); // stays through every swap
+  var pending = null; // the page being fetched: a newer one cancels it
+  var saving = null; // the action being posted: it's never cancelled
+  var typed = ""; // the search box when the request began
+  var top = 0; // how far down the page was before the last swap
   var timer = null;
   var native = false; // the next submit is the browser's own
   var here = location.href;
@@ -27,15 +35,18 @@
     // takes the new page's text.
     var row = main.querySelector(".search-row");
     var fresh = next.content.querySelector(".search-row");
-    row.querySelector("#q").value = fresh.querySelector("#q").value;
+    var typing = document.activeElement === input && input.value !== typed;
+    if (!typing) input.value = fresh.querySelector("#q").value;
     fresh.replaceWith(row);
     main.replaceChildren(next.content);
     settled();
     var heading = main.querySelector(".list-head h1");
     document.title = heading.textContent + " · Anchor";
-    // What had focus is gone, or would keep a phone's keyboard open.
+    // What had focus is gone, or would keep a phone's keyboard open. Someone
+    // typing a new search while this was on its way keeps going.
     heading.tabIndex = -1;
-    heading.focus({ preventScroll: true });
+    if (typing) input.focus();
+    else heading.focus({ preventScroll: true });
     document.dispatchEvent(new CustomEvent("anchor:content-swapped"));
   }
 
@@ -43,6 +54,7 @@
   // the list dims if the response doesn't come straight away.
   function start() {
     if (pending) pending.abort();
+    typed = input.value;
     clearTimeout(timer);
     timer = setTimeout(function () { main.setAttribute("aria-busy", "true"); }, 150);
     // One may have closed with the menu it opened from, hence the second look.
@@ -69,6 +81,7 @@
         saved.delete(res.url); // so it counts as the newest
         saved.set(res.url, html);
         if (saved.size > 20) saved.delete(saved.keys().next().value);
+        top = window.scrollY;
         swap(html);
         return res.url;
       });
@@ -76,9 +89,14 @@
   }
 
   function go(url, push, scroll) {
+    // After an action, or this could read the list from before it.
+    if (saving) {
+      saving.then(function () { go(url, push, scroll); });
+      return;
+    }
     request(url, { signal: start() }).then(function (end) {
-      if (push) history.pushState(null, "", end);
-      else if (end !== url) history.replaceState(null, "", end);
+      // Like a browser, the same page again adds nothing to the history.
+      history[push && end !== location.href ? "pushState" : "replaceState"](null, "", end);
       here = location.href;
       window.scrollTo(0, scroll);
     }).catch(function (err) {
@@ -86,28 +104,38 @@
     });
   }
 
+  function rows() {
+    return Array.prototype.slice.call(main.querySelectorAll("li.bookmark"));
+  }
+
   // send posts a form as the browser would. The list it redirects to takes
-  // this history entry's place, and the page stays where it is.
+  // this history entry's place, and the page and the keyboard's place in the
+  // rows stay where they are.
   function send(form, button) {
     var body = new URLSearchParams(new FormData(form));
     if (button && button.name) body.append(button.name, button.value);
     var url = (button && button.getAttribute("formaction")) || form.getAttribute("action");
+    var active = document.activeElement;
+    var place = rows().indexOf(active && active.closest("li.bookmark"));
     saved.clear();
-    request(url, { method: "POST", body: body, signal: start() }).then(function (end) {
+    start();
+    saving = request(url, { method: "POST", body: body }).then(function (end) {
       history.replaceState(null, "", end);
       here = location.href;
+      var row = rows()[Math.min(place, rows().length - 1)];
+      if (place >= 0 && row && document.activeElement !== input) row.querySelector(".bm-title").focus({ preventScroll: true });
+      window.scrollTo(0, top); // the browser anchors the replaced page elsewhere
     }).catch(function (err) {
-      if (err.name === "AbortError") return;
       var res = err.response;
-      if (!res) {
-        location.reload(); // it may have gone through: show what the server has
-      } else if (res.ok) {
+      if (res && res.ok) {
         location.href = res.url;
-      } else { // refused, so posting it again shows why
+      } else if (res && !res.redirected && res.status < 500) { // refused, so posting it again shows why
         native = true;
         form.requestSubmit(button);
+      } else {
+        location.reload(); // it may have gone through, and a tag would toggle back: show what the server has
       }
-    });
+    }).then(function () { saving = null; });
   }
 
   // press marks the view or tag just clicked without waiting for its page.
@@ -139,7 +167,7 @@
       go(new URL(form.getAttribute("action") + "?" + new URLSearchParams(new FormData(form)), location.href).href, true, 0);
     } else if (!e.submitter || e.submitter.value !== "edit") { // Edit leaves the list
       e.preventDefault();
-      send(form, e.submitter);
+      if (!saving) send(form, e.submitter); // a double click isn't a second action
     }
   });
 
@@ -153,6 +181,7 @@
       return;
     }
     if (pending) pending.abort();
+    typed = input.value;
     swap(html);
     window.scrollTo(0, scroll);
   });

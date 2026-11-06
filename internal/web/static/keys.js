@@ -2,6 +2,7 @@
 // j and k move between rows, x ticks the current row for the toolbar, and
 // on the current row alone e edits, f favourites (or unfavourites) and a
 // archives (or unarchives) it. Enter opens it, as the title link has focus.
+// u is the Undo offered after archiving.
 // Keys typed into a field, or with Ctrl, Alt or Cmd, are left alone.
 (function () {
   "use strict";
@@ -27,19 +28,10 @@
     box.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
-  // Posts the toolbar's action for the current row only.
+  // The toolbar's action for the current row only (select.js).
   function act(value) {
     var row = current();
-    var box = row && row.querySelector(".bm-check");
-    var button = document.querySelector('button[form="bulk-form"][value="' + value + '"]');
-    if (!box || !button) return;
-    rows().forEach(function (r) {
-      var b = r.querySelector(".bm-check");
-      if (b) b.checked = false;
-    });
-    tick(box, true);
-    button.disabled = false;
-    button.form.requestSubmit(button);
+    if (row) document.dispatchEvent(new CustomEvent("anchor:toolbar", { detail: { action: value, rows: [row] } }));
   }
 
   document.addEventListener("keydown", function (e) {
@@ -61,6 +53,7 @@
         if (!box) return;
         tick(box, !box.checked);
         break;
+      case "u": var undo = document.querySelector("form.undo"); if (!undo) return; undo.requestSubmit(); break;
       case "e": act("edit"); break;
       case "f": act(row && row.hasAttribute("data-fav") ? "unfavourite" : "favourite"); break;
       case "a": act(document.querySelector('button[form="bulk-form"][value="unarchive"]') ? "unarchive" : "archive"); break;

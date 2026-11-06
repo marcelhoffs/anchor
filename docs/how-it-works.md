@@ -53,7 +53,7 @@ A bookmark has a URL, a title, a description, your notes, tags, and two flags: f
 
 **The list.** Under Settings → Appearance you choose how the list looks: newest first or by title, with or without descriptions (hiding them makes the list more compact), and the sidebar on the left or the right. On phones the views sit above the search box and the tags open from the Tags button in the top bar. Tick bookmarks to act on them from the toolbar above the list: edit one, favourite, archive or delete them, or copy or move them to another space. The box in the toolbar selects them all, or none.
 
-**Keyboard shortcuts.** On the list, `/` jumps to the search box (Esc leaves it), `n` adds a bookmark, and `j` and `k` move down and up the rows. On the current row, Enter opens it, `e` edits it, `f` toggles favourite and `a` archives or unarchives it.
+**Keyboard shortcuts.** On the list, `/` jumps to the search box (Esc leaves it), `n` adds a bookmark, and `j` and `k` move down and up the rows. On the current row, Enter opens it, `e` edits it, `f` toggles favourite and `a` archives or unarchives it. After archiving, `u` undoes it.
 
 **Saving from anywhere.** Besides the add form there is a bookmarklet (Settings → Appearance): a browser bookmark that opens Anchor's add form with the current page's address and title filled in. The [REST API](api.md) can save bookmarks too.
 

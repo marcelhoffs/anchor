@@ -107,16 +107,10 @@
     });
   }
 
-  // setFlag turns a flag on with the toolbar's button, for just these rows.
-  // In the archive there's no Archive button, and nothing to do.
+  // setFlag turns a flag on through the toolbar (select.js). In the archive
+  // there's no Archive button, and nothing to do.
   function setFlag(rows, flag) {
-    var button = document.querySelector('button[form="bulk-form"][value="' + (flag === "archived" ? "archive" : flag) + '"]');
-    if (!button) return;
-    document.querySelectorAll("li.bookmark .bm-check").forEach(function (box) {
-      box.checked = rows.indexOf(box.closest("li.bookmark")) >= 0;
-    });
-    button.disabled = false;
-    button.form.requestSubmit(button);
+    document.dispatchEvent(new CustomEvent("anchor:toolbar", { detail: { action: flag === "archived" ? "archive" : flag, rows: rows } }));
   }
 
   // redrawTags replaces a row's tag links, beside its title.

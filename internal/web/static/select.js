@@ -93,6 +93,16 @@
     if (e.target.classList && e.target.classList.contains("bm-check")) update();
   });
 
+  // keys.js and dragtag.js press a toolbar button for the rows they name.
+  document.addEventListener("anchor:toolbar", function (e) {
+    var button = document.querySelector('button[form="bulk-form"][value="' + e.detail.action + '"]');
+    if (!button) return;
+    boxes().forEach(function (box) { box.checked = e.detail.rows.indexOf(box.closest("li.bookmark")) >= 0; });
+    update();
+    button.disabled = false; // Edit asks for one row, and this may be one
+    button.form.requestSubmit(button);
+  });
+
   // A box ticked before this ran, or kept by the browser on back.
   window.addEventListener("pageshow", update);
   document.addEventListener("anchor:content-swapped", setup);
