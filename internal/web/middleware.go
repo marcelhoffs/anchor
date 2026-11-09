@@ -104,9 +104,34 @@ func (s *Server) loadScope(next http.Handler) http.Handler {
 	})
 }
 
+// csrfToken is the request's CSRF token for a page, under a fresh random
+// mask each time, so a compressed page never repeats the secret's bytes
+// (BREACH).
 func csrfToken(r *http.Request) string {
 	t, _ := r.Context().Value(csrfKey).(string)
-	return t
+	if t == "" {
+		return ""
+	}
+	b := make([]byte, 2*len(t))
+	rand.Read(b[:len(t)])
+	for i := range len(t) {
+		b[len(t)+i] = b[i] ^ t[i]
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// unmaskCSRF undoes csrfToken's mask; a value that isn't masked comes back
+// as it is, as the cookie's own value is accepted too.
+func unmaskCSRF(v string) string {
+	b, err := base64.RawURLEncoding.DecodeString(v)
+	if err != nil || len(b) == 0 || len(b)%2 != 0 {
+		return v
+	}
+	n := len(b) / 2
+	for i := range n {
+		b[i] ^= b[n+i]
+	}
+	return string(b[:n])
 }
 
 // The search box's form is sent to the bookmark list, which sends a web
@@ -182,7 +207,7 @@ func (s *Server) csrf(next http.Handler) http.Handler {
 			if sent == "" {
 				sent = r.PostFormValue("csrf")
 			}
-			if token == "" || subtle.ConstantTimeCompare([]byte(sent), []byte(token)) != 1 {
+			if token == "" || subtle.ConstantTimeCompare([]byte(unmaskCSRF(sent)), []byte(token)) != 1 && subtle.ConstantTimeCompare([]byte(sent), []byte(token)) != 1 {
 				http.Error(w, langOf(r).T("Invalid or missing CSRF token. Reload the page and try again."), http.StatusForbidden)
 				return
 			}

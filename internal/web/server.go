@@ -138,8 +138,8 @@ func (s *Server) Handler() http.Handler {
 	r.Use(middleware.Recoverer, s.logRequests, s.securityHeaders)
 
 	static, _ := fs.Sub(assets, "static")
-	// Only static files are compressed: compressing pages that carry the CSRF
-	// token next to text the user typed would allow BREACH-style guessing.
+	// Pages are compressed in render, with the CSRF token masked per response
+	// and pages showing other secrets left out (BREACH).
 	r.With(middleware.Compress(5, "text/css", "text/javascript", "application/javascript", "image/svg+xml")).
 		Handle("/static/*", http.StripPrefix("/static/", cacheFor(24*time.Hour, http.FileServerFS(static))))
 	r.Get("/healthz", s.healthz)

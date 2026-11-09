@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"cmp"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -203,6 +204,11 @@ func loadTemplates() (map[i18n.Lang]map[string]pageTemplate, error) {
 
 // authPages show no top bar to a signed-out visitor, only the app's mark
 // above their card: there is nothing to navigate to yet.
+// secretPages show a secret other than the CSRF token, so they're sent
+// uncompressed: compressing them next to text an attacker can put in the page
+// would let the secret be guessed from the response size (BREACH).
+var secretPages = map[string]bool{"admin_secret": true, "recovery_codes": true, "totp_setup": true, "tokens": true, "edit": true}
+
 var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "signup_closed": true, "verify": true, "offline": true}
 
 // data is what every page template receives; handlers add their own keys.
@@ -255,8 +261,17 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Add("Vary", "Accept-Encoding")
+	if secretPages[page] || !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		w.WriteHeader(status)
+		buf.WriteTo(w)
+		return
+	}
+	w.Header().Set("Content-Encoding", "gzip")
 	w.WriteHeader(status)
-	buf.WriteTo(w)
+	zw, _ := gzip.NewWriterLevel(w, 5)
+	buf.WriteTo(zw)
+	zw.Close()
 }
 
 func (s *Server) serverError(w http.ResponseWriter, r *http.Request, err error) {
