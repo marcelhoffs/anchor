@@ -1076,3 +1076,40 @@ func TestSettingsFormsSaveInPlace(t *testing.T) {
 		t.Fatalf("refused save: %d", code)
 	}
 }
+
+func TestPagesCompressedWithMaskedCSRF(t *testing.T) {
+	e := newEnv(t)
+	e.user("alice")
+	c := e.client()
+	c.post("/login", url.Values{"username": {"alice"}, "password": {"alice-password"}})
+	field := regexp.MustCompile(`name="csrf" value="([^"]+)"`)
+	var tokens []string
+	for range 2 {
+		_, body, _ := c.get("/")
+		m := field.FindStringSubmatch(body)
+		if m == nil {
+			t.Fatal("no CSRF field on the list")
+		}
+		tokens = append(tokens, m[1])
+	}
+	if tokens[0] == tokens[1] || tokens[0] == c.csrf() {
+		t.Fatalf("CSRF token not masked per page: %q %q", tokens[0], tokens[1])
+	}
+	for _, tok := range tokens {
+		if code, _, _ := c.post("/bookmarks", url.Values{"url": {"https://x.org"}, "csrf": {tok}}); code != http.StatusSeeOther {
+			t.Fatalf("masked token refused: %d", code)
+		}
+	}
+	for path, want := range map[string]string{"/": "gzip", "/settings/tokens": ""} {
+		req, _ := http.NewRequest("GET", e.srv.URL+path, nil)
+		req.Header.Set("Accept-Encoding", "gzip")
+		res, err := c.http.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if got := res.Header.Get("Content-Encoding"); got != want {
+			t.Errorf("%s: Content-Encoding %q, want %q", path, got, want)
+		}
+	}
+}
