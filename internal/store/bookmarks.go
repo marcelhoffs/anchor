@@ -398,14 +398,15 @@ func (s *Store) Search(ctx context.Context, sc Scope, q search.Query, sort strin
 	} else {
 		args = append(args, sc.spaceID)
 	}
-	const hasTag = "EXISTS (SELECT 1 FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE bt.bookmark_id = b.id AND t.name = ?)"
+	// A set lookup by the tag's index, not a subquery per bookmark.
+	const hasTag = "b.id IN (SELECT bt.bookmark_id FROM bookmark_tags bt JOIN tags t ON t.id = bt.tag_id WHERE t.space_id = ? AND t.name = ?)"
 	for _, t := range q.Tags {
 		where = append(where, hasTag)
-		args = append(args, t)
+		args = append(args, sc.spaceID, t)
 	}
 	for _, t := range q.NotTags {
 		where = append(where, "NOT "+hasTag)
-		args = append(args, t)
+		args = append(args, sc.spaceID, t)
 	}
 	for _, site := range q.Sites {
 		where = append(where, "(b.domain = ? OR substr(b.domain, -length(?) - 1) = '.' || ?)")
