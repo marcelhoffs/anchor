@@ -174,15 +174,20 @@
 :root[data-style="wave"][data-accent="rose"], [data-style="wave"] .accent-preview.rose { --tint-light: #be123c; --tint-dark: #fb7185; --bg: light-dark(#f9f0f2, #14090c); }
 :root[data-style="wave"][data-accent="bordeaux"], [data-style="wave"] .accent-preview.bordeaux { --tint-light: #7f1d3f; --tint-dark: #e092ac; --bg: light-dark(#f6f1f3, #120c10); }
 :root[data-style="wave"][data-accent="graphite"], [data-style="wave"] .accent-preview.graphite { --tint-light: #1e293b; --tint-dark: #e2e8f0; --bg: light-dark(#f1f1f2, #121315); }
-:root[data-style="wave"] body {
-  background: radial-gradient(1200px 420px at 50% -120px, var(--glow), transparent) fixed, var(--bg);
+:root[data-style="wave"] body { background: var(--bg); }
+/* The glow on its own fixed layer: a fixed background would repaint the
+   whole page on every scroll frame. */
+:root[data-style="wave"] body::after {
+  content: ""; position: fixed; inset: 0; z-index: -2; pointer-events: none; /* under the dots */
+  background: radial-gradient(1200px 420px at 50% -120px, var(--glow), transparent);
 }
 /* No backdrop blur: it would make each panel a stacking context, and the
    search box's tooltip would slip under the list. Menus and dialogs stay
    opaque. */
 :root[data-style="wave"] :is(.bm-card, .search, .card, .empty-state) { background: var(--panel); }
-/* The halftone wave: halftone.svg's dots as a mask over the accent. The
-   service worker precaches it, like the fonts (see precache in pwa.go). */
+/* The halftone wave: halftone.svg's dots (one path, cheap to parse) as a
+   mask over the accent. The service worker precaches it, like the fonts
+   (see precache in pwa.go). */
 :root[data-style="wave"] body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background: var(--wave);
