@@ -162,6 +162,7 @@ CREATE TABLE bookmarks (
 );
 CREATE INDEX bookmarks_space_created ON bookmarks(space_id, created_at DESC);
 CREATE INDEX bookmarks_space_domain ON bookmarks(space_id, domain);
+CREATE INDEX bookmarks_space_flags ON bookmarks(space_id, is_archived, is_favourite);
 CREATE INDEX bookmarks_fetch_pending ON bookmarks(id) WHERE fetch_status = 'pending';
 
 CREATE TABLE tags (
