@@ -18,7 +18,7 @@ body:
     attributes:
       label: Anchor version
       description: Shown in the footer, or by `anchor version`.
-      placeholder: v0.7.5
+      placeholder: v0.7.6
     validations:
       required: true
   - type: dropdown
