@@ -39,12 +39,12 @@
         <p class="menu-title">{{t "Spaces"}}</p>
         <form method="post" action="/space">
           <input type="hidden" name="csrf" value="{{$.CSRF}}">
-          <button{{if .Scope.IsPersonal}} aria-current="true"{{end}}>{{icon "user" "sm"}}<span class="space-option">{{t "Personal"}}</span>{{if .Scope.IsPersonal}}{{icon "check" "sm"}}{{end}}</button>
+          <button{{if .Scope.IsPersonal}} aria-current="true"{{end}}>{{icon "user" "sm"}}<span class="space-option">{{t "Personal"}}</span></button>
         </form>
         {{range .Spaces}}
         <form method="post" action="/space">
           <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="space" value="{{.ID}}">
-          <button{{if eq .ID $.Nav.Scope.SpaceID}} aria-current="true"{{end}}>{{icon (spaceIcon .Icon) "sm"}}<span class="space-option">{{.Name}}{{if eq .Role "read"}} <span class="muted">· {{t "read only"}}</span>{{end}}</span>{{if eq .ID $.Nav.Scope.SpaceID}}{{icon "check" "sm"}}{{end}}</button>
+          <button{{if eq .ID $.Nav.Scope.SpaceID}} aria-current="true"{{end}}>{{icon (spaceIcon .Icon) "sm"}}<span class="space-option">{{.Name}}{{if eq .Role "read"}} <span class="muted">· {{t "read only"}}</span>{{end}}</span></button>
         </form>
         {{end}}
         <a href="/spaces" class="menu-sep">{{icon "settings" "sm"}}{{t "Manage spaces"}}</a>
