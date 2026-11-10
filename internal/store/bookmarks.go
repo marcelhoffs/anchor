@@ -503,9 +503,11 @@ type Counts struct {
 
 func (s *Store) CountBookmarks(ctx context.Context, sc Scope) (Counts, error) {
 	var c Counts
+	// Three counts, each a range of bookmarks_space_flags, rather than one
+	// pass that reads every row's flags.
 	err := s.r.QueryRowContext(ctx,
-		`SELECT coalesce(sum(is_archived = 0), 0), coalesce(sum(is_archived = 0 AND is_favourite = 1), 0),
-		        coalesce(sum(is_archived = 1), 0)
-		 FROM bookmarks WHERE space_id = ?`, sc.spaceID).Scan(&c.All, &c.Favourites, &c.Archived)
+		`SELECT (SELECT count(*) FROM bookmarks WHERE space_id = ?1 AND is_archived = 0),
+		        (SELECT count(*) FROM bookmarks WHERE space_id = ?1 AND is_archived = 0 AND is_favourite = 1),
+		        (SELECT count(*) FROM bookmarks WHERE space_id = ?1 AND is_archived = 1)`, sc.spaceID).Scan(&c.All, &c.Favourites, &c.Archived)
 	return c, err
 }

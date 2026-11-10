@@ -227,10 +227,11 @@ func (s *Store) CreateTag(ctx context.Context, sc Scope, name string) (Tag, erro
 
 // ListTags returns the space's tags with bookmark counts, by name.
 func (s *Store) ListTags(ctx context.Context, sc Scope) ([]Tag, error) {
+	// A count per tag from bookmark_tags_tag, in the (space_id, name) index's
+	// order: a join with GROUP BY sorted every tag link twice.
 	rows, err := s.r.QueryContext(ctx,
-		`SELECT t.id, t.name, t.color, count(bt.bookmark_id) FROM tags t
-		 LEFT JOIN bookmark_tags bt ON bt.tag_id = t.id
-		 WHERE t.space_id = ? GROUP BY t.id ORDER BY t.name`, sc.spaceID)
+		`SELECT t.id, t.name, t.color, (SELECT count(*) FROM bookmark_tags bt WHERE bt.tag_id = t.id)
+		 FROM tags t WHERE t.space_id = ? ORDER BY t.name`, sc.spaceID)
 	if err != nil {
 		return nil, err
 	}
