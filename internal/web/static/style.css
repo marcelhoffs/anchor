@@ -565,16 +565,27 @@ a.badge:hover { border-color: var(--accent); color: var(--text); }
   @keyframes confirm-in { from { opacity: 0; transform: translateY(6px) scale(0.98); } }
 }
 
-/* Tags drawer (phones only; HTML popover, no JavaScript needed) */
-.drawer {
-  inset: 0 0 0 auto; width: min(320px, 85vw); height: 100dvh; max-height: none; margin: 0; padding: 12px 8px 24px;
-  border: 0; border-left: 1px solid var(--border); background: var(--surface); color: var(--text);
-  box-shadow: -24px 0 64px rgb(0 0 0 / 0.24); overflow-y: auto;
+/* The sidebar's tags, which on phones are a drawer (HTML popover, no
+   JavaScript needed). Next to the list they're shown in place: this undoes
+   the popover's own hiding and placement. */
+@media (min-width: 900px) {
+  .side-tags[popover] {
+    display: block; position: static; inset: auto; width: auto; height: auto; margin: 0; padding: 0;
+    border: 0; background: none; color: inherit; overflow: visible;
+  }
+  .drawer-close { display: none; }
 }
-.drawer::backdrop { background: rgb(15 23 42 / 0.45); backdrop-filter: blur(2px); }
-.drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
-.drawer-head .side-heading { margin: 0 12px; }
-.drawer-head .side-heading-row { flex: 1; }
+@media (max-width: 899px) {
+  .drawer {
+    inset: 0 0 0 auto; width: min(320px, 85vw); height: 100dvh; max-height: none; margin: 0; padding: 12px 8px 24px;
+    border: 0; border-left: 1px solid var(--border); background: var(--surface); color: var(--text);
+    box-shadow: -24px 0 64px rgb(0 0 0 / 0.24); overflow-y: auto;
+  }
+  .drawer::backdrop { background: rgb(15 23 42 / 0.45); backdrop-filter: blur(2px); }
+  .drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .drawer-head .side-heading { margin: 0 12px; }
+  .drawer-head .side-heading-row { flex: 1; }
+}
 @media (prefers-reduced-motion: no-preference) {
   .drawer:popover-open { animation: drawer-in 180ms ease-out; }
   @keyframes drawer-in { from { transform: translateX(100%); } }
@@ -778,8 +789,9 @@ td.actions { text-align: right; white-space: nowrap; }
    top bar opens. */
 @media (max-width: 899px) {
   .sidebar { flex-basis: 100%; max-width: none; order: 2; margin-top: 18px; }
-  .side-views, .side-tags { display: none; }
-  .sidebar:not(:has(.side-searches)) { display: none; }
+  .side-views { display: none; }
+  /* Not display: none, which would hide the tags drawer inside it too. */
+  .sidebar:not(:has(.side-searches)) { display: contents; }
   .side-searches .side-heading { margin-top: 0; }
   .view-bar { display: flex; }
   .search-row { margin: 0; }

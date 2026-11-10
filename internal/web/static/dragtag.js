@@ -82,8 +82,7 @@
     })).then(function (counts) {
       // The last request to finish saw them all tagged.
       var count = Math.max.apply(null, counts);
-      // The sidebar and the phone drawer both list the tag.
-      document.querySelectorAll('[data-tag-drop="' + tagID + '"] .count').forEach(function (c) {
+            document.querySelectorAll('[data-tag-drop="' + tagID + '"] .count').forEach(function (c) {
         c.textContent = count;
       });
       document.dispatchEvent(new CustomEvent("anchor:list-changed")); // listnav.js

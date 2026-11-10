@@ -481,7 +481,9 @@ var listNotices = map[string]i18n.Msg{
 // bulkBookmarks does one of the list toolbar's actions to the selected
 // bookmarks (the "id" fields), in the space the list showed ("from"), and
 // goes back to the list. The action is in "action"; copy and move name
-// their target in "space", and tag (which toggles it) its id in "tag".
+// their target in "space", and tag (which toggles it) its id in "tag". A
+// "tag" without an action is the tag action: the Tag menu's pills send just
+// that, which keeps each one short with a space's worth of them on the page.
 func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 	ctx, uid := r.Context(), currentUser(r).ID
 	fromID, _ := strconv.ParseInt(r.PostFormValue("from"), 10, 64)
@@ -506,6 +508,9 @@ func (s *Server) bulkBookmarks(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, u.String(), http.StatusSeeOther)
 	}
 	action := r.FormValue("action")
+	if action == "" && r.FormValue("tag") != "" {
+		action = "tag"
+	}
 	if len(ids) == 0 && action != "" {
 		back(url.Values{"done": {"none"}})
 		return

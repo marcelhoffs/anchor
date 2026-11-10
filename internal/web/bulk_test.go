@@ -53,7 +53,7 @@ func TestBulkTag(t *testing.T) {
 		t.Fatal("no Tag button, or it's hidden on phones")
 	}
 	color := store.TagColor("go", "")
-	if !strings.Contains(body, `<button class="tag" data-color="`+color+`" data-tag-name="go" aria-pressed="false" form="bulk-form" name="action" value="tag" formaction="/bookmarks/bulk?tag=1">go</button>`) {
+	if !strings.Contains(body, `<button class="tag" data-color="`+color+`" form="bulk-form" name="tag" value="1">go</button>`) {
 		t.Fatal("no pill for the tag")
 	}
 
@@ -61,8 +61,8 @@ func TestBulkTag(t *testing.T) {
 	from := itoa(sc.SpaceID())
 	toggle := func(notice string) {
 		t.Helper()
-		v := url.Values{"from": {from}, "action": {"tag"}, "id": {"1", "2"}, "next": {"/"}}
-		code, _, loc := c.post("/bookmarks/bulk?tag=1", v)
+		v := url.Values{"from": {from}, "tag": {"1"}, "id": {"1", "2"}, "next": {"/"}}
+		code, _, loc := c.post("/bookmarks/bulk", v)
 		if code != http.StatusSeeOther || !strings.HasPrefix(loc, "/?") {
 			t.Fatalf("tag: %d %q", code, loc)
 		}
