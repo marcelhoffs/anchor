@@ -314,9 +314,10 @@ form.inline { display: inline; }
 .top-primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); color: var(--on-accent); }
 .top-ctl .chev { color: var(--muted); }
 .top-menu { position: relative; }
+/* The user's initial: inverted neutral, so it stands apart from the accent. */
 .avatar-sm {
   display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;
-  border-radius: calc(var(--radius) - 4px); background: var(--soft); color: var(--soft-text); font-size: var(--fs-xs); font-weight: var(--fw-semibold);
+  border-radius: calc(var(--radius) - 4px); background: var(--text); color: var(--surface); font-size: var(--fs-xs); font-weight: var(--fw-semibold);
 }
 .menu {
   position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; padding: 6px;
