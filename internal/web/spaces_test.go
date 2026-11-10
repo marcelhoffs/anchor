@@ -39,8 +39,10 @@ func TestSpacePages(t *testing.T) {
 	if _, body, _ := alice.get(page); !strings.Contains(body, `value="truck" aria-label="Lorry" checked`) {
 		t.Fatal("icon not picked on the space page")
 	}
-	if _, body, _ := alice.get("/spaces"); !strings.Contains(body, `<a href="`+page+`"><svg class="icon sm" aria-hidden="true" focusable="false"><use href="#i-truck">`) ||
-		!strings.Contains(body, `<use href="#i-truck"></use></svg><span class="space-option">Family`) {
+	_, list, _ := alice.get("/spaces")
+	_, home, _ := alice.get("/") // the space menu isn't on the spaces pages
+	if !strings.Contains(list, `<a href="`+page+`"><svg class="icon sm" aria-hidden="true" focusable="false"><use href="#i-truck">`) ||
+		!strings.Contains(home, `<use href="#i-truck"></use></svg><span class="space-option">Family`) {
 		t.Fatal("icon not shown in the spaces list or the space menu")
 	}
 	if code, _, _ := alice.post(page+"/icon", url.Values{"icon": {"pizza"}}); code != http.StatusUnprocessableEntity {
@@ -360,5 +362,42 @@ func TestSpaceIcons(t *testing.T) {
 		if !strings.Contains(string(iconSprite), `id="i-`+name+`"`) {
 			t.Errorf("no symbol for %q", name)
 		}
+	}
+}
+
+// Settings, admin and spaces pages have a way back instead of the switcher
+// and Add bookmark; import & export picks its space on the page.
+func TestManagePagesTopBar(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	e.user("alice")
+	alice := e.login("alice")
+	team, _ := e.store.CreateSpace(ctx, e.userID("alice"), "Team")
+	teamID := itoa(team.SpaceID())
+
+	for _, path := range []string{"/settings", "/settings/data", "/spaces", "/spaces/" + teamID} {
+		_, body, _ := alice.get(path)
+		top := body[strings.Index(body, `<header class="top">`):strings.Index(body, "</header>")]
+		if !strings.Contains(top, "top-back") || strings.Contains(top, "space-menu") || strings.Contains(top, `href="/bookmarks/new"`) {
+			t.Fatalf("%s: top bar isn't the manage one", path)
+		}
+	}
+	if _, body, _ := alice.get("/"); strings.Contains(body, "top-back") || !strings.Contains(body, "space-menu") {
+		t.Fatal("the list has the manage top bar")
+	}
+
+	_, body, _ := alice.get("/settings/data")
+	if !strings.Contains(body, `<option value="`+teamID+`">Team</option>`) {
+		t.Fatal("import & export has no space picker")
+	}
+	if code, _, loc := alice.post("/space", url.Values{"space": {teamID}, "next": {"/settings/data"}}); code != http.StatusSeeOther || loc != "/settings/data" {
+		t.Fatalf("switch from import & export: %d %q", code, loc)
+	}
+	if _, body, _ := alice.get("/settings/data"); !strings.Contains(body, `<option value="`+teamID+`" selected>Team</option>`) {
+		t.Fatal("picker doesn't show the space switched to")
+	}
+	// Only that page: anything else goes back to the list.
+	if _, _, loc := alice.post("/space", url.Values{"next": {"https://evil.example/"}}); loc != "/" {
+		t.Fatalf("next followed to %q", loc)
 	}
 }

@@ -3,7 +3,19 @@
 <div class="card">
   <h1>{{t "Settings"}}</h1>
   {{template "settings-nav" .}}
-  {{if .Nav.Spaces}}<p class="muted intro">{{t "Imports and exports use the space you're in: %s. Switch spaces in the top bar for another one." (strong (or .Nav.Name (t "Personal")))}}</p>{{end}}
+  {{/* This page has no switcher in the top bar: it picks the space here. */}}
+  {{with .Nav}}{{if .Spaces}}
+  <form method="post" action="/space" class="space-pick">
+    <input type="hidden" name="csrf" value="{{$.CSRF}}"><input type="hidden" name="next" value="/settings/data">
+    <label class="form-narrow">{{t "Space"}}
+      <select name="space" data-submit>
+        <option value=""{{if .Scope.IsPersonal}} selected{{end}}>{{t "Personal"}}</option>
+        {{range .Spaces}}<option value="{{.ID}}"{{if eq .ID $.Nav.Scope.SpaceID}} selected{{end}}>{{.Name}}{{if eq .Role "read"}} · {{t "read only"}}{{end}}</option>{{end}}
+      </select>
+    </label>
+    <noscript><button class="btn">{{t "Switch"}}</button></noscript>
+  </form>
+  {{end}}{{end}}
 
   {{if .CanWrite}}
   <section aria-labelledby="import">
@@ -35,8 +47,8 @@
       <li>
         <div class="job-head">
           <span>{{t "Started %s" (ago .CreatedAt)}}</span>
-          {{if eq .Status "done"}}<span class="badge on">{{t "Done"}}</span>
-          {{else if eq .Status "failed"}}<span class="badge danger">{{t "Failed"}}</span>
+          {{if eq .Status "done"}}<span class="badge {{if .Summary.Skipped}}warn{{else}}ok{{end}}">{{t "Done"}}</span>
+          {{else if eq .Status "failed"}}<span class="badge bad">{{t "Failed"}}</span>
           {{else}}<span class="badge">{{if eq .Status "queued"}}{{t "Waiting"}}{{else}}{{t "Importing"}}{{end}}</span>{{end}}
         </div>
         {{if eq .Status "done"}}

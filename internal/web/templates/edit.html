@@ -23,7 +23,7 @@
       <span class="hint" id="tags-hint">{{t "Separate tags with commas. Only tags you've created can be used; add new ones under %s." (link "/tags" (t "Tags"))}}</span>
     </div>
     <label>{{t "Notes"}} <textarea name="notes" rows="5">{{.Notes}}</textarea></label>
-    <label class="check"><input type="checkbox" name="favourite" value="1"{{if .Favourite}} checked{{end}}> {{t "Favourite"}}</label>
+    <label class="check"><input type="checkbox" class="switch" name="favourite" value="1"{{if .Favourite}} checked{{end}}> {{t "Favourite"}}</label>
     <div class="form-actions">
       <button class="btn btn-primary">{{t "Save bookmark"}}</button>
       <a class="btn" href="{{.Next}}">{{t "Cancel"}}</a>

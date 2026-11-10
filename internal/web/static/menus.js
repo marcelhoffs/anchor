@@ -13,6 +13,12 @@
 
   document.addEventListener("touchstart", function () {}, { passive: true });
 
+  // A <select data-submit> sends its form on change (the import & export
+  // page's space). Without this script, its form has a button.
+  document.addEventListener("change", function (e) {
+    if (e.target.matches("select[data-submit]")) e.target.form.requestSubmit();
+  });
+
   var toasts = document.querySelector(".toasts");
 
   function fade(n) {

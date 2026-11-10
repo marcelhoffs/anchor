@@ -67,7 +67,8 @@ func (s *Server) createSpace(w http.ResponseWriter, r *http.Request) {
 func spaceURL(id int64) string { return "/spaces/" + strconv.FormatInt(id, 10) }
 
 // selectSpace switches the space this session looks at: "space" is a shared
-// space's id, or empty for the personal space. Then the list shows it.
+// space's id, or empty for the personal space. Then the list shows it, or
+// the import & export page when it asked ("next"), as it has its own picker.
 func (s *Server) selectSpace(w http.ResponseWriter, r *http.Request) {
 	ctx, u := r.Context(), currentUser(r)
 	var sc store.Scope
@@ -80,7 +81,11 @@ func (s *Server) selectSpace(w http.ResponseWriter, r *http.Request) {
 	if !s.storeError(w, r, err) || !s.storeError(w, r, s.store.SelectSpace(ctx, currentSession(r).TokenHash, sc)) {
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	to := "/"
+	if r.PostFormValue("next") == "/settings/data" {
+		to = "/settings/data"
+	}
+	http.Redirect(w, r, to, http.StatusSeeOther)
 }
 
 // sharedScope is the user's scope in the shared space in the URL; false

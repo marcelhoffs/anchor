@@ -24,9 +24,8 @@
       <h2 id="policy">{{t "Two-factor authentication"}}</h2>
       {{if .Require2FAFromEnv}}<p class="muted">{{t "Set by %s; change it there." (code "ANCHOR_REQUIRE_2FA")}}</p>{{end}}
       <fieldset>
-        <label class="check"><input type="checkbox" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
+        <label class="check"><input type="checkbox" class="switch" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
           {{t "Require every user to set up two-factor authentication"}}</label>
-        <span class="hint">{{t "Users without it are sent to set it up the next time they use Anchor."}}</span>
       </fieldset>
       <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
     </section>

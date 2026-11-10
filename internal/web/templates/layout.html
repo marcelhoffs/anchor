@@ -25,10 +25,13 @@
 {{if not .Bare}}
 <header class="top">
   {{/* The brand, then the space you are in: "Anchor / Personal". On phones
-     the name gives way to the space, the slash stays. */}}
+     the name gives way to the space, the slash stays. Settings, admin and
+     spaces pages (.Manage) have a way back to the bookmarks instead. */}}
   <div class="top-left">
     <a class="brand" href="/">{{brandMark}}<span class="brand-name">Anchor</span></a>
-    {{if .User}}{{with .Nav}}{{if .Spaces}}
+    {{if and .User .Manage}}
+    <a class="space-ctl top-back" href="/">{{icon "chevron-left" "sm"}}{{t "Back"}}</a>
+    {{else if .User}}{{with .Nav}}{{if .Spaces}}
     <span class="top-slash" aria-hidden="true">/</span>
     <details class="top-menu space-menu">
       <summary class="space-ctl" aria-label="{{t "Space: %s" (or .Name (t "Personal"))}}">{{if .Scope.IsPersonal}}{{icon "user" "sm"}}{{else}}{{icon (spaceIcon .Icon) "sm"}}{{end}}<span class="space-name">{{or .Name (t "Personal")}}</span>{{icon "chevrons-up-down" "sm chev"}}</summary>
@@ -53,9 +56,11 @@
   <nav aria-label="{{t "Main"}}">
     {{/* Every control is a .top-ctl: one height, shape and hover; on phones
        an icon-only square, its label kept for screen readers. */}}
-    {{/* Always there: in a space you only read, it saves to your personal one. */}}
+    {{/* Always there but on the .Manage pages: in a space you only read, it saves to your personal one. */}}
+    {{if not .Manage}}
     <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">{{t "Add bookmark"}}</span></a>
     {{block "top-actions" .}}{{end}}
+    {{end}}
     <details class="top-menu">
       <summary class="top-ctl" aria-label="{{t "Account: %s" .User.Username}}"><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
