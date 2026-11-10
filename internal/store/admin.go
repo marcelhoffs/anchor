@@ -106,6 +106,9 @@ func (s *Store) SignUp(ctx context.Context, username, passwordHash string, invit
 const (
 	SettingSignup     = "signup"      // closed | invite | open
 	SettingRequire2FA = "require_2fa" // "true" | "false"
+	// SettingSSOLogout: signing out of a session signed in through the
+	// provider signs out there too: "true" | "false" (the default).
+	SettingSSOLogout = "sso_logout"
 	// SettingSpaceCreation is who may create shared spaces: "everyone"
 	// (the default) or "admins".
 	SettingSpaceCreation = "space_creation"

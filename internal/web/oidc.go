@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -352,7 +353,7 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 	if s.groupAdmins() && tok.RefreshToken == "" {
 		s.log.Warn("oidc: no refresh token, so the session ends when its access token does; allow offline_access at the provider", "user", u.Username)
 	}
-	sealed, err := s.sealTokens(tok)
+	sealed, err := s.sealTokens(tok, "")
 	if err != nil {
 		s.serverError(w, r, err)
 		return
@@ -572,10 +573,11 @@ func (s *Server) checkGroup(r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	var tok oauth2.Token
-	if b, err := s.keys.Open(ssoTokensKey, sealed); err != nil || json.Unmarshal(b, &tok) != nil {
+	var kept ssoTokens
+	if b, err := s.keys.Open(ssoTokensKey, sealed); err != nil || json.Unmarshal(b, &kept) != nil {
 		return errSSOEnded // a session from before Anchor kept them
 	}
+	tok := kept.Token
 
 	ctx, cancel := context.WithTimeout(oidc.ClientContext(r.Context(), s.oidc.http), groupCheckTimeout)
 	defer cancel()
@@ -645,7 +647,7 @@ func (s *Server) checkGroup(r *http.Request) error {
 		return err
 	}
 	u.IsAdmin = *admin // for the rest of this request
-	if sealed, err = s.sealTokens(&tok); err != nil {
+	if sealed, err = s.sealTokens(&tok, kept.IDToken); err != nil {
 		return err
 	}
 	if err := s.store.GroupsChecked(r.Context(), ss.TokenHash, sealed); err != nil {
@@ -655,9 +657,21 @@ func (s *Server) checkGroup(r *http.Request) error {
 	return nil
 }
 
-// sealTokens encrypts the provider's tokens for keeping with a session.
-func (s *Server) sealTokens(tok *oauth2.Token) ([]byte, error) {
-	b, err := json.Marshal(tok)
+// ssoTokens are what a session keeps of the provider's tokens. The ID token
+// is the hint for signing out at the provider (see providerLogoutURL).
+type ssoTokens struct {
+	oauth2.Token
+	IDToken string `json:"id_token,omitempty"`
+}
+
+// sealTokens encrypts the provider's tokens for keeping with a session; the
+// ID token is the one in tok, or else the one kept before (a refresh may
+// not bring a new one).
+func (s *Server) sealTokens(tok *oauth2.Token, idToken string) ([]byte, error) {
+	if id, _ := tok.Extra("id_token").(string); id != "" {
+		idToken = id
+	}
+	b, err := json.Marshal(ssoTokens{Token: *tok, IDToken: idToken})
 	if err != nil {
 		return nil, err
 	}
@@ -678,4 +692,53 @@ func (s *Server) ssoLinked(ctx context.Context, u *store.User) bool {
 	}
 	_, err := s.store.IdentityOf(ctx, u.ID, s.cfg.OIDC.Issuer)
 	return err == nil
+}
+
+// ssoLogout reports whether signing out of Anchor signs out at the provider
+// too (the admin's setting).
+func (s *Server) ssoLogout(ctx context.Context) bool {
+	if s.oidc == nil {
+		return false
+	}
+	v, err := s.store.InstanceSetting(ctx, store.SettingSSOLogout, "false")
+	if err != nil {
+		s.log.Error("read SSO logout setting", "err", err)
+		return false
+	}
+	return v == "true"
+}
+
+// providerLogoutURL is where someone signing out of a session signed in
+// through the provider goes when ssoLogout is on: the provider's
+// end_session_endpoint, which sends them back to the login page. "" when
+// it's off, or the provider has no such endpoint.
+func (s *Server) providerLogoutURL(ctx context.Context, ss *store.Session) string {
+	if ss == nil || !ss.SSO || !s.ssoLogout(ctx) {
+		return ""
+	}
+	p, _, err := s.oidc.discover()
+	if err != nil {
+		s.log.Warn("oidc: signing out at the provider", "err", err)
+		return ""
+	}
+	var meta struct {
+		EndSession string `json:"end_session_endpoint"`
+	}
+	if p.Claims(&meta) != nil || meta.EndSession == "" {
+		s.log.Warn("oidc: the provider has no end_session_endpoint, so signing out there is skipped")
+		return ""
+	}
+	u, err := url.Parse(meta.EndSession)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return ""
+	}
+	q := u.Query()
+	q.Set("client_id", s.cfg.OIDC.ClientID)
+	q.Set("post_logout_redirect_uri", s.cfg.BaseURL.String()+"/login")
+	var kept ssoTokens
+	if b, err := s.keys.Open(ssoTokensKey, ss.SSOTokens); err == nil && json.Unmarshal(b, &kept) == nil && kept.IDToken != "" {
+		q.Set("id_token_hint", kept.IDToken)
+	}
+	u.RawQuery = q.Encode()
+	return u.String()
 }

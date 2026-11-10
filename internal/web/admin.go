@@ -237,6 +237,7 @@ func (s *Server) renderAdminSettings(w http.ResponseWriter, r *http.Request, sta
 	d["Require2FA"] = s.require2FA(r.Context())
 	d["SignupFromEnv"] = s.cfg.Signup != ""
 	d["Require2FAFromEnv"] = s.cfg.Require2FA != nil
+	d["SSOLogout"] = s.ssoLogout(r.Context())
 	s.render(w, r, status, "admin_settings", d)
 }
 
@@ -260,6 +261,13 @@ func (s *Server) adminSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if s.cfg.Require2FA == nil {
 		req := strconv.FormatBool(r.PostFormValue("require_2fa") != "")
 		if err := s.store.SetInstanceSetting(ctx, store.SettingRequire2FA, req); err != nil {
+			s.serverError(w, r, err)
+			return
+		}
+	}
+	if s.oidc != nil {
+		v := strconv.FormatBool(r.PostFormValue("sso_logout") != "")
+		if err := s.store.SetInstanceSetting(ctx, store.SettingSSOLogout, v); err != nil {
 			s.serverError(w, r, err)
 			return
 		}

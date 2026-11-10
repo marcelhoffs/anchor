@@ -62,7 +62,7 @@ func newFakeIdP(t *testing.T) *fakeIdP {
 			"issuer": f.srv.URL, "authorization_endpoint": f.srv.URL + "/authorize", "token_endpoint": f.srv.URL + "/token",
 			"jwks_uri": f.srv.URL + "/jwks", "userinfo_endpoint": f.srv.URL + "/userinfo",
 			"id_token_signing_alg_values_supported": []string{"RS256"}, "response_types_supported": []string{"code"},
-			"subject_types_supported": []string{"public"},
+			"subject_types_supported": []string{"public"}, "end_session_endpoint": f.srv.URL + "/end-session",
 		})
 	})
 	mux.HandleFunc("/jwks", func(w http.ResponseWriter, r *http.Request) {
@@ -721,5 +721,47 @@ func TestUsernameFrom(t *testing.T) {
 		if got := usernameFrom(c); got != want {
 			t.Errorf("usernameFrom(%+v) = %q, want %q", c, got, want)
 		}
+	}
+}
+
+// With the admin's setting on, signing out of a session signed in through
+// the provider goes on to its end_session_endpoint; otherwise to the login.
+func TestSSOLogout(t *testing.T) {
+	e, idp := oidcEnv(t, nil)
+	signIn := func() *client {
+		c := e.client()
+		if code, _, _ := e.ssoFlow(idp, c, getStart(c, "/login/oidc"), "u-1", map[string]any{"preferred_username": "ann"}); code != http.StatusSeeOther {
+			t.Fatalf("sign-in: %d", code)
+		}
+		return c
+	}
+	if _, _, loc := signIn().post("/logout", nil); loc != "/login" {
+		t.Fatalf("setting off: %q", loc)
+	}
+
+	admin := signIn()
+	if code, body, _ := admin.get("/admin/"); code != http.StatusOK || !strings.Contains(body, `name="sso_logout"`) {
+		t.Fatalf("no setting on the admin page: %d", code)
+	}
+	if code, _, _ := admin.post("/admin/settings", url.Values{"signup": {"closed"}, "sso_logout": {"1"}}); code != http.StatusSeeOther {
+		t.Fatalf("save: %d", code)
+	}
+	c := signIn()
+	code, _, loc := c.post("/logout", nil)
+	u, err := url.Parse(loc)
+	if code != http.StatusSeeOther || err != nil || !strings.HasPrefix(loc, idp.srv.URL+"/end-session?") {
+		t.Fatalf("setting on: %d %q", code, loc)
+	}
+	q := u.Query()
+	if q.Get("id_token_hint") == "" || q.Get("post_logout_redirect_uri") != e.origin+"/login" || q.Get("client_id") == "" {
+		t.Fatalf("end-session query: %v", q)
+	}
+	if code, _, _ := c.get("/"); code != http.StatusSeeOther {
+		t.Fatal("still signed in to Anchor")
+	}
+	// A password session isn't the provider's to end.
+	e.user("bob")
+	if _, _, loc := e.login("bob").post("/logout", nil); loc != "/login" {
+		t.Fatalf("password session: %q", loc)
 	}
 }
