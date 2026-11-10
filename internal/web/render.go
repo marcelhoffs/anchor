@@ -209,6 +209,14 @@ func loadTemplates() (map[i18n.Lang]map[string]pageTemplate, error) {
 // would let the secret be guessed from the response size (BREACH).
 var secretPages = map[string]bool{"admin_secret": true, "recovery_codes": true, "totp_setup": true, "tokens": true, "edit": true}
 
+// managePages are settings, admin and spaces pages: their top bar has a
+// way back to the bookmarks, without the space switcher or Add bookmark.
+var managePages = map[string]bool{
+	"settings": true, "settings_search": true, "security": true, "totp_setup": true, "recovery_codes": true, "tokens": true, "data": true,
+	"spaces": true, "space": true,
+	"admin_settings": true, "admin_users": true, "admin_invites": true, "admin_spaces": true, "admin_secret": true,
+}
+
 var authPages = map[string]bool{"login": true, "signup": true, "setup": true, "signup_closed": true, "verify": true, "offline": true}
 
 // data is what every page template receives; handlers add their own keys.
@@ -238,6 +246,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, status int, page
 	d["CSRF"] = csrfToken(r)
 	d["Path"] = r.URL.Path
 	d["Bare"] = u == nil && authPages[page]
+	d["Manage"] = managePages[page]
 	prefs := signedOutPrefs // signed-out pages, such as the login screen
 	if u != nil {
 		prefs = u.Settings

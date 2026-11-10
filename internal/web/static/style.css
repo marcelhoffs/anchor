@@ -55,6 +55,8 @@
   --notice-text: light-dark(#065f46, #a7f3d0);
   --error-bg: light-dark(#fef2f2, #3b1418);
   --error-text: light-dark(#991b1b, #fecaca);
+  --warn-bg: light-dark(#fefce8, #2e2708);
+  --warn-text: light-dark(#854d0e, #fde68a);
   --shadow-1: light-dark(rgb(15 23 42 / 0.04), rgb(0 0 0 / 0.4));
   --shadow-2: light-dark(rgb(15 23 42 / 0.04), transparent);
   --shadow: 0 1px 2px var(--shadow-1), 0 4px 16px var(--shadow-2);
@@ -309,12 +311,18 @@ form.inline { display: inline; }
 /* Even space either side of the slash: the space button brings 10px of its own padding. */
 .top-slash { margin: 0 4px 0 14px; color: var(--border); font-size: var(--fs-xl); }
 .space-menu { min-width: 0; }
+/* The settings, admin and spaces pages' way back, where the space was. */
+.top-back { margin-left: 16px; color: var(--muted); text-decoration: none; }
+.top-back:hover { color: var(--text); }
+.space-pick { margin-bottom: 8px; }
 .space-ctl {
   display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; min-width: 0;
   border-radius: var(--radius); color: var(--text); font-size: var(--fs-md); font-weight: var(--fw-semibold);
   cursor: pointer; list-style: none; transition: background-color 120ms;
 }
 .space-ctl::-webkit-details-marker { display: none; }
+/* Tapping a top bar control mustn't select its label (phones show the selection handles). */
+.space-ctl, .top-ctl { -webkit-user-select: none; user-select: none; }
 .space-ctl:hover, .space-menu[open] > .space-ctl { background: var(--raised); }
 .space-ctl .icon { flex-shrink: 0; }
 .space-ctl .chev { color: var(--muted); }
@@ -697,6 +705,20 @@ input[type="checkbox"]:indeterminate::before { height: 2px; mask: none; }
 input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate { background: var(--accent); }
 input[type="checkbox"]:checked::before, input[type="checkbox"]:indeterminate::before { visibility: visible; }
 input[type="checkbox"]:disabled { opacity: 0.5; cursor: default; }
+/* A setting that's on or off: a toggle, what it does beside it. */
+input.switch {
+  width: 36px; height: 20px; place-content: center start; border: 0; border-radius: 999px;
+  background: var(--muted); transition: background-color 150ms;
+}
+input.switch::before {
+  width: 16px; height: 16px; margin-left: 2px; border-radius: 50%; background: #fff;
+  mask: none; visibility: visible; transition: transform 150ms;
+}
+input.switch:checked { background: var(--accent); }
+input.switch:checked::before { transform: translateX(16px); background: var(--on-accent); }
+/* Under a setting's name the toggle's text explains it, like a hint. */
+fieldset > label.check:has(.switch) { color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { input.switch, input.switch::before { transition: none; } }
 .form-narrow { max-width: 400px; }
 .form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 8px; }
 /* Save buttons sit the fieldset's 20px below the last setting, as on Settings. */
@@ -714,6 +736,9 @@ fieldset + .form-actions { margin-top: 0; }
 /* Appearance pickers */
 fieldset { margin: 0 0 20px; padding: 0; border: 0; }
 legend { margin-bottom: 8px; padding: 0; font-size: var(--fs-md); font-weight: var(--fw-medium); }
+/* A setting: its name, what it does, then the control. */
+legend + .hint { margin: -6px 0 10px; }
+fieldset > select { margin-top: 0; }
 .choices { display: flex; flex-wrap: wrap; gap: 10px; }
 .choice {
   display: flex; align-items: center; gap: 10px; margin: 0; min-height: 44px; padding: 0 14px;
@@ -851,9 +876,10 @@ td.actions { text-align: right; white-space: nowrap; }
   /* So does the list header's, leaving room beside the title for the pager. */
   .list-actions .btn:has(.label-sm) { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
-  /* The space takes the brand name's place: "logo / Personal". */
-  .top-left:has(.space-menu) .brand-name { display: none; }
-  .space-ctl > .icon:first-child { display: none; }
+  /* The space, or the way back, takes the brand name's place: "logo / Personal". */
+  .top-left:has(.space-menu, .top-back) .brand-name { display: none; }
+  .top-back { margin-left: 6px; }
+  .space-menu .space-ctl > .icon:first-child { display: none; }
   .top-slash { margin: 0 4px 0 12px; }
   .space-ctl { padding: 0 8px; font-size: var(--fs-lg); }
   .hide-sm { display: none; }
@@ -883,6 +909,10 @@ td.actions { text-align: right; white-space: nowrap; }
 .tabs a[aria-current="page"] { background: var(--soft); color: var(--soft-text); font-weight: var(--fw-semibold); }
 .badge.on { border-color: transparent; background: var(--soft); color: var(--soft-text); }
 .badge.danger { border-color: var(--danger); color: var(--danger); }
+/* An import's outcome: it worked, worked but skipped some, or failed. */
+.badge.ok { border-color: transparent; background: var(--notice-bg); color: var(--notice-text); }
+.badge.warn { border-color: transparent; background: var(--warn-bg); color: var(--warn-text); }
+.badge.bad { border-color: transparent; background: var(--error-bg); color: var(--error-text); }
 code, .secret { font-family: var(--mono); font-size: 0.92em; padding: 1px 6px; border-radius: 6px; background: var(--raised); overflow-wrap: anywhere; }
 .row-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .row-wrap input:not([type="checkbox"]):not([type="file"]) { flex: 1 1 220px; width: auto; margin-top: 0; }
@@ -941,6 +971,7 @@ fieldset[disabled] { opacity: 0.6; }
 .copy-row .secret-field { flex: 1; min-width: 0; }
 .copy-status { font-size: var(--fs-sm); color: var(--muted); }
 
+.jobs { margin: 0; padding: 0; list-style: none; }
 .jobs li { padding: 12px 0; border-top: 1px solid var(--border); }
 .jobs li:first-child { border-top: 0; }
 .job-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; font-size: var(--fs-md); font-weight: var(--fw-medium); }
