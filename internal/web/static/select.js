@@ -58,8 +58,8 @@
         common = common ? common.filter(function (x) { return names.indexOf(x) >= 0; }) : names;
         any = any.concat(names);
       });
-      tagMenu.querySelectorAll("[data-tag-name]").forEach(function (b) {
-        var name = b.getAttribute("data-tag-name");
+      tagMenu.querySelectorAll("button.tag").forEach(function (b) {
+        var name = b.textContent;
         b.setAttribute("aria-pressed", common && common.indexOf(name) >= 0 ? "true" : any.indexOf(name) >= 0 ? "mixed" : "false");
       });
     });

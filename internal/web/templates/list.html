@@ -89,22 +89,19 @@
   </nav>
   </div>
   {{end}}
-  <div class="side-tags">
-    <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
+  {{/* One list of tags: in the sidebar, or on phones the drawer that slides
+     in from the right (an HTML popover; the CSS shows it in place when the
+     sidebar is). */}}
+  <div id="tag-drawer" class="side-tags drawer" popover>
+    <div class="drawer-head">
+      <h2 class="side-heading side-heading-row">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
+      <button class="icon-btn drawer-close" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="{{t "Close tags"}}">{{icon "x"}}</button>
+    </div>
     {{template "tag-links" .}}
   </div>
 </aside>
 
 <div class="content">
-  {{/* On phones the tags slide in from the right instead of sitting below the list. */}}
-  <div id="tag-drawer" class="drawer" popover role="dialog" aria-labelledby="tag-drawer-title">
-    <div class="drawer-head">
-      <h2 class="side-heading side-heading-row" id="tag-drawer-title">{{t "Tags"}}<a href="/tags" class="side-manage" title="{{t "Manage tags"}}" aria-label="{{t "Manage tags"}}">{{icon "pencil" "sm"}}</a></h2>
-      <button class="icon-btn" popovertarget="tag-drawer" popovertargetaction="hide" aria-label="{{t "Close tags"}}">{{icon "x"}}</button>
-    </div>
-    {{template "tag-links" .}}
-  </div>
-
   <div class="list-head">
     <h1>{{.Heading}}</h1>
     <div class="list-actions">
@@ -155,7 +152,7 @@
       <div id="bulk-tag" class="menu row-menu tag-menu" popover>
         <p class="menu-title">{{t "Add or remove a tag"}}</p>
         <div class="tag-pills">
-        {{range .}}<button class="tag" data-color="{{.Color}}" data-tag-name="{{.Name}}" aria-pressed="false" form="bulk-form" name="action" value="tag" formaction="/bookmarks/bulk?tag={{.ID}}">{{.Name}}</button>{{end}}
+        {{range .}}<button class="tag" data-color="{{.Color}}" form="bulk-form" name="tag" value="{{.ID}}">{{.Name}}</button>{{end}}
         </div>
       </div>
       {{end}}

@@ -707,12 +707,17 @@ func TestTagsDrawerOnPhones(t *testing.T) {
 	if !strings.Contains(nav, `<button class="top-ctl tags-btn" popovertarget="tag-drawer">`) || strings.Index(nav, "tags-btn") < strings.Index(nav, `href="/bookmarks/new"`) {
 		t.Fatal("Tags button isn't in the top bar after Add bookmark")
 	}
-	if n := strings.Count(body, `href="/?q=%23homelab"`); n < 2 {
-		t.Fatalf("tag listed %d times, want in the sidebar and the drawer", n)
+	// The sidebar's tags are the drawer: listed once, not again for phones.
+	side := body[strings.Index(body, `<aside class="sidebar">`):strings.Index(body, "</aside>")]
+	if !strings.Contains(side, `<div id="tag-drawer" class="side-tags drawer" popover>`) {
+		t.Fatal("the sidebar's tags aren't the drawer")
+	}
+	if n := strings.Count(body, `class="side-link" href="/?q=%23homelab"`); n != 1 {
+		t.Fatalf("tag listed %d times in the sidebar, want once", n)
 	}
 	css, _ := assets.ReadFile("static/style.css")
-	if !strings.Contains(string(css), ".side-tags { display: none; }") || !strings.Contains(string(css), ".tags-btn { display: inline-flex; }") {
-		t.Fatal("phones don't swap the sidebar tags for the drawer")
+	if !strings.Contains(string(css), ".side-tags[popover] {") || !strings.Contains(string(css), ".tags-btn { display: inline-flex; }") {
+		t.Fatal("wide screens don't show the drawer in place, or phones have no Tags button")
 	}
 }
 
