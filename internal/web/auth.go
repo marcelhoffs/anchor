@@ -213,7 +213,13 @@ func (s *Server) startPendingLogin(w http.ResponseWriter, r *http.Request, u sto
 }
 
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	to := "/login"
 	if ss := currentSession(r); ss != nil {
+		if s.oidc != nil {
+			if u := s.providerLogoutURL(r.Context(), ss); u != "" {
+				to = u // and the provider sends them back to the login page
+			}
+		}
 		if err := s.store.DeleteSession(r.Context(), ss.UserID, ss.TokenHash); err != nil {
 			s.serverError(w, r, err)
 			return
@@ -222,7 +228,7 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 		s.dropBrowserSession(r) // a pending 2FA login being abandoned
 	}
 	s.clearSessionCookie(w)
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+	http.Redirect(w, r, to, http.StatusSeeOther)
 }
 
 // signupAllowed reports whether a signup may proceed, and with which invite.

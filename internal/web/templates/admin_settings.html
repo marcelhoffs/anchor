@@ -27,8 +27,19 @@
         <label class="check"><input type="checkbox" class="switch" name="require_2fa" value="1"{{if .Require2FA}} checked{{end}}{{if .Require2FAFromEnv}} disabled{{end}}>
           {{t "Require every user to set up two-factor authentication"}}</label>
       </fieldset>
-      <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
     </section>
+
+    {{with .SSO}}
+    <section aria-labelledby="sso-logout">
+      <h2 id="sso-logout">{{t "Sign-out"}}</h2>
+      <fieldset>
+        <label class="check"><input type="checkbox" class="switch" name="sso_logout" value="1"{{if $.SSOLogout}} checked{{end}}>
+          {{t "Signing out of Anchor also signs out of %s" .Name}}</label>
+      </fieldset>
+    </section>
+    {{end}}
+
+    <div class="form-actions"><button class="btn btn-primary">{{t "Save"}}</button></div>
   </form>
 </div>
 {{end}}

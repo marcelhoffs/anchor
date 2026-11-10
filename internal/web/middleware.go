@@ -10,6 +10,7 @@ import (
 	"errors"
 	"net/http"
 	"net/netip"
+	"net/url"
 	"strings"
 	"time"
 
@@ -141,9 +142,16 @@ var csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'sel
 
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	https := s.cfg.SecureCookies()
+	policy := csp
+	if s.cfg.OIDC != nil {
+		// Signing out can send the logout form on to the provider.
+		if u, err := url.Parse(s.cfg.OIDC.Issuer); err == nil && u.Host != "" {
+			policy = strings.Replace(policy, "form-action 'self'", "form-action 'self' "+u.Scheme+"://"+u.Host, 1)
+		}
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Content-Security-Policy", csp)
+		h.Set("Content-Security-Policy", policy)
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "same-origin")

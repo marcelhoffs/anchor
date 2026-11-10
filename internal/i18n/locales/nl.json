@@ -709,5 +709,7 @@
  "Lets the search box search the web too.": "Laat het zoekvak ook op het web zoeken.",
  "Used for web searches.": "Gebruikt voor zoeken op het web.",
  "Hides explicit results.": "Verbergt expliciete resultaten.",
- "The language and country of the results. Ecosia uses its own region and SafeSearch settings.": "De taal en het land van de resultaten. Ecosia gebruikt zijn eigen regio- en SafeSearch-instellingen."
+ "The language and country of the results. Ecosia uses its own region and SafeSearch settings.": "De taal en het land van de resultaten. Ecosia gebruikt zijn eigen regio- en SafeSearch-instellingen.",
+ "Sign-out": "Afmelden",
+ "Signing out of Anchor also signs out of %s": "Uitloggen bij Anchor logt je ook uit bij %s"
 }

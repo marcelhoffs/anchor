@@ -709,5 +709,7 @@
  "Lets the search box search the web too.": "Permet à la barre de recherche de chercher aussi sur le web.",
  "Used for web searches.": "Utilisé pour les recherches sur le web.",
  "Hides explicit results.": "Masque les résultats explicites.",
- "The language and country of the results. Ecosia uses its own region and SafeSearch settings.": "La langue et le pays des résultats. Ecosia utilise ses propres réglages de région et de SafeSearch."
+ "The language and country of the results. Ecosia uses its own region and SafeSearch settings.": "La langue et le pays des résultats. Ecosia utilise ses propres réglages de région et de SafeSearch.",
+ "Sign-out": "Déconnexion",
+ "Signing out of Anchor also signs out of %s": "Se déconnecter d'Anchor déconnecte aussi de %s"
 }
