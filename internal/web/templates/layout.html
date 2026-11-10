@@ -24,17 +24,14 @@
 {{iconSprite}}
 {{if not .Bare}}
 <header class="top">
-  <a class="brand" href="/">{{brandMark}}Anchor</a>
-  {{if .User}}
-  <nav aria-label="{{t "Main"}}">
-    {{/* Every control is a .top-ctl: one height, shape and hover; on phones
-       an icon-only square, its label kept for screen readers. */}}
-    {{/* Always there: in a space you only read, it saves to your personal one. */}}
-    <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">{{t "Add bookmark"}}</span></a>
-    {{block "top-actions" .}}{{end}}
-    {{with .Nav}}{{if .Spaces}}
+  {{/* The brand, then the space you are in: "Anchor / Personal". On phones
+     the name gives way to the space. */}}
+  <div class="top-left">
+    <a class="brand" href="/">{{brandMark}}<span class="brand-name">Anchor</span></a>
+    {{if .User}}{{with .Nav}}{{if .Spaces}}
+    <span class="top-slash" aria-hidden="true">/</span>
     <details class="top-menu space-menu">
-      <summary class="top-ctl" aria-label="{{t "Space: %s" (or .Name (t "Personal"))}}">{{if .Scope.IsPersonal}}{{icon "user" "sm"}}{{else}}{{icon (spaceIcon .Icon) "sm"}}{{end}}<span class="label-sm space-name">{{or .Name (t "Personal")}}</span>{{icon "chevron-down" "sm chev"}}</summary>
+      <summary class="space-ctl" aria-label="{{t "Space: %s" (or .Name (t "Personal"))}}">{{if .Scope.IsPersonal}}{{icon "user" "sm"}}{{else}}{{icon (spaceIcon .Icon) "sm"}}{{end}}<span class="space-name">{{or .Name (t "Personal")}}</span>{{icon "chevrons-up-down" "sm chev"}}</summary>
       <div class="menu">
         <p class="menu-title">{{t "Spaces"}}</p>
         <form method="post" action="/space">
@@ -50,7 +47,15 @@
         <a href="/spaces" class="menu-sep">{{icon "settings" "sm"}}{{t "Manage spaces"}}</a>
       </div>
     </details>
-    {{end}}{{end}}
+    {{end}}{{end}}{{end}}
+  </div>
+  {{if .User}}
+  <nav aria-label="{{t "Main"}}">
+    {{/* Every control is a .top-ctl: one height, shape and hover; on phones
+       an icon-only square, its label kept for screen readers. */}}
+    {{/* Always there: in a space you only read, it saves to your personal one. */}}
+    <a class="top-ctl top-primary" href="/bookmarks/new">{{icon "plus" "sm"}}<span class="label-sm">{{t "Add bookmark"}}</span></a>
+    {{block "top-actions" .}}{{end}}
     <details class="top-menu">
       <summary class="top-ctl" aria-label="{{t "Account: %s" .User.Username}}"><span class="avatar-sm" aria-hidden="true">{{initial .User.Username}}</span>{{icon "chevron-down" "sm chev"}}</summary>
       <div class="menu">
