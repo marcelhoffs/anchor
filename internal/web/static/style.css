@@ -305,8 +305,9 @@ form.inline { display: inline; }
 .brand-mark rect { fill: var(--accent); }
 .top nav { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
 /* The brand and the space switcher: "Anchor / Personal". */
-.top-left { display: flex; align-items: center; gap: 4px 12px; min-width: 0; }
-.top-slash { color: var(--border); font-size: var(--fs-xl); }
+.top-left { display: flex; align-items: center; min-width: 0; }
+/* Even space either side of the slash: the space button brings 10px of its own padding. */
+.top-slash { margin: 0 4px 0 14px; color: var(--border); font-size: var(--fs-xl); }
 .space-menu { min-width: 0; }
 .space-ctl {
   display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; min-width: 0;
@@ -850,10 +851,10 @@ td.actions { text-align: right; white-space: nowrap; }
   /* So does the list header's, leaving room beside the title for the pager. */
   .list-actions .btn:has(.label-sm) { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
-  /* The space takes the brand name's place; the logo is enough. */
-  .top-left:has(.space-menu) :is(.brand-name, .top-slash) { display: none; }
+  /* The space takes the brand name's place: "logo / Personal". */
+  .top-left:has(.space-menu) .brand-name { display: none; }
   .space-ctl > .icon:first-child { display: none; }
-  .top-left { gap: 4px; }
+  .top-slash { margin: 0 4px 0 12px; }
   .space-ctl { padding: 0 8px; font-size: var(--fs-lg); }
   .hide-sm { display: none; }
   /* The search button becomes the field's only magnifier. */
