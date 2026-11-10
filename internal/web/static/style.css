@@ -292,7 +292,7 @@ form.inline { display: inline; }
 /* Header */
 .top {
   position: sticky; top: 0; z-index: 10;
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px 24px;
   padding: calc(10px + env(safe-area-inset-top, 0px)) var(--gutter-right) 10px var(--gutter-left);
   background: color-mix(in srgb, var(--surface) 60%, transparent);
   backdrop-filter: blur(12px);
@@ -303,7 +303,20 @@ form.inline { display: inline; }
 /* The app icon in the current accent: <svg class="brand-mark"> from render.go. */
 .brand-mark { flex-shrink: 0; width: 32px; height: 32px; color: var(--on-accent); }
 .brand-mark rect { fill: var(--accent); }
-.top nav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.top nav { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
+/* The brand and the space switcher: "Anchor / Personal". */
+.top-left { display: flex; align-items: center; gap: 4px 12px; min-width: 0; }
+.top-slash { color: var(--border); font-size: var(--fs-xl); }
+.space-menu { min-width: 0; }
+.space-ctl {
+  display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; min-width: 0;
+  border-radius: var(--radius); color: var(--text); font-size: var(--fs-md); font-weight: var(--fw-semibold);
+  cursor: pointer; list-style: none; transition: background-color 120ms;
+}
+.space-ctl::-webkit-details-marker { display: none; }
+.space-ctl:hover, .space-menu[open] > .space-ctl { background: var(--raised); }
+.space-ctl .icon { flex-shrink: 0; }
+.space-ctl .chev { color: var(--muted); }
 /* Top bar controls (Tags, Add bookmark, the space switcher, the user menu):
    one height, shape, border and hover, as icon plus label. */
 .top-ctl {
@@ -336,7 +349,7 @@ form.inline { display: inline; }
 .menu a:hover, .menu button:hover { background: var(--raised); color: var(--text); }
 /* The space switcher's menu: the spaces, the current one in the soft accent, like the sidebar. */
 .space-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.space-menu .menu { min-width: 230px; }
+.space-menu .menu { left: 0; right: auto; min-width: 230px; }
 .space-option, .menu-label { flex-grow: 1; overflow-wrap: anywhere; }
 .menu [aria-current="true"] { font-weight: var(--fw-semibold); }
 .space-menu .menu [aria-current="true"], .space-menu .menu [aria-current="true"]:hover { background: var(--soft); color: var(--soft-text); }
@@ -837,6 +850,11 @@ td.actions { text-align: right; white-space: nowrap; }
   /* So does the list header's, leaving room beside the title for the pager. */
   .list-actions .btn:has(.label-sm) { width: 40px; padding: 0; }
   .top-ctl .chev { display: none; }
+  /* The space takes the brand name's place; the logo is enough. */
+  .top-left:has(.space-menu) :is(.brand-name, .top-slash) { display: none; }
+  .space-ctl > .icon:first-child { display: none; }
+  .top-left { gap: 4px; }
+  .space-ctl { padding: 0 8px; font-size: var(--fs-lg); }
   .hide-sm { display: none; }
   /* The search button becomes the field's only magnifier. */
   .search > .icon { display: none; }
