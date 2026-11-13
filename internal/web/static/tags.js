@@ -34,6 +34,10 @@
     var known = {}; // lower-cased name → {name, color}
     names.forEach(function (n, i) { known[n.toLowerCase()] = { name: n, color: colors[i] }; });
     var shown = [], active = -1;
+    // The list shows the tags alphabetically.
+    var order = names.map(function (n, i) { return i; }).sort(function (a, b) {
+      return names[a].localeCompare(names[b], undefined, { sensitivity: "base" });
+    });
 
     // The box the chips and the field sit in; the hidden input submits them.
     var box = document.createElement("div");
@@ -105,20 +109,21 @@
     }
 
     function update() {
-      // With nothing typed it lists the most used tags, but only while the
-      // field has no chips yet.
+      // With nothing typed it lists every tag, but only while the field has
+      // no chips yet.
       var text = norm(input.value);
       if (!text && chips.children.length) return close();
       var used = {};
       tags().forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
-      names.forEach(function (n, i) {
-        var ln = n.toLowerCase();
+      order.forEach(function (i) {
+        var ln = names[i].toLowerCase();
         if (used[ln]) return;
         if (ln.indexOf(text) === 0) starts.push(i);
         else if (ln.indexOf(text) > 0) contains.push(i);
       });
-      shown = starts.concat(contains).slice(0, MAX);
+      shown = starts.concat(contains);
+      if (text) shown = shown.slice(0, MAX);
       if (!shown.length) return close();
       list.textContent = "";
       shown.forEach(function (n, i) {
