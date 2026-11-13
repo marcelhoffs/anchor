@@ -109,10 +109,8 @@
     }
 
     function update() {
-      // With nothing typed it lists every tag, but only while the field has
-      // no chips yet.
+      // With nothing typed it lists every tag not yet chosen.
       var text = norm(input.value);
-      if (!text && chips.children.length) return close();
       var used = {};
       tags().forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
@@ -173,7 +171,7 @@
         input.focus();
       }
     });
-    // Focusing or clicking an empty field opens the list.
+    // Focusing or clicking the field opens the list.
     input.addEventListener("focus", update);
     input.addEventListener("click", function () {
       if (list.hidden) update();
