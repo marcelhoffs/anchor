@@ -105,8 +105,10 @@
     }
 
     function update() {
+      // With nothing typed it lists the most used tags, but only while the
+      // field has no chips yet.
       var text = norm(input.value);
-      if (!text) return close();
+      if (!text && chips.children.length) return close();
       var used = {};
       tags().forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
@@ -166,6 +168,11 @@
         input.focus();
       }
     });
+    // Focusing or clicking an empty field opens the list.
+    input.addEventListener("focus", update);
+    input.addEventListener("click", function () {
+      if (list.hidden) update();
+    });
     input.addEventListener("input", function () {
       // A comma, typed or pasted, ends a tag; unknown names are dropped.
       var parts = input.value.split(",");
@@ -186,7 +193,7 @@
         return;
       }
       if (list.hidden) {
-        if (e.key === "ArrowDown" && norm(input.value)) update();
+        if (e.key === "ArrowDown") update();
         // Enter makes a chip of a typed tag name; with nothing typed it submits.
         if (e.key === "Enter" && commit()) e.preventDefault();
         return;
@@ -201,14 +208,18 @@
           highlight(active <= 0 ? shown.length - 1 : active - 1);
           break;
         case "Enter":
-          // The highlighted suggestion, or else what's typed.
+          // The highlighted suggestion, or else what's typed. With neither
+          // the list closes and the form submits.
+          if (active < 0 && !norm(input.value)) { close(); break; }
           e.preventDefault();
           if (active >= 0) accept(active);
           else commit();
           break;
         case "Tab":
-          // Tab takes the highlighted suggestion, or else the first.
+          // Tab takes the highlighted suggestion, or else the first. With
+          // neither, it moves on as usual.
           if (e.shiftKey) break;
+          if (active < 0 && !norm(input.value)) { close(); break; }
           e.preventDefault();
           accept(active >= 0 ? active : 0);
           break;
