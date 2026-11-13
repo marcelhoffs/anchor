@@ -188,6 +188,7 @@
     });
     input.addEventListener("blur", function () {
       commit(true);
+      close();
     });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Backspace" && input.value === "" && chips.lastChild) {
