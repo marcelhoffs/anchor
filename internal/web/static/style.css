@@ -504,8 +504,15 @@ label.bm-icon .avatar { transition: background 120ms, filter 120ms; }
   border-bottom: 1px solid var(--border);
 }
 .bulk-all.on:hover { color: var(--accent-text); } /* all selected: it selects none */
-.bulk-count { color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bulk-actions { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+/* On a narrow bar the buttons keep their size; the count gives way and
+   fades out under the actions instead. */
+.bulk-all { flex-shrink: 0; }
+.bulk-count {
+  flex: 1; min-width: 0; overflow: hidden;
+  color: var(--muted); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; white-space: nowrap;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.bulk-actions { display: flex; flex-shrink: 0; align-items: center; gap: 2px; margin-left: auto; }
 .bulk-actions .bulk-more { display: none; } /* a phone's overflow menu */
 .icon-btn:disabled { opacity: 0.4; background: none; color: var(--muted); cursor: default; }
 .bm-icon { flex-shrink: 0; display: flex; margin: 2px 0 0; text-decoration: none; } /* a label, without a form label's margin */
