@@ -307,6 +307,11 @@ func TestSSOLinkUnlink(t *testing.T) {
 		!strings.Contains(body, "This account signs in with Authentik") {
 		t.Fatalf("password sign-in of a linked account: %d", code)
 	}
+	// A wrong password doesn't learn the account exists, or that it's linked.
+	if code, body, _ := e.client().post("/login", url.Values{"username": {"alice"}, "password": {"wrong-password"}}); code != http.StatusUnauthorized ||
+		!strings.Contains(body, "Invalid username or password") {
+		t.Fatalf("wrong password for a linked account: %d", code)
+	}
 	// Another user can't link the same identity.
 	e.user("bob")
 	b := e.login("bob")
@@ -364,7 +369,8 @@ func TestSSOAdminGroupAndPolicy(t *testing.T) {
 	// A disabled account can't sign in through the provider either.
 	e.store.SetActive(context.Background(), u.ID, false)
 	c = e.client()
-	if code, body, _ := e.ssoFlow(idp, c, getStart(c, "/login/oidc"), "g-1", nil); code != http.StatusUnprocessableEntity || !strings.Contains(body, "disabled") {
+	if code, body, _ := e.ssoFlow(idp, c, getStart(c, "/login/oidc"), "g-1", nil); code != http.StatusUnprocessableEntity ||
+		!strings.Contains(body, "Single sign-on didn") || strings.Contains(body, "disabled") {
 		t.Fatalf("disabled: %d", code)
 	}
 }
