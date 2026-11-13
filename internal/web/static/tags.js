@@ -34,6 +34,10 @@
     var known = {}; // lower-cased name → {name, color}
     names.forEach(function (n, i) { known[n.toLowerCase()] = { name: n, color: colors[i] }; });
     var shown = [], active = -1;
+    // The list shows the tags alphabetically.
+    var order = names.map(function (n, i) { return i; }).sort(function (a, b) {
+      return names[a].localeCompare(names[b], undefined, { sensitivity: "base" });
+    });
 
     // The box the chips and the field sit in; the hidden input submits them.
     var box = document.createElement("div");
@@ -105,18 +109,19 @@
     }
 
     function update() {
+      // With nothing typed it lists every tag not yet chosen.
       var text = norm(input.value);
-      if (!text) return close();
       var used = {};
       tags().forEach(function (t) { used[norm(t)] = true; });
       var starts = [], contains = [];
-      names.forEach(function (n, i) {
-        var ln = n.toLowerCase();
+      order.forEach(function (i) {
+        var ln = names[i].toLowerCase();
         if (used[ln]) return;
         if (ln.indexOf(text) === 0) starts.push(i);
         else if (ln.indexOf(text) > 0) contains.push(i);
       });
-      shown = starts.concat(contains).slice(0, MAX);
+      shown = starts.concat(contains);
+      if (text) shown = shown.slice(0, MAX);
       if (!shown.length) return close();
       list.textContent = "";
       shown.forEach(function (n, i) {
@@ -166,6 +171,11 @@
         input.focus();
       }
     });
+    // Focusing or clicking the field opens the list.
+    input.addEventListener("focus", update);
+    input.addEventListener("click", function () {
+      if (list.hidden) update();
+    });
     input.addEventListener("input", function () {
       // A comma, typed or pasted, ends a tag; unknown names are dropped.
       var parts = input.value.split(",");
@@ -178,6 +188,7 @@
     });
     input.addEventListener("blur", function () {
       commit(true);
+      close();
     });
     input.addEventListener("keydown", function (e) {
       if (e.key === "Backspace" && input.value === "" && chips.lastChild) {
@@ -186,7 +197,7 @@
         return;
       }
       if (list.hidden) {
-        if (e.key === "ArrowDown" && norm(input.value)) update();
+        if (e.key === "ArrowDown") update();
         // Enter makes a chip of a typed tag name; with nothing typed it submits.
         if (e.key === "Enter" && commit()) e.preventDefault();
         return;
@@ -201,14 +212,18 @@
           highlight(active <= 0 ? shown.length - 1 : active - 1);
           break;
         case "Enter":
-          // The highlighted suggestion, or else what's typed.
+          // The highlighted suggestion, or else what's typed. With neither
+          // the list closes and the form submits.
+          if (active < 0 && !norm(input.value)) { close(); break; }
           e.preventDefault();
           if (active >= 0) accept(active);
           else commit();
           break;
         case "Tab":
-          // Tab takes the highlighted suggestion, or else the first.
+          // Tab takes the highlighted suggestion, or else the first. With
+          // neither, it moves on as usual.
           if (e.shiftKey) break;
+          if (active < 0 && !norm(input.value)) { close(); break; }
           e.preventDefault();
           accept(active >= 0 ? active : 0);
           break;
