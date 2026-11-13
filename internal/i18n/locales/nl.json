@@ -524,7 +524,6 @@
  "That sign-in expired or was started elsewhere. Start again.": "Die inlogpoging is verlopen of ergens anders gestart. Begin opnieuw.",
  "Single sign-on was cancelled or refused.": "Single sign-on is geannuleerd of geweigerd.",
  "Single sign-on didn't work. Try again.": "Single sign-on werkte niet. Probeer het opnieuw.",
- "Your Anchor account is disabled. Ask an admin.": "Je Anchor-account is uitgeschakeld. Vraag het een admin.",
  "No Anchor account is linked to this sign-in. Ask an admin for an invite, or link it under Settings → Security.": "Er is geen Anchor-account aan deze login gekoppeld. Vraag een admin om een uitnodiging, of koppel hem onder Instellingen → Beveiliging.",
  "Someone else just set up Anchor. Sign in again.": "Iemand anders heeft Anchor net ingesteld. Log opnieuw in.",
  "That account at the provider is already linked to another Anchor user.": "Dat account bij de provider is al gekoppeld aan een andere Anchor-gebruiker.",

@@ -524,7 +524,6 @@
  "That sign-in expired or was started elsewhere. Start again.": "Ese inicio de sesión caducó o se empezó en otro sitio. Vuelve a empezar.",
  "Single sign-on was cancelled or refused.": "El inicio de sesión único se canceló o se rechazó.",
  "Single sign-on didn't work. Try again.": "El inicio de sesión único no funcionó. Vuelve a intentarlo.",
- "Your Anchor account is disabled. Ask an admin.": "Tu cuenta de Anchor está desactivada. Pregunta a un admin.",
  "No Anchor account is linked to this sign-in. Ask an admin for an invite, or link it under Settings → Security.": "Ninguna cuenta de Anchor está vinculada a este inicio de sesión. Pide una invitación a un admin o vincúlala en Ajustes → Seguridad.",
  "Someone else just set up Anchor. Sign in again.": "Otra persona acaba de configurar Anchor. Vuelve a iniciar sesión.",
  "That account at the provider is already linked to another Anchor user.": "Esa cuenta del proveedor ya está vinculada con otro usuario de Anchor.",

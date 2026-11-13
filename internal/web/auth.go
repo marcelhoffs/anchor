@@ -131,12 +131,23 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		return
 	case s.ssoLinked(r.Context(), &u):
 		// Signing in only through the provider means removing someone there
-		// removes them here; the password is only for unlinking.
-		auth.VerifyDummy(password)
-		fail(http.StatusUnprocessableEntity, i18n.M("This account signs in with %s.", s.cfg.OIDC.Name))
-		return
+		// removes them here; the password is only for unlinking. Only the
+		// right password learns that, so it doesn't reveal the username.
+		if !u.HasPassword() {
+			auth.VerifyDummy(password)
+			err = auth.ErrMismatch
+		} else if err = auth.VerifyPassword(u.PasswordHash, password); err == nil && u.IsActive {
+			fail(http.StatusUnprocessableEntity, i18n.M("This account signs in with %s.", s.cfg.OIDC.Name))
+			return
+		}
+	case !u.HasPassword():
+		auth.VerifyDummy(password) // as long as a real check takes
+		err = auth.ErrMismatch
 	default:
-		if auth.VerifyPassword(u.PasswordHash, password) != nil || !u.IsActive {
+		err = auth.VerifyPassword(u.PasswordHash, password)
+		if err == nil && !u.IsActive {
+			// Told apart only in the log: the page says what a wrong password does.
+			s.log.Warn("sign-in to a disabled account refused", "user", u.Username, "method", "password", "ip", s.clientIP(r))
 			err = auth.ErrMismatch
 		}
 	}

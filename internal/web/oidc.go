@@ -343,7 +343,10 @@ func (s *Server) oidcFinishLogin(w http.ResponseWriter, r *http.Request, f oidcF
 		return
 	}
 	if !u.IsActive {
-		s.oidcFailed(w, r, "login", i18n.M("Your Anchor account is disabled. Ask an admin."))
+		// The same message as any other failed sign-on: it mustn't tell
+		// whoever holds the provider account that an Anchor one exists.
+		s.log.Warn("sign-in to a disabled account refused", "user", u.Username, "method", "oidc", "ip", s.clientIP(r))
+		s.oidcFailed(w, r, "login", i18n.M("Single sign-on didn't work. Try again."))
 		return
 	}
 	if err := s.syncAdmin(r, u, admin); err != nil {
