@@ -539,8 +539,8 @@ func TestSSOAdminGroupAndLocalAdmins(t *testing.T) {
 	}
 }
 
-// With an admin group, the provider confirms the group at every page load
-// and every adminGroupCheck otherwise, renewing tokens as needed; a session
+// With an admin group, the provider confirms the group at a page load once
+// pageLoadGroupCheck has passed and every adminGroupCheck otherwise, renewing tokens as needed; a session
 // it no longer accepts ends.
 func TestSSOAdminGroupRecheck(t *testing.T) {
 	e, idp := oidcEnv(t, func(o *config.OIDC) { o.AdminGroup = "anchor-admins" })
@@ -558,9 +558,17 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 		u, _ := e.store.UserByUsername(ctx, "gina")
 		return u.IsAdmin
 	}
-	stale := func() {
-		old := time.Now().Add(-10 * time.Minute).Unix()
+	age := func(d time.Duration) {
+		old := time.Now().Add(-d).Unix()
 		e.db.W.Exec("UPDATE sessions SET created_at = ?, groups_checked_at = ?", old, old)
+	}
+	stale := func() { age(10 * time.Minute) }
+	// Over pageLoadGroupCheck, under adminGroupCheck.
+	aged := func() { age(2 * time.Minute) }
+	calls := func() int {
+		idp.mu.Lock()
+		defer idp.mu.Unlock()
+		return idp.userinfos
 	}
 
 	// Removed from the group: opening the admin pages asks the provider, even
@@ -586,6 +594,7 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 		return string(b)
 	}
 	setGroups("anchor-admins")
+	aged()
 	browser("*/*")
 	if isAdmin() {
 		t.Fatal("a script's call checked")
@@ -594,12 +603,20 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 		t.Fatal("rejoining the group didn't show the admin menu at the next page load")
 	}
 	setGroups("staff")
+	aged()
 	if browser("text/html"); isAdmin() {
 		t.Fatal("a page load through the service worker didn't check")
 	}
 
+	// A page load right after a check doesn't wait on the provider again.
+	before := calls()
+	if browser("text/html"); calls() != before {
+		t.Fatal("a page load repeated a recent check")
+	}
+
 	// Removed from the group: the next page load takes admin away.
 	setGroups("staff")
+	aged()
 	if _, body, _ := g.get("/"); strings.Contains(body, `href="/admin/"`) || isAdmin() {
 		t.Fatal("admin kept after leaving the group")
 	}
@@ -612,12 +629,7 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	}
 
 	// A script's call checks only once the last check is old.
-	calls := func() int {
-		idp.mu.Lock()
-		defer idp.mu.Unlock()
-		return idp.userinfos
-	}
-	before := calls()
+	before = calls()
 	g.post("/settings/appearance", url.Values{"theme": {"dark"}})
 	if calls() != before {
 		t.Fatal("a recent check was repeated")
@@ -639,6 +651,7 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	// Groups left out of userinfo come from a new ID token.
 	idp.noGroupInfo = true
 	setGroups("staff")
+	aged()
 	if g.get("/"); isAdmin() || idp.refreshes != 2 {
 		t.Fatalf("groups from the ID token: admin %v, %d renewals", isAdmin(), idp.refreshes)
 	}
@@ -649,10 +662,12 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	// The provider can't be reached: pages still work, and for a while don't
 	// wait on it again; admin pages still ask, and are shut.
 	idp.down = true
+	aged()
 	if code, _, _ := g.get("/"); code != http.StatusOK {
 		t.Fatalf("pages while the provider is down: %d", code)
 	}
 	before = calls()
+	aged()
 	if g.get("/"); calls() != before {
 		t.Fatal("a page load asked the provider right after it failed")
 	}
@@ -667,6 +682,7 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	clear(idp.access)
 	clear(idp.refresh)
 	idp.mu.Unlock()
+	aged()
 	if code, _, loc := g.get("/tags"); code != http.StatusSeeOther || loc != "/login?next=%2Ftags" {
 		t.Fatalf("session the provider ended: %d %q", code, loc)
 	}
