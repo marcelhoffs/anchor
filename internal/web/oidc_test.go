@@ -539,8 +539,9 @@ func TestSSOAdminGroupAndLocalAdmins(t *testing.T) {
 	}
 }
 
-// With an admin group, the provider confirms the group at a page load once
-// pageLoadGroupCheck has passed and every adminGroupCheck otherwise, renewing tokens as needed; a session
+// With an admin group, the provider confirms the group in the background at
+// a page load once pageLoadGroupCheck has passed and every adminGroupCheck
+// otherwise, its answer applying from the next request on, renewing tokens as needed; a session
 // it no longer accepts ends.
 func TestSSOAdminGroupRecheck(t *testing.T) {
 	e, idp := oidcEnv(t, func(o *config.OIDC) { o.AdminGroup = "anchor-admins" })
@@ -599,7 +600,10 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	if isAdmin() {
 		t.Fatal("a script's call checked")
 	}
-	if body := browser("text/html,application/xhtml+xml"); !isAdmin() || !strings.Contains(body, `href="/admin/"`) {
+	if body := browser("text/html,application/xhtml+xml"); !isAdmin() || strings.Contains(body, `href="/admin/"`) {
+		t.Fatal("a page load didn't check in the background")
+	}
+	if body := browser("text/html"); !strings.Contains(body, `href="/admin/"`) {
 		t.Fatal("rejoining the group didn't show the admin menu at the next page load")
 	}
 	setGroups("staff")
@@ -614,11 +618,15 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 		t.Fatal("a page load repeated a recent check")
 	}
 
-	// Removed from the group: the next page load takes admin away.
+	// Removed from the group: the next page load takes admin away, for the
+	// page after it.
 	setGroups("staff")
 	aged()
-	if _, body, _ := g.get("/"); strings.Contains(body, `href="/admin/"`) || isAdmin() {
+	if g.get("/"); isAdmin() {
 		t.Fatal("admin kept after leaving the group")
+	}
+	if _, body, _ := g.get("/"); strings.Contains(body, `href="/admin/"`) {
+		t.Fatal("admin menu kept after leaving the group")
 	}
 	if code, _, _ := g.get("/admin/users"); code != http.StatusNotFound {
 		t.Fatalf("admin pages after leaving the group: %d", code)
@@ -683,6 +691,9 @@ func TestSSOAdminGroupRecheck(t *testing.T) {
 	clear(idp.refresh)
 	idp.mu.Unlock()
 	aged()
+	if code, _, _ := g.get("/tags"); code != http.StatusOK {
+		t.Fatalf("a page waited on the provider ending the session: %d", code)
+	}
 	if code, _, loc := g.get("/tags"); code != http.StatusSeeOther || loc != "/login?next=%2Ftags" {
 		t.Fatalf("session the provider ended: %d %q", code, loc)
 	}

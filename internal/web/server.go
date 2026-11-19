@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"net/url"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -64,6 +65,8 @@ type Server struct {
 	cer      ceremonies
 	oidc     *oidcClient // nil when single sign-on is off
 	hasUsers atomic.Bool
+	// Work started by a request that outlives it (see recheckInBackground).
+	background sync.WaitGroup
 
 	sessionCookie, csrfCookie string // see the constants
 
