@@ -43,6 +43,9 @@ const (
 	// With an admin group, requests other than page loads ask the provider
 	// again once its last answer is this old; see recheckGroup.
 	adminGroupCheck = 5 * time.Minute
+	// Page loads ask again once it's this old: opening the site checks,
+	// clicking around in it doesn't wait on the provider at every page.
+	pageLoadGroupCheck = time.Minute
 	// How long a page waits for the provider to confirm the group, and how
 	// long after a failed check pages don't ask (the admin pages still do).
 	groupCheckTimeout = 5 * time.Second
@@ -487,24 +490,25 @@ func (s *Server) isAdmin(r *http.Request) bool {
 }
 
 // groupStale reports whether the session's admin rights rest on a group
-// check older than adminGroupCheck: its sign-in through the provider, or
-// the provider's last answer since.
-func (s *Server) groupStale(r *http.Request) bool {
+// check older than max: its sign-in through the provider, or the
+// provider's last answer since.
+func (s *Server) groupStale(r *http.Request, max time.Duration) bool {
 	ss := currentSession(r)
-	return s.groupAdmins() && time.Since(later(ss.CreatedAt, ss.GroupsCheckedAt)) > adminGroupCheck
+	return s.groupAdmins() && time.Since(later(ss.CreatedAt, ss.GroupsCheckedAt)) > max
 }
 
 // errSSOEnded: the provider no longer accepts the session's tokens.
 var errSSOEnded = errors.New("the provider ended the session")
 
 // recheckGroup asks the provider again whether a session signed in there is
-// in the admin group: at every page load, and for other requests once the
-// last check is over adminGroupCheck old. The admin pages ask on every
+// in the admin group: at a page load once the last check is over
+// pageLoadGroupCheck old, and for other requests once it's over
+// adminGroupCheck old. The admin pages ask on every
 // request themselves (see requireAdmin). When the provider has ended the
 // session, Anchor ends it too; when it can't be reached, the request goes on.
 func (s *Server) recheckGroup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) || s.groupStale(r)) ||
+		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) && s.groupStale(r, pageLoadGroupCheck) || s.groupStale(r, adminGroupCheck)) ||
 			time.Since(time.Unix(0, s.oidc.checkFailed.Load())) < groupCheckBackoff {
 			next.ServeHTTP(w, r)
 			return
