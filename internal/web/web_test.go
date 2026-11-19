@@ -94,8 +94,19 @@ func (e *env) client() *client {
 	jar, _ := cookiejar.New(nil)
 	return &client{e: e, http: &http.Client{
 		Jar:           jar,
+		Transport:     settled{e.server},
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}}
+}
+
+// settled waits, after each response, for the work the request started in
+// the background (see recheckInBackground), so tests see its outcome.
+type settled struct{ s *Server }
+
+func (t settled) RoundTrip(r *http.Request) (*http.Response, error) {
+	res, err := http.DefaultTransport.RoundTrip(r)
+	t.s.background.Wait()
+	return res, err
 }
 
 // get returns the status, body and Location header.

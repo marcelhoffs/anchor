@@ -87,6 +87,9 @@ type oidcClient struct {
 	checks [64]sync.Mutex
 	// When a group check last failed (UnixNano), for groupCheckBackoff.
 	checkFailed atomic.Int64
+	// Sessions with a group check running in the background (see
+	// recheckGroup), by token hash, so a burst of requests starts one.
+	rechecking sync.Map
 }
 
 func newOIDCClient(cfg *config.OIDC, baseURL string) *oidcClient {
@@ -503,27 +506,48 @@ var errSSOEnded = errors.New("the provider ended the session")
 // recheckGroup asks the provider again whether a session signed in there is
 // in the admin group: at a page load once the last check is over
 // pageLoadGroupCheck old, and for other requests once it's over
-// adminGroupCheck old. The admin pages ask on every
-// request themselves (see requireAdmin). When the provider has ended the
-// session, Anchor ends it too; when it can't be reached, the request goes on.
+// adminGroupCheck old. It asks in the background, so no page waits on the
+// provider; its answer applies from the next request on. The admin pages
+// ask on every request themselves, and wait for the answer (see
+// requireAdmin). When the provider has ended the session, Anchor ends it
+// too; when it can't be reached, it's left alone for groupCheckBackoff.
 func (s *Server) recheckGroup(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.groupAdmins() || !currentSession(r).SSO || adminPath(r) || !(pageLoad(r) && s.groupStale(r, pageLoadGroupCheck) || s.groupStale(r, adminGroupCheck)) ||
-			time.Since(time.Unix(0, s.oidc.checkFailed.Load())) < groupCheckBackoff {
-			next.ServeHTTP(w, r)
-			return
-		}
-		err := s.checkGroup(r)
-		switch {
-		case errors.Is(err, errSSOEnded):
-			s.endSSOSession(w, r)
-			return
-		case err != nil:
-			s.oidc.checkFailed.Store(time.Now().UnixNano())
-			s.log.Warn("oidc: checking the admin group", "user", currentUser(r).Username, "err", err)
+		if s.groupAdmins() && currentSession(r).SSO && !adminPath(r) &&
+			(pageLoad(r) && s.groupStale(r, pageLoadGroupCheck) || s.groupStale(r, adminGroupCheck)) &&
+			time.Since(time.Unix(0, s.oidc.checkFailed.Load())) >= groupCheckBackoff {
+			s.recheckInBackground(r)
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// recheckInBackground runs checkGroup for r's session without holding up
+// r. It works on copies of the session and user, as r goes on with them.
+func (s *Server) recheckInBackground(r *http.Request) {
+	ss, u := *currentSession(r), *currentUser(r)
+	key := string(ss.TokenHash)
+	if _, busy := s.oidc.rechecking.LoadOrStore(key, struct{}{}); busy {
+		return
+	}
+	ctx := context.WithoutCancel(r.Context())
+	ctx = context.WithValue(context.WithValue(ctx, userKey, &u), sessionKey, &ss)
+	br := r.WithContext(ctx)
+	s.background.Add(1)
+	go func() {
+		defer s.background.Done()
+		defer s.oidc.rechecking.Delete(key)
+		switch err := s.checkGroup(br); {
+		case errors.Is(err, errSSOEnded):
+			s.log.Info("signed out: the provider ended the session", "user", u.Username)
+			if err := s.store.DeleteSession(ctx, ss.UserID, ss.TokenHash); err != nil {
+				s.log.Error("ending a session the provider ended", "user", u.Username, "err", err)
+			}
+		case err != nil:
+			s.oidc.checkFailed.Store(time.Now().UnixNano())
+			s.log.Warn("oidc: checking the admin group", "user", u.Username, "err", err)
+		}
+	}()
 }
 
 // endSSOSession signs out a session the provider no longer accepts.
