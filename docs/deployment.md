@@ -46,10 +46,11 @@ From a copy of this repository, which has the `Dockerfile`:
 cp .env.example .env
 sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
 # Set ANCHOR_BASE_URL in .env to the address people will use.
-docker compose up -d --build
+docker build --build-arg VERSION=$(git describe --tags) -t ghcr.io/marcelhoffs/anchor:latest .
+docker compose up -d
 ```
 
-The footer then shows the version as `dev`. To have it name what you built, build with `docker build --build-arg VERSION=$(git describe --tags) -t ghcr.io/marcelhoffs/anchor:latest .` before `docker compose up -d`.
+The compose file only names the image; building it under that name makes `docker compose up` use yours. Don't run `docker compose pull` then, or it replaces yours with the published one. Without `--build-arg VERSION=…`, the footer shows the version as `dev`.
 
 ### What you get
 
@@ -217,7 +218,8 @@ Building the image yourself:
 
 ```sh
 git pull
-docker compose up -d --build
+docker build --build-arg VERSION=$(git describe --tags) -t ghcr.io/marcelhoffs/anchor:latest .
+docker compose up -d
 ```
 
 ## Running without Docker

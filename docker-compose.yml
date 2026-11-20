@@ -1,7 +1,6 @@
 services:
   anchor:
     image: ghcr.io/marcelhoffs/anchor:latest
-    build: .
     restart: unless-stopped
     ports: ["8080:8080"]
     # All state (the database) lives in the named volume below. Docker
