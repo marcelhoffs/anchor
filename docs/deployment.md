@@ -19,12 +19,12 @@ You need Docker with the Compose plugin. Every release publishes a ready-made im
 
 ### With the ready-made image
 
-The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.7.8`), its minor series (`0.7`, which follows that series' fixes) and `latest`.
+The image is `ghcr.io/marcelhoffs/anchor`, for amd64 and arm64. Each release is tagged with its version (`0.7.9`), its minor series (`0.7`, which follows that series' fixes) and `latest`.
 
 ```sh
 mkdir anchor && cd anchor
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.7.8/docker-compose.yml
-curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.7.8/.env.example
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.7.9/docker-compose.yml
+curl -fsSLO https://raw.githubusercontent.com/marcelhoffs/anchor/v0.7.9/.env.example
 cp .env.example .env
 sed -i "s|^ANCHOR_SECRET_KEY=.*|ANCHOR_SECRET_KEY=$(openssl rand -base64 32)|" .env
 # Set ANCHOR_BASE_URL in .env to the address people will use.
